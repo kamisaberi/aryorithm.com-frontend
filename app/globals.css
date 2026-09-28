@@ -1,0 +1,261 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Aryorithm Technologies — Corporate Design System
+   Obsidian Void surfaces, hairline structure, monospace telemetry.
+   ============================================================ */
+
+:root {
+  --void: #07090e;
+  --panel: #0d111a;
+  --hairline: #1a2232;
+  --accent: #00e5ff;
+  --kernel: #00ffa3;
+  --threat: #ff3366;
+  --telemetry: #ffb800;
+  --ink: #f0f4f8;
+  --muted: #8a99ad;
+}
+
+html,
+body {
+  background-color: var(--void);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* --- Accessibility ---------------------------------------- */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--accent);
+  color: var(--void);
+  padding: 0.6rem 1rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Scrollbar -------------------------------------------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #05070b;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a2232;
+  border: 2px solid #05070b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #253046;
+}
+
+/* --- Structural textures ---------------------------------- */
+.grid-backdrop {
+  background-image:
+    linear-gradient(to right, rgba(26, 34, 50, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 34, 50, 0.55) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.radial-fade {
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 0%,
+    rgba(0, 229, 255, 0.1),
+    transparent 70%
+  );
+}
+
+.hairline-top {
+  box-shadow: inset 0 1px 0 0 var(--hairline);
+}
+
+/* --- Interactive accents ---------------------------------- */
+.glow-cyan {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.35),
+    0 0 24px -6px rgba(0, 229, 255, 0.55);
+}
+.glow-cyan-strong {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.6),
+    0 0 34px -4px rgba(0, 229, 255, 0.75);
+}
+.text-glow {
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.45);
+}
+.kernel-glow {
+  box-shadow:
+    0 0 0 1px rgba(0, 255, 163, 0.4),
+    0 0 26px -8px rgba(0, 255, 163, 0.6);
+}
+.threat-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 51, 102, 0.4),
+    0 0 26px -8px rgba(255, 51, 102, 0.6);
+}
+
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 1px;
+  width: 0;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* --- Status pulses ---------------------------------------- */
+@keyframes pip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+.pip-pulse {
+  animation: pip-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ring-expand {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.ring-expand {
+  animation: ring-expand 2.4s ease-out infinite;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+.sweep-line {
+  animation: sweep 3.2s linear infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: caret-blink 1s step-end infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 420ms ease-out both;
+}
+
+/* --- Terminal --------------------------------------------- */
+.terminal-body {
+  background:
+    linear-gradient(rgba(0, 229, 255, 0.022) 50%, transparent 50%),
+    #07090e;
+  background-size:
+    100% 4px,
+    auto;
+}
+.terminal-scroll {
+  scrollbar-width: thin;
+}
+
+/* --- Tabular telemetry numerals --------------------------- */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- Comparison matrix ------------------------------------ */
+.matrix-row:hover {
+  background: rgba(0, 229, 255, 0.035);
+}
+
+/* --- Enclave portal pulse border -------------------------- */
+@keyframes enclave-pulse {
+  0%,
+  100% {
+    background: linear-gradient(
+      135deg,
+      rgba(0, 229, 255, 0.55),
+      rgba(26, 34, 50, 0.9) 45%,
+      rgba(0, 229, 255, 0.35)
+    );
+    box-shadow: 0 0 28px -14px rgba(0, 229, 255, 0.75);
+  }
+  50% {
+    background: linear-gradient(
+      135deg,
+      rgba(0, 229, 255, 0.22),
+      rgba(26, 34, 50, 0.95) 55%,
+      rgba(0, 229, 255, 0.7)
+    );
+    box-shadow: 0 0 40px -12px rgba(0, 229, 255, 0.95);
+  }
+}
+.enclave-pulse {
+  animation: enclave-pulse 3.4s ease-in-out infinite;
+}
+
+/* --- Reduced motion -------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
