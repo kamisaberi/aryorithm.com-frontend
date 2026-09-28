@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import PageLoader from "@/components/layout/PageLoader";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`scroll-smooth ${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-void font-sans text-ink antialiased selection:bg-cyan/25">
+        <PageLoader />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
