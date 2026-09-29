@@ -26,5 +26,8 @@ app/.DS_Store
 
 !app/app
 
+
 backend/.venv
 backend/.DS_Store
+
+
