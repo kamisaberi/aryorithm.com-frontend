@@ -2,26 +2,260 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Aryorithm Technologies — Admin Design System
+   Obsidian Void surfaces, hairline structure, monospace telemetry.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --void: #07090e;
+  --panel: #0d111a;
+  --hairline: #1a2232;
+  --accent: #00e5ff;
+  --kernel: #00ffa3;
+  --threat: #ff3366;
+  --telemetry: #ffb800;
+  --ink: #f0f4f8;
+  --muted: #8a99ad;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  background-color: var(--void);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* --- Accessibility ---------------------------------------- */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--accent);
+  color: var(--void);
+  padding: 0.6rem 1rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Scrollbar -------------------------------------------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #05070b;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a2232;
+  border: 2px solid #05070b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #253046;
+}
+
+/* --- Structural textures ---------------------------------- */
+.grid-backdrop {
+  background-image:
+    linear-gradient(to right, rgba(26, 34, 50, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 34, 50, 0.55) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.radial-fade {
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 0%,
+    rgba(0, 229, 255, 0.1),
+    transparent 70%
+  );
+}
+
+.hairline-top {
+  box-shadow: inset 0 1px 0 0 var(--hairline);
+}
+
+/* --- Interactive accents ---------------------------------- */
+.glow-cyan {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.35),
+    0 0 24px -6px rgba(0, 229, 255, 0.55);
+}
+.glow-cyan-strong {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.6),
+    0 0 34px -4px rgba(0, 229, 255, 0.75);
+}
+.text-glow {
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.45);
+}
+.kernel-glow {
+  box-shadow:
+    0 0 0 1px rgba(0, 255, 163, 0.4),
+    0 0 26px -8px rgba(0, 255, 163, 0.6);
+}
+.threat-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 51, 102, 0.4),
+    0 0 26px -8px rgba(255, 51, 102, 0.6);
+}
+
+/* --- Status pulses ---------------------------------------- */
+@keyframes pip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+.pip-pulse {
+  animation: pip-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ring-expand {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.ring-expand {
+  animation: ring-expand 2.4s ease-out infinite;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+.sweep-line {
+  animation: sweep 3.2s linear infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: caret-blink 1s step-end infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 420ms ease-out both;
+}
+
+/* --- Terminal --------------------------------------------- */
+.terminal-body {
+  background:
+    linear-gradient(rgba(0, 229, 255, 0.022) 50%, transparent 50%),
+    #07090e;
+  background-size:
+    100% 4px,
+    auto;
+}
+.terminal-scroll {
+  scrollbar-width: thin;
+}
+
+/* --- Tabular telemetry numerals --------------------------- */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --- Admin-specific utilities ----------------------------- */
+.admin-sidebar-link {
+  @apply flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium text-muted transition-all duration-150;
+}
+.admin-sidebar-link:hover {
+  @apply bg-cyan/[0.06] text-ink;
+}
+.admin-sidebar-link.active {
+  @apply bg-cyan/10 text-cyan;
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.2);
+}
+
+.admin-card {
+  @apply rounded-md border border-hairline bg-panel;
+}
+
+.admin-input {
+  @apply w-full rounded-md border border-hairline bg-void px-3 py-2 text-[13px] text-ink placeholder:text-muted/50 transition-colors focus:border-cyan/50 focus:outline-none;
+}
+
+.admin-btn-primary {
+  @apply inline-flex items-center gap-2 rounded-md bg-cyan px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-void transition-all duration-200 hover:brightness-110;
+}
+
+.admin-btn-secondary {
+  @apply inline-flex items-center gap-2 rounded-md border border-hairline px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan;
+}
+
+.admin-btn-ghost {
+  @apply inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[12px] font-medium text-muted transition-all duration-150 hover:bg-cyan/[0.06] hover:text-ink;
+}
+
+.admin-badge {
+  @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em];
+}
+
+.admin-table-header {
+  @apply border-b border-hairline px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-muted;
+}
+
+.admin-table-cell {
+  @apply border-b border-hairline/60 px-4 py-3 text-[13px] text-ink;
+}
+
+/* --- Reduced motion -------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
