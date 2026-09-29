@@ -32,3 +32,4 @@ backend/.DS_Store
 
 !app/.env
 !main/.env
+!backend/.env
