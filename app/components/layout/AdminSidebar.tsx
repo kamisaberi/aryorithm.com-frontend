@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ADMIN_NAV } from "@/data/admin";
+import { useAuth } from "@/lib/auth";
 
 export default function AdminSidebar() {
   const pathname = usePathname() ?? "/";
+  const { user, logout } = useAuth();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-hairline bg-panel">
@@ -46,7 +48,7 @@ export default function AdminSidebar() {
                         </span>
                         {item.label}
                         {item.badge && (
-                          <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan">
+                          <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan>
                             {item.badge}
                           </span>
                         )}
@@ -64,22 +66,23 @@ export default function AdminSidebar() {
       <div className="shrink-0 border-t border-hairline px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-cyan/10 font-mono text-[11px] font-bold text-cyan">
-            AD
+            {user?.name?.charAt(0) || "A"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12.5px] font-medium text-ink">Admin User</p>
-            <p className="truncate font-mono text-[10px] text-muted">admin@aryorithm.com</p>
+            <p className="truncate text-[12.5px] font-medium text-ink">{user?.name || "Admin User"}</p>
+            <p className="truncate font-mono text-[10px] text-muted">{user?.email || "admin@aryorithm.com"}</p>
           </div>
-          <Link
-            href="/"
-            className="text-muted transition-colors hover:text-cyan"
-            aria-label="Back to site"
-            title="Back to main site"
+          <button
+            type="button"
+            onClick={logout}
+            className="text-muted transition-colors hover:text-threat"
+            aria-label="Sign out"
+            title="Sign out"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M6 3L10 8L6 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

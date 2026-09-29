@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 const display = Space_Grotesk({
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`scroll-smooth ${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-void font-sans text-ink antialiased selection:bg-cyan/25">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

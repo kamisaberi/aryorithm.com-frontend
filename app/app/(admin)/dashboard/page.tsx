@@ -1,10 +1,37 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { STATS, ACTIVITIES, SUBSCRIPTIONS } from "@/data/admin";
 
 export default function DashboardPage() {
+  const { token } = useAuth();
+  const [metrics, setMetrics] = useState<typeof STATS | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    api.get("/overview/metrics", token)
+      .then((data) => {
+        setMetrics([
+          { label: "Online Nodes", value: String(data.online_nodes), change: "+8.2%", trend: "up" as const, icon: "▣" },
+          { label: "Total Drops", value: data.total_drops.toLocaleString(), change: "+23.1%", trend: "up" as const, icon: "◉" },
+          { label: "Mean SLA", value: `${data.mean_sla_us} µs`, change: "-0.4%", trend: "down" as const, icon: "⚿" },
+          { label: "Stable Model", value: data.stable_model, change: "v2.4", trend: "neutral" as const, icon: "⬡" },
+        ]);
+      })
+      .catch(() => {
+        // Fallback to mock data if API fails
+        setMetrics(STATS);
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -26,11 +53,19 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STATS.map((stat) => (
-          <StatCard key={stat.label} stat={stat} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="admin-card h-28 animate-pulse bg-panel/50" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {(metrics || STATS).map((stat) => (
+            <StatCard key={stat.label} stat={stat} />
+          ))}
+        </div>
+      )}
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

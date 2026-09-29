@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth";
 
 export default function AdminHeader() {
+  const { user, logout } = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
@@ -55,11 +57,29 @@ export default function AdminHeader() {
           Production
         </span>
 
+        {/* User menu */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-cyan/10 font-mono text-[11px] font-bold text-cyan">
+            {user?.name?.charAt(0) || "A"}
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-[12.5px] font-medium text-ink">{user?.name || "Admin"}</p>
+            <p className="font-mono text-[10px] text-muted">{user?.role || "admin"}</p>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="admin-btn-ghost text-muted hover:text-threat"
+            aria-label="Sign out"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M5 2H3a1 1 0 00-1 1v8a1 1 0 001 1h2M8 5l3 3-3 3M11 8H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
         {/* Main site link */}
-        <Link
-          href="/"
-          className="admin-btn-secondary"
-        >
+        <Link href="/" className="admin-btn-secondary">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
             <path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
