@@ -2,10 +2,58 @@ import { AdminNavGroup, StatCard, User, Subscription, ApiKey, Invoice, Activity 
 
 export const ADMIN_NAV: AdminNavGroup[] = [
   {
-    label: "Overview",
+    label: "Mission Control",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: "◈" },
-      { label: "Activity", href: "/activity", icon: "◷" },
+      { label: "Overview", href: "/dashboard", icon: "◈" },
+      { label: "Threat Map", href: "/threat-map", icon: "◉" },
+      { label: "Live XAI Feed", href: "/xai-feed", icon: "◷" },
+    ],
+  },
+  {
+    label: "Edge Appliances",
+    items: [
+      { label: "Fleet Nodes", href: "/fleet-nodes", icon: "▣" },
+      { label: "Enclaves / OT", href: "/enclaves", icon: "◆" },
+      { label: "Provision (ZTP)", href: "/provisioning", icon: "⚡" },
+    ],
+  },
+  {
+    label: "Collective Grid",
+    items: [
+      { label: "Threat Bus", href: "/threat-bus", icon: "⇄" },
+      { label: "MITRE ATT&CK", href: "/mitre", icon: "▦" },
+      { label: "SCADA Monitor", href: "/scada", icon: "◫" },
+      { label: "Identity & Bot", href: "/identity", icon: "◉" },
+    ],
+  },
+  {
+    label: "AI & Silicon",
+    items: [
+      { label: "Model Hub (OTA)", href: "/model-hub", icon: "⬡" },
+      { label: "Cloud Forge", href: "/cloud-forge", icon: "▲" },
+      { label: "15x Compiler", href: "/compiler", icon: "⟨⟩" },
+    ],
+  },
+  {
+    label: "Compliance GRC",
+    items: [
+      { label: "NIS2 / DORA", href: "/compliance/nis2-dora", icon: "✓" },
+      { label: "IEC 62443 / CMMC", href: "/compliance/iec-62443", icon: "⛨" },
+      { label: "Insurance Proof", href: "/compliance/insurance", icon: "▤" },
+    ],
+  },
+  {
+    label: "Forensics (DFIR)",
+    items: [
+      { label: "Evidence PCAP", href: "/forensics/evidence", icon: "◎" },
+      { label: "CDR Sanitizer", href: "/forensics/cdr", icon: "⌫" },
+    ],
+  },
+  {
+    label: "Cyber Range",
+    items: [
+      { label: "Digital Twins", href: "/cyber-range/twins", icon: "⧉" },
+      { label: "Attack Replay", href: "/cyber-range/replay", icon: "↻" },
     ],
   },
   {
@@ -15,6 +63,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: "Subscriptions", href: "/subscriptions", icon: "◆", badge: "42" },
       { label: "Billing", href: "/billing", icon: "▣" },
       { label: "API Keys", href: "/api-keys", icon: "⚿", badge: "18" },
+      { label: "Activity", href: "/activity", icon: "◷" },
     ],
   },
   {
