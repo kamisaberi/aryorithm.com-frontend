@@ -17,12 +17,14 @@ main/.DS_Store
 
 
 
-./app/node_modules/*
-./app/.next/*
-./app/out/*
-./app/dist/*
-./app/*.log
-./app/.DS_Store
+app/node_modules/*
+app/.next/*
+app/out/*
+app/dist/*
+app/*.log
+app/.DS_Store
+
+!app/app
 
 backend/.venv
 backend/.DS_Store
