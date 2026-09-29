@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -43,24 +44,51 @@ export default function SlabProtocolPage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is SLAB?</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            SLAB (Synchronous Lightweight Air-gapped Binary) is a wire protocol specification designed for air-gapped
-            environments where traditional serialization frameworks introduce unacceptable overhead. It is a fixed-size,
-            zero-allocation binary format that achieves 2.3M frames/second on a single core.
-          </p>
-          <p>
-            The protocol was designed for the Aryorithm appliance fleet, where inter-appliance communication must be
-            deterministic, verifiable, and free of heap allocations. It has been open-sourced as a single 40-page
-            specification document with reference implementations in C and Rust.
-          </p>
-          <p>
-            SLAB is not a replacement for Protobuf or FlatBuffers in all contexts. It is a specialized tool for
-            environments where the constraints of air-gapped operation — no heap, no variable-length encoding, no
-            external dependencies — make traditional frameworks unsuitable.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is SLAB?</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                SLAB (Synchronous Lightweight Air-gapped Binary) is a wire protocol specification designed for air-gapped
+                environments where traditional serialization frameworks introduce unacceptable overhead. It is a fixed-size,
+                zero-allocation binary format that achieves 2.3M frames/second on a single core.
+              </p>
+              <p>
+                The protocol was designed for the Aryorithm appliance fleet, where inter-appliance communication must be
+                deterministic, verifiable, and free of heap allocations. It has been open-sourced as a single 40-page
+                specification document with reference implementations in C and Rust.
+              </p>
+              <p>
+                SLAB is not a replacement for Protobuf or FlatBuffers in all contexts. It is a specialized tool for
+                environments where the constraints of air-gapped operation — no heap, no variable-length encoding, no
+                external dependencies — make traditional frameworks unsuitable.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Design Properties", href: "#design" },
+                  { label: "Performance", href: "#performance" },
+                  { label: "Specification", href: "#specification" },
+                  { label: "Use Cases", href: "#use-cases" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
+                  { label: "Sentinel Nexus", href: "/projects/sentinel-nexus", meta: "v3.1.0" },
+                  { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Specification", href: "/research/sentinel-lab#slab-protocol" }}
+          />
         </div>
       </section>
 

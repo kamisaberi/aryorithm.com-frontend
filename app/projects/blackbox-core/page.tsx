@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -43,24 +44,51 @@ export default function BlackboxCorePage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Blackbox Core?</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Blackbox Core is the kernel-level engine that powers Blackbox Sentinel's fast-path mitigation. It operates
-            at the XDP (eXpress Data Path) layer — the earliest possible point in the Linux kernel networking stack —
-            where frames are inspected and dropped before they reach the TCP/IP stack.
-          </p>
-          <p>
-            The engine is implemented as a set of eBPF (extended Berkeley Packet Filter) programs that are loaded into
-            the kernel and attached to network interfaces. These programs run in a sandboxed virtual machine within
-            the kernel, with the BPF verifier ensuring memory safety and termination guarantees.
-          </p>
-          <p>
-            The AF_XDP zero-copy driver provides a high-performance path for frames that need deeper inspection.
-            Captured frames are mapped directly into userspace via UMEM (user memory) rings, eliminating the
-            traditional kernel-to-userspace copy overhead.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Blackbox Core?</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Blackbox Core is the kernel-level engine that powers Blackbox Sentinel's fast-path mitigation. It operates
+                at the XDP (eXpress Data Path) layer — the earliest possible point in the Linux kernel networking stack —
+                where frames are inspected and dropped before they reach the TCP/IP stack.
+              </p>
+              <p>
+                The engine is implemented as a set of eBPF (extended Berkeley Packet Filter) programs that are loaded into
+                the kernel and attached to network interfaces. These programs run in a sandboxed virtual machine within
+                the kernel, with the BPF verifier ensuring memory safety and termination guarantees.
+              </p>
+              <p>
+                The AF_XDP zero-copy driver provides a high-performance path for frames that need deeper inspection.
+                Captured frames are mapped directly into userspace via UMEM (user memory) rings, eliminating the
+                traditional kernel-to-userspace copy overhead.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Fast-Path Architecture", href: "#fast-path" },
+                  { label: "Verifier Compatibility", href: "#verifier" },
+                  { label: "AF_XDP Zero-Copy", href: "#af-xdp" },
+                  { label: "Performance Metrics", href: "#metrics" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
+                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Technology", href: "/technology/blackbox" }}
+          />
         </div>
       </section>
 

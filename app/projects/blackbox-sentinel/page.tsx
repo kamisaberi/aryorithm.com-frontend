@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -62,25 +63,54 @@ export default function BlackboxSentinelPage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Blackbox Sentinel?</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Blackbox Sentinel is a purpose-built edge appliance that provides deterministic, sub-millisecond active
-            defense for critical infrastructure. It operates entirely within the air-gapped enclave — no cloud
-            connectivity, no external dependencies, no data egress.
-          </p>
-          <p>
-            The appliance integrates kernel-level packet inspection (eBPF/XDP), industrial protocol dissection,
-            physical constraint validation, and local AI inference into a single, cohesive defense system. Every
-            component is designed to fail closed: if any subsystem is compromised or unavailable, the appliance
-            continues to enforce its security posture.
-          </p>
-          <p>
-            Unlike traditional SIEMs that generate alerts for human analysts, Blackbox Sentinel takes autonomous
-            action. When it detects a threat, it mitigates at the kernel level in under one microsecond — before the
-            packet reaches the TCP/IP stack, before the application layer, before any actuator can respond.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Blackbox Sentinel?</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Blackbox Sentinel is a purpose-built edge appliance that provides deterministic, sub-millisecond active
+                defense for critical infrastructure. It operates entirely within the air-gapped enclave — no cloud
+                connectivity, no external dependencies, no data egress.
+              </p>
+              <p>
+                The appliance integrates kernel-level packet inspection (eBPF/XDP), industrial protocol dissection,
+                physical constraint validation, and local AI inference into a single, cohesive defense system. Every
+                component is designed to fail closed: if any subsystem is compromised or unavailable, the appliance
+                continues to enforce its security posture.
+              </p>
+              <p>
+                Unlike traditional SIEMs that generate alerts for human analysts, Blackbox Sentinel takes autonomous
+                action. When it detects a threat, it mitigates at the kernel level in under one microsecond — before the
+                packet reaches the TCP/IP stack, before the application layer, before any actuator can respond.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Subsystem Matrix", href: "#subsystems" },
+                  { label: "Form Factors", href: "#form-factors" },
+                  { label: "Fast-Path Mitigation", href: "#fast-path" },
+                  { label: "Protocol Coverage", href: "#protocols" },
+                  { label: "Deployment", href: "#deployment" },
+                  { label: "Compliance", href: "#compliance" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "Sentinel Nexus", href: "/projects/sentinel-nexus", meta: "v3.1.0" },
+                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
+                ],
+              },
+            ]}
+            cta={{ label: "Request Defense POC", href: "/contact" }}
+          />
         </div>
       </section>
 

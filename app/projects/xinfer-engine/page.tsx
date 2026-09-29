@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -61,24 +62,51 @@ export default function XInferEnginePage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">One Model Graph. Fifteen Backends.</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Deploying machine learning inference across heterogeneous accelerators typically requires per-backend model
-            copies, staging buffers, and format conversions. xInfer Engine eliminates all of that. A single model
-            graph is compiled once and executed natively on fifteen different silicon targets.
-          </p>
-          <p>
-            The key innovation is the zero-copy DMA-mapped memory architecture. Each backend addresses the appliance's
-            own DMA-mapped memory directly — no staging copies, no intermediate buffers, no format conversions. This
-            is what enables sub-millisecond inference latency across all backends.
-          </p>
-          <p>
-            The compiler pipeline uses MLIR-based lowering to take a single model graph and emit optimized code for
-            each target. Operator fusion, tensor arena layout, and instruction scheduling are all handled
-            automatically, with hand-tuning available for performance-critical paths.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">One Model Graph. Fifteen Backends.</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Deploying machine learning inference across heterogeneous accelerators typically requires per-backend model
+                copies, staging buffers, and format conversions. xInfer Engine eliminates all of that. A single model
+                graph is compiled once and executed natively on fifteen different silicon targets.
+              </p>
+              <p>
+                The key innovation is the zero-copy DMA-mapped memory architecture. Each backend addresses the appliance's
+                own DMA-mapped memory directly — no staging copies, no intermediate buffers, no format conversions. This
+                is what enables sub-millisecond inference latency across all backends.
+              </p>
+              <p>
+                The compiler pipeline uses MLIR-based lowering to take a single model graph and emit optimized code for
+                each target. Operator fusion, tensor arena layout, and instruction scheduling are all handled
+                automatically, with hand-tuning available for performance-critical paths.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Silicon Matrix", href: "#backends" },
+                  { label: "Quantization", href: "#quantization" },
+                  { label: "Compiler Pipeline", href: "#compiler" },
+                  { label: "Performance", href: "#performance" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
+                  { label: "xInfer Forge", href: "/projects/xinfer-forge", meta: "v1.0.0" },
+                  { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Technology", href: "/technology/xinfer" }}
+          />
         </div>
       </section>
 

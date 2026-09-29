@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { NEWS_ITEMS, getNewsBySlug } from "@/data/news";
 
 interface Props {
@@ -22,6 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: item.excerpt,
   };
 }
+
+const CATEGORIES = [...new Set(NEWS_ITEMS.map((n) => n.category))];
 
 export default async function NewsPostPage({ params }: Props) {
   const { slug } = await params;
@@ -69,12 +72,37 @@ export default async function NewsPostPage({ params }: Props) {
       </section>
 
       <section id="post-body" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <div className="max-w-3xl">
-          {item.body.split("\n\n").map((paragraph, i) => (
-            <p key={i} className="mb-5 text-[14.5px] leading-[1.85] text-muted">
-              {paragraph}
-            </p>
-          ))}
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <div className="max-w-3xl">
+              {item.body.split("\n\n").map((paragraph, i) => (
+                <p key={i} className="mb-5 text-[14.5px] leading-[1.85] text-muted">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "Categories",
+                items: CATEGORIES.map((cat) => ({
+                  label: cat,
+                  href: `/news?category=${cat.toLowerCase().replace(/\s+/g, "-")}`,
+                  meta: String(NEWS_ITEMS.filter((n) => n.category === cat).length),
+                })),
+              },
+              {
+                heading: "Related Posts",
+                items: related.map((r) => ({
+                  label: r.title,
+                  href: `/news/${r.slug}`,
+                  meta: r.date,
+                })),
+              },
+            ]}
+            cta={{ label: "All News", href: "/news" }}
+          />
         </div>
       </section>
 

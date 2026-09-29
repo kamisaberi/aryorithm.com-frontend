@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -52,24 +53,51 @@ export default function SentinelNexusPage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Sentinel Nexus?</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Sentinel Nexus is the command plane that turns individual Blackbox Sentinel appliances into a collective
-            defense fleet. It provides centralized visibility, policy management, and threat correlation without
-            requiring any cloud connectivity.
-          </p>
-          <p>
-            Traditional fleet management systems rely on cloud-based control planes — a model that is fundamentally
-            incompatible with air-gapped critical infrastructure. Sentinel Nexus operates entirely within the
-            enclave, communicating with appliances over the local network using the SLAB wire protocol.
-          </p>
-          <p>
-            The system implements a three-tier identity hierarchy rooted in TPM 2.0 silicon. Each appliance proves its
-            identity before the orchestration plane accepts a single verdict from it. This prevents compromised or
-            spoofed appliances from injecting false threat intelligence into the fleet.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Sentinel Nexus?</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Sentinel Nexus is the command plane that turns individual Blackbox Sentinel appliances into a collective
+                defense fleet. It provides centralized visibility, policy management, and threat correlation without
+                requiring any cloud connectivity.
+              </p>
+              <p>
+                Traditional fleet management systems rely on cloud-based control planes — a model that is fundamentally
+                incompatible with air-gapped critical infrastructure. Sentinel Nexus operates entirely within the
+                enclave, communicating with appliances over the local network using the SLAB wire protocol.
+              </p>
+              <p>
+                The system implements a three-tier identity hierarchy rooted in TPM 2.0 silicon. Each appliance proves its
+                identity before the orchestration plane accepts a single verdict from it. This prevents compromised or
+                spoofed appliances from injecting false threat intelligence into the fleet.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Capabilities", href: "#capabilities" },
+                  { label: "OTA Canary Pipeline", href: "#ota" },
+                  { label: "Attestation", href: "#attestation" },
+                  { label: "Command Center", href: "#command-center" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
+                  { label: "SLAB Protocol", href: "/projects/slab-protocol", meta: "v1.0.0" },
+                  { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Platform", href: "/platform/nexus" }}
+          />
         </div>
       </section>
 

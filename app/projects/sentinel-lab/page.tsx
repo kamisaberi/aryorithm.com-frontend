@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -43,23 +44,50 @@ export default function SentinelLabPage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Sentinel-Lab?</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Sentinel-Lab is the open research platform that provides the academic foundation for the Aryorithm
-            ecosystem. It is a Tier 5 testbed for reproducible evaluation of cyber-physical defense systems, free for
-            anyone to use.
-          </p>
-          <p>
-            The platform includes a full evaluation harness, public dataset replay (CIC-IDS-2017), deterministic seed
-            and fixed toolchain, and published p99 latency — not mean latency. Both Intel OpenVINO and NVIDIA TensorRT
-            are evaluated under the same harness.
-          </p>
-          <p>
-            Sentinel-Lab is where we publish our negative results, our benchmark methodology, and our conformance test
-            vectors. It is where the community can verify our claims, reproduce our results, and build on our work.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">What Is Sentinel-Lab?</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Sentinel-Lab is the open research platform that provides the academic foundation for the Aryorithm
+                ecosystem. It is a Tier 5 testbed for reproducible evaluation of cyber-physical defense systems, free for
+                anyone to use.
+              </p>
+              <p>
+                The platform includes a full evaluation harness, public dataset replay (CIC-IDS-2017), deterministic seed
+                and fixed toolchain, and published p99 latency — not mean latency. Both Intel OpenVINO and NVIDIA TensorRT
+                are evaluated under the same harness.
+              </p>
+              <p>
+                Sentinel-Lab is where we publish our negative results, our benchmark methodology, and our conformance test
+                vectors. It is where the community can verify our claims, reproduce our results, and build on our work.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Overview", href: "#overview" },
+                  { label: "Reproducibility Contract", href: "#reproducibility" },
+                  { label: "Academic Preprint", href: "#preprint" },
+                  { label: "SLAB Protocol", href: "#slab" },
+                  { label: "Evaluation Harness", href: "#harness" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "SLAB Protocol", href: "/projects/slab-protocol", meta: "v1.0.0" },
+                  { label: "Sentinel Nexus", href: "/projects/sentinel-nexus", meta: "v3.1.0" },
+                  { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Platform", href: "/research/sentinel-lab" }}
+          />
         </div>
       </section>
 

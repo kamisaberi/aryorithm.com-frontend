@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import ClosingCTA from "@/components/sections/ClosingCTA";
+import PageSidebar from "@/components/layout/PageSidebar";
 import { StatStrip } from "@/components/ui/StatusBadge";
 
 export const metadata: Metadata = {
@@ -45,33 +46,64 @@ export default function XInferForgePage() {
       </section>
 
       <section id="overview" className="mx-auto max-w-[1400px] px-5 py-12 lg:px-8">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Executive Overview"}</p>
-        <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">The Domain Shift Problem.</h2>
-        <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
-          <p>
-            Static deep learning models deployed in production environments suffer from domain shift: benign baseline
-            network traffic, industrial PLC commands, and physical surroundings vary across every physical facility.
-            Models trained in isolated lab environments inevitably generate false alarms or miss novel site-specific
-            threat variants unless adapted locally.
-          </p>
-          <p>However, standard fine-tuning approaches introduce severe operational risks:</p>
-          <p>
-            <span className="text-ink">1. The Air-Gap Constraint:</span> Regulated facilities (such as nuclear stations,
-            naval vessels, and high-security data centers) are prohibited from uploading operational data to cloud GPU
-            clusters for re-training.
-          </p>
-          <p>
-            <span className="text-ink">2. The Labeling Bottleneck:</span> Real-time edge appliances process millions of
-            unlabelled events per second. Manual human labeling is impossible.
-          </p>
-          <p>
-            <span className="text-ink">3. Adversarial Model Poisoning:</span> A slow, distributed attack can intentionally
-            pollute unsupervised training data, causing models to gradually accept malicious vectors as benign.
-          </p>
-          <p>
-            xInfer Forge resolves these structural challenges by implementing a decoupled, self-supervised adaptation
-            pipeline protected by a non-negotiable <span className="text-ink">Golden Attack Regression Gate</span>.
-          </p>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Executive Overview"}</p>
+            <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">The Domain Shift Problem.</h2>
+            <div className="mt-6 max-w-3xl space-y-4 text-[14.5px] leading-[1.85] text-muted">
+              <p>
+                Static deep learning models deployed in production environments suffer from domain shift: benign baseline
+                network traffic, industrial PLC commands, and physical surroundings vary across every physical facility.
+                Models trained in isolated lab environments inevitably generate false alarms or miss novel site-specific
+                threat variants unless adapted locally.
+              </p>
+              <p>However, standard fine-tuning approaches introduce severe operational risks:</p>
+              <p>
+                <span className="text-ink">1. The Air-Gap Constraint:</span> Regulated facilities (such as nuclear stations,
+                naval vessels, and high-security data centers) are prohibited from uploading operational data to cloud GPU
+                clusters for re-training.
+              </p>
+              <p>
+                <span className="text-ink">2. The Labeling Bottleneck:</span> Real-time edge appliances process millions of
+                unlabelled events per second. Manual human labeling is impossible.
+              </p>
+              <p>
+                <span className="text-ink">3. Adversarial Model Poisoning:</span> A slow, distributed attack can intentionally
+                pollute unsupervised training data, causing models to gradually accept malicious vectors as benign.
+              </p>
+              <p>
+                xInfer Forge resolves these structural challenges by implementing a decoupled, self-supervised adaptation
+                pipeline protected by a non-negotiable <span className="text-ink">Golden Attack Regression Gate</span>.
+              </p>
+            </div>
+          </div>
+          <PageSidebar
+            sections={[
+              {
+                heading: "On This Page",
+                items: [
+                  { label: "Executive Overview", href: "#overview" },
+                  { label: "Architecture", href: "#architecture" },
+                  { label: "Core Subsystems", href: "#subsystems" },
+                  { label: "Requirements", href: "#requirements" },
+                  { label: "Installation", href: "#installation" },
+                  { label: "Configuration", href: "#configuration" },
+                  { label: "Operation", href: "#operation" },
+                  { label: "Security Model", href: "#security" },
+                  { label: "Value Proposition", href: "#value" },
+                ],
+              },
+              {
+                heading: "Related Projects",
+                items: [
+                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
+                  { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
+                ],
+              },
+            ]}
+            cta={{ label: "View Technology", href: "/technology/forge" }}
+          />
         </div>
       </section>
 
