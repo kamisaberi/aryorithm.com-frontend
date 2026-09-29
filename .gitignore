@@ -30,4 +30,5 @@ app/.DS_Store
 backend/.venv
 backend/.DS_Store
 
-
+!app/.env
+!main/.env
