@@ -9,6 +9,13 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { STATS, ACTIVITIES, SUBSCRIPTIONS } from "@/data/admin";
 
+interface OverviewMetrics {
+  online_nodes: number;
+  total_drops: number;
+  mean_sla_us: number;
+  stable_model: string;
+}
+
 export default function DashboardPage() {
   const { token } = useAuth();
   const [metrics, setMetrics] = useState<typeof STATS | null>(null);
@@ -16,7 +23,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.get("/overview/metrics", token)
+    api
+      .get<OverviewMetrics>("/overview/metrics", token)
       .then((data) => {
         setMetrics([
           { label: "Online Nodes", value: String(data.online_nodes), change: "+8.2%", trend: "up" as const, icon: "▣" },

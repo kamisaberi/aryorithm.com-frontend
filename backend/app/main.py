@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine, Base
+
+# Import ORM models so Base.metadata.create_all() creates all tables.
+import app.models  # noqa: F401
 from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream
 
 

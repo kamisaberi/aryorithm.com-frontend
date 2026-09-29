@@ -10,6 +10,12 @@ class LoginRequest(BaseModel):
     totp: str | None = None
 
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+
 class WebAuthnChallengeRequest(BaseModel):
     email: EmailStr
 

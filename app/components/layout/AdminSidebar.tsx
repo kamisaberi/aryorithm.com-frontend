@@ -48,7 +48,7 @@ export default function AdminSidebar() {
                         </span>
                         {item.label}
                         {item.badge && (
-                          <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan>
+                          <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan">
                             {item.badge}
                           </span>
                         )}
