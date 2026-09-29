@@ -6,21 +6,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
       - redis
     volumes:
       - ./app:/app/app
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: aryorithm
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - sqlite_data:/app/data
 
   redis:
     image: redis:7-alpine
@@ -28,4 +17,4 @@ services:
       - "6379:6379"
 
 volumes:
-  postgres_data:
+  sqlite_data:

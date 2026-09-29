@@ -12,10 +12,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production"
 
-    # Database (MySQL)
-    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/aryorithm"
-    DATABASE_POOL_SIZE: int = 20
-    DATABASE_MAX_OVERFLOW: int = 10
+    # Database (SQLite)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./aryorithm.db"
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001"]

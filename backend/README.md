@@ -30,6 +30,15 @@ docker-compose up -d
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+## Database
+
+Uses SQLite by default (`aryorithm.db` in project root). The database file is created automatically on startup.
+
+To use a different database, update `DATABASE_URL` in `.env`:
+- SQLite: `sqlite+aiosqlite:///./aryorithm.db`
+- PostgreSQL: `postgresql+asyncpg://user:pass@localhost:5432/aryorithm`
+- MySQL: `mysql+aiomysql://user:pass@localhost:3306/aryorithm`
+
 ## Project Structure
 
 ```
