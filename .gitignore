@@ -1,9 +1,9 @@
-node_modules/
-.next/
-out/
-dist/
-*.log
-.DS_Store
+# node_modules/
+# .next/
+# out/
+# dist/
+# *.log
+# .DS_Store
 
 
 
@@ -18,8 +18,11 @@ main/.DS_Store
 
 
 app/node_modules/*
-# app/.next/*
-# app/out/*
-# app/dist/*
-# app/*.log
-# app/.DS_Store
+app/.next/*
+app/out/*
+app/dist/*
+app/*.log
+app/.DS_Store
+
+backend/.venv
+backend/.DS_Store
