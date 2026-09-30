@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/stream", tags=["Real-Time Streaming"])
 
@@ -26,7 +27,7 @@ async def event_generator():
 
 
 @router.get("/telemetry")
-async def stream_telemetry(user: dict = Depends(get_current_user)):
+async def stream_telemetry(user: User = Depends(get_current_user)):
     """Real-time push stream for Web UI & TUI."""
     return StreamingResponse(
         event_generator(),
@@ -40,7 +41,7 @@ async def stream_telemetry(user: dict = Depends(get_current_user)):
 
 
 @router.get("/threats")
-async def stream_threats(user: dict = Depends(get_current_user)):
+async def stream_threats(user: User = Depends(get_current_user)):
     """Low-latency stream for collective defense alerts."""
     return StreamingResponse(
         event_generator(),

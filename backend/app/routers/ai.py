@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin
+from app.models.user import User
 from app.schemas.ai import (
     ModelResponse,
     ModelUploadResponse,
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/ai", tags=["AI & Silicon"])
 
 
 @router.get("/models", response_model=list[ModelResponse])
-async def list_models(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_models(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List versioned ONNX threat models."""
     return [
         ModelResponse(version="v2.0", sha256="abc123...", size_bytes=1420500, stage="FLEET_WIDE"),
@@ -37,7 +38,7 @@ async def list_models(user: dict = Depends(get_current_user), db: AsyncSession =
 @router.post("/models/upload", response_model=ModelUploadResponse)
 async def upload_model(
     file: UploadFile = File(...),
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload new ONNX model artifact."""
@@ -45,7 +46,7 @@ async def upload_model(
 
 
 @router.get("/ota/status", response_model=OTAStatusResponse)
-async def get_ota_status(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_ota_status(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Current canary staged rollout status."""
     return OTAStatusResponse(stable_version="v2.0", candidate_version="v2.4", stage="CANARY_5_PCT")
 
@@ -53,7 +54,7 @@ async def get_ota_status(user: dict = Depends(get_current_user), db: AsyncSessio
 @router.post("/ota/stage", response_model=OTAStageResponse)
 async def stage_ota(
     body: OTAStageRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Stage candidate weights into SHADOW_MODE."""
@@ -61,19 +62,19 @@ async def stage_ota(
 
 
 @router.post("/ota/advance", response_model=OTAResponse)
-async def advance_ota(user: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+async def advance_ota(user: User = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Advance rollout (Shadow -> 5% -> Fleet)."""
     return OTAResponse(status="advanced", new_stage="CANARY_12_PCT")
 
 
 @router.post("/ota/rollback", response_model=OTAResponse)
-async def rollback_ota(user: dict = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+async def rollback_ota(user: User = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Emergency rollback to previous stable model."""
     return OTAResponse(status="emergency_rollback_executed", active="v2.0")
 
 
 @router.get("/forge/datasets", response_model=list[ForgeDatasetResponse])
-async def list_forge_datasets(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_forge_datasets(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List curated edge NetFlow active-learning batches."""
     return [
         ForgeDatasetResponse(dataset_id="ds-001", samples=2500, high_uncertainty=420),
@@ -84,7 +85,7 @@ async def list_forge_datasets(user: dict = Depends(get_current_user), db: AsyncS
 @router.post("/forge/train", response_model=ForgeTrainResponse)
 async def trigger_training(
     body: ForgeTrainRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Trigger cloud/on-prem continuous adaptation job."""
@@ -94,7 +95,7 @@ async def trigger_training(
 @router.post("/compiler/compile", response_model=CompileResponse)
 async def compile_model(
     body: CompileRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Compile ONNX model for target silicon."""
@@ -104,7 +105,7 @@ async def compile_model(
 @router.get("/compiler/tasks/{task_id}", response_model=CompileStatusResponse)
 async def get_compile_status(
     task_id: str,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Poll compilation status & download URL."""
@@ -114,7 +115,7 @@ async def get_compile_status(
 @router.post("/trism/evaluate", response_model=TrismResponse)
 async def evaluate_trism(
     body: TrismRequest,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """LLM prompt injection / token anomaly firewall."""

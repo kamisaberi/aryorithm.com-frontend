@@ -1,7 +1,7 @@
 """Cyber-Range and Digital Twin Simulation models."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,9 +25,9 @@ class DigitalTwin(Base):
     twin_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     nodes: Mapped[int] = mapped_column(Integer, default=0)
-    status: Mapped[str] = mapped_column(SQLEnum(TwinStatus), default=TwinStatus.IDLE)
+    status: Mapped[TwinStatus] = mapped_column(SQLEnum(TwinStatus), default=TwinStatus.IDLE)
     sandbox_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -40,7 +40,7 @@ class AttackReplay(Base):
     target_node: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="STREAMING")
     frames_injected: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -52,6 +52,6 @@ class ResilienceScore(Base):
     mttfi_ms: Mapped[float] = mapped_column(Float, default=0.0)
     rollback_guard_ms: Mapped[float] = mapped_column(Float, default=0.0)
     score: Mapped[float] = mapped_column(Float, default=0.0)
-    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

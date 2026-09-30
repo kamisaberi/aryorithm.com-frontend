@@ -1,7 +1,7 @@
 """Overview and XAI models."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,7 +20,7 @@ class OverviewMetric(Base):
     mean_sla_us: Mapped[float] = mapped_column(Float, default=0.0)
     stable_model: Mapped[str] = mapped_column(String(32), default="v1.0.0")
     window: Mapped[str] = mapped_column(String(16), default="24h")
-    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -36,7 +36,7 @@ class XAIAttribution(Base):
     residuals: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     baseline_mean: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     audit_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -51,6 +51,6 @@ class LatencyDistribution(Base):
     p99: Mapped[float] = mapped_column(Float, default=0.0)
     p999: Mapped[float] = mapped_column(Float, default=0.0)
     window: Mapped[str] = mapped_column(String(16), default="24h")
-    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

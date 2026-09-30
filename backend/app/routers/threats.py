@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.threat import (
     ThreatEventResponse,
     ThreatBroadcastRequest,
@@ -38,7 +39,7 @@ def _check_nexus_api_key(x_api_key: str | None) -> None:
 async def list_threat_events(
     limit: int = Query(50, ge=1, le=200),
     tactic: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Historical log of detected & dropped threats."""
@@ -49,7 +50,7 @@ async def list_threat_events(
             mitre_id="T0855",
             tactic="Lateral Movement",
             dropped=True,
-            detected_at="2026-09-29T10:30:00Z",
+            detected_at=datetime(2026, 9, 29, 10, 30, tzinfo=timezone.utc),
         ),
         ThreatEventResponse(
             threat_id="threat-002",
@@ -57,7 +58,7 @@ async def list_threat_events(
             mitre_id="T1059",
             tactic="Command and Scripting Interpreter",
             dropped=True,
-            detected_at="2026-09-29T10:25:00Z",
+            detected_at=datetime(2026, 9, 29, 10, 25, tzinfo=timezone.utc),
         ),
     ]
 
@@ -65,7 +66,7 @@ async def list_threat_events(
 @router.post("/broadcast", response_model=ThreatBroadcastResponse)
 async def broadcast_threat(
     body: ThreatBroadcastRequest,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Broadcast zero-day IP fleet-wide (< 50ms)."""
@@ -75,7 +76,7 @@ async def broadcast_threat(
 @router.get("/collective-bus", response_model=list[CollectiveBusResponse])
 async def list_collective_bus(
     limit: int = Query(20, ge=1, le=100),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Live collective defense synchronization log."""
@@ -86,7 +87,7 @@ async def list_collective_bus(
 
 
 @router.get("/mitre", response_model=list[MitreHitResponse])
-async def list_mitre_hits(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_mitre_hits(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Aggregated MITRE ATT&CK technique hit counts."""
     return [
         MitreHitResponse(technique_id="T0855", name="Unauthorized Command", count=14),
@@ -98,7 +99,7 @@ async def list_mitre_hits(user: dict = Depends(get_current_user), db: AsyncSessi
 @router.get("/scada", response_model=ScadaResponse)
 async def get_scada_monitor(
     protocol: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Dedicated SCADA OT anomaly monitor."""
@@ -107,8 +108,8 @@ async def get_scada_monitor(
 
 @router.get("/identity-bot", response_model=IdentityBotResponse)
 async def get_identity_bot(
-    type: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    type: str | None = Query(None),  # noqa: A002 - query param name is part of public API
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """ITDR & Bot kinematics telemetry."""

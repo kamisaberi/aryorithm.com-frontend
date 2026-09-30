@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin
+from app.models.user import User
 from app.schemas.dfir import (
     PCAPResponse,
     FirmwareDissectResponse,
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/dfir", tags=["Forensics (DFIR)"])
 @router.get("/pcaps", response_model=list[PCAPResponse])
 async def list_pcaps(
     limit: int = 20,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List carved ring-buffer PCAP evidence packages."""
@@ -31,7 +32,7 @@ async def list_pcaps(
 @router.get("/pcaps/{pcap_id}/download")
 async def download_pcap(
     pcap_id: str,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Download court-admissible signed PCAP evidence."""
@@ -46,7 +47,7 @@ async def download_pcap(
 @router.post("/cdr/sanitize")
 async def sanitize_file(
     file: UploadFile = File(...),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Content Disarm & Reconstruction (strip macros)."""
@@ -61,7 +62,7 @@ async def sanitize_file(
 @router.post("/firmware/dissect", response_model=FirmwareDissectResponse)
 async def dissect_firmware(
     file: UploadFile = File(...),
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload raw firmware for backdoor & CVE scanning."""
@@ -71,7 +72,7 @@ async def dissect_firmware(
 @router.get("/firmware/reports/{task_id}", response_model=FirmwareReportResponse)
 async def get_firmware_report(
     task_id: str,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Query firmware CVE & hardcoded secret findings."""

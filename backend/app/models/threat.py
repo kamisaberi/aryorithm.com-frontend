@@ -1,7 +1,7 @@
 """Threat defense and collective intelligence models."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,10 +25,10 @@ class ThreatEvent(Base):
     attacker_ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     mitre_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     tactic: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    status: Mapped[str] = mapped_column(SQLEnum(ThreatStatus), default=ThreatStatus.DETECTED)
+    status: Mapped[ThreatStatus] = mapped_column(SQLEnum(ThreatStatus), default=ThreatStatus.DETECTED)
     dropped: Mapped[bool] = mapped_column(Boolean, default=False)
     attributions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
     node_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("nodes.id"), nullable=True)
@@ -41,7 +41,7 @@ class CollectiveBusLog(Base):
     rule_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     origin_node: Mapped[str] = mapped_column(String(64), nullable=False)
     fanout_latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -53,7 +53,7 @@ class MitreHit(Base):
     technique_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     count: Mapped[int] = mapped_column(Integer, default=0)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -66,7 +66,7 @@ class ScadaAnomaly(Base):
     violation_type: Mapped[str] = mapped_column(String(128), nullable=False)
     count: Mapped[int] = mapped_column(Integer, default=0)
     overrides_blocked: Mapped[int] = mapped_column(Integer, default=0)
-    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -80,6 +80,6 @@ class IdentityBotEvent(Base):
     impossible_velocity: Mapped[bool] = mapped_column(Boolean, default=False)
     bot_kinematic_block: Mapped[bool] = mapped_column(Boolean, default=False)
     details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

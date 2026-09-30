@@ -1,23 +1,28 @@
-"""Password hashing (bcrypt) and JWT helpers."""
+"""Password hashing (bcrypt) and JWT helpers (PyJWT)."""
 
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
 
 from app.config import settings
 
 import uuid
 
 
+def _truncate(password: str) -> bytes:
+    """bcrypt caps passwords at 72 bytes — truncate to prevent ValueError on 5.x."""
+    return password.encode("utf-8")[:72]
+
+
 def hash_password(password: str) -> str:
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    hashed = bcrypt.hashpw(_truncate(password), bcrypt.gensalt())
     return hashed.decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        return bcrypt.checkpw(_truncate(plain), hashed.encode("utf-8"))
     except (ValueError, TypeError):
         return False
 
@@ -46,7 +51,7 @@ def create_refresh_token(subject: str) -> tuple[str, datetime]:
 def decode_token(token: str, expected_type: str = "access") -> str | None:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
-    except JWTError:
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
     if payload.get("type") != expected_type:
         return None

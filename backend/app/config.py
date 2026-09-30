@@ -1,16 +1,18 @@
 """Application configuration."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+
     # Application
     APP_NAME: str = "Aryorithm Backend"
     APP_ENV: str = "development"
     DEBUG: bool = True
-    SECRET_KEY: str = "change-me-in-production"
+    SECRET_KEY: str = "change-me-to-a-long-random-secret-with-at-least-32-chars"
 
     # Database (SQLite)
     DATABASE_URL: str = "sqlite+aiosqlite:///./aryorithm.db"
@@ -28,10 +30,6 @@ class Settings(BaseSettings):
 
     # Nexus edge-collector (X-API-Key) — dev default matches dashboard/Nexus simulator
     NEXUS_API_KEY: str = "ary_dev_secret_key_8000"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()

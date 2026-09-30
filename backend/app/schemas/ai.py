@@ -1,6 +1,6 @@
 """AI model lifecycle schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -12,6 +12,8 @@ class ModelResponse(BaseModel):
 
 
 class ModelUploadResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
     sha256: str
     status: str
@@ -57,6 +59,8 @@ class ForgeTrainResponse(BaseModel):
 
 
 class CompileRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
     target: str
 

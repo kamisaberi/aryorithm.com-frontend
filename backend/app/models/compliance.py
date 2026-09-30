@@ -1,7 +1,7 @@
 """Compliance, GRC, and Audit Vault models."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -22,10 +22,10 @@ class ComplianceRecord(Base):
     __tablename__ = "compliance_records"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    framework: Mapped[str] = mapped_column(SQLEnum(ComplianceFramework), nullable=False, index=True)
+    framework: Mapped[ComplianceFramework] = mapped_column(SQLEnum(ComplianceFramework), nullable=False, index=True)
     compliant: Mapped[bool] = mapped_column(Boolean, default=True)
     findings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    verified_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -37,7 +37,7 @@ class AttestationLog(Base):
     node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     pcr0_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, default=True)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
@@ -49,6 +49,6 @@ class InsuranceProof(Base):
     certified_sla_us: Mapped[float] = mapped_column(Float, default=0.0)
     hardware_root: Mapped[str] = mapped_column(String(64), default="TPM 2.0")
     insurance_discount_score: Mapped[str] = mapped_column(String(16), default="TIER_A")
-    generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

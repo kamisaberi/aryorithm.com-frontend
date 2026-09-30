@@ -1,6 +1,7 @@
 """Fleet Management, Enclaves & Hardware ZTP routes."""
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin
+from app.models.user import User
 from app.schemas.fleet import (
     NodeResponse,
     NodeDetailResponse,
@@ -81,7 +83,7 @@ async def fleet_sync(
 async def list_nodes(
     status: str | None = Query(None),
     backend: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all registered edge appliances."""
@@ -111,7 +113,7 @@ async def list_nodes(
 
 
 @router.get("/nodes/{node_id}", response_model=NodeDetailResponse)
-async def get_node(node_id: str, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_node(node_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Single node telemetry & ring buffer inspector."""
     return NodeDetailResponse(
         node_id=node_id,
@@ -125,7 +127,7 @@ async def get_node(node_id: str, user: dict = Depends(get_current_user), db: Asy
 async def restart_node(
     node_id: str,
     body: NodeRestartRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Issue remote graceful daemon restart."""
@@ -135,7 +137,7 @@ async def restart_node(
 @router.delete("/nodes/{node_id}", response_model=NodeActionResponse)
 async def decommission_node(
     node_id: str,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Decommission / unregister edge appliance."""
@@ -143,7 +145,7 @@ async def decommission_node(
 
 
 @router.get("/enclaves", response_model=list[EnclaveResponse])
-async def list_enclaves(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def list_enclaves(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List physical enclaves/zones (OT, Medical, DMZ)."""
     return [
         EnclaveResponse(enclave_id="CRITICAL_OT", name="Critical OT", max_latency_us=800, node_count=14),
@@ -155,7 +157,7 @@ async def list_enclaves(user: dict = Depends(get_current_user), db: AsyncSession
 @router.post("/enclaves", response_model=EnclaveCreateResponse)
 async def create_enclave(
     body: EnclaveCreate,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new site/enclave zone."""
@@ -165,14 +167,13 @@ async def create_enclave(
 @router.post("/provisioning/tokens", response_model=ZTPTokenResponse)
 async def generate_ztp_token(
     body: ZTPTokenRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate Zero-Touch Provisioning (ZTP) token."""
-    from datetime import datetime, timedelta
     return ZTPTokenResponse(
         token="ZTP-eyJhbGciOiJIUzI1NiIs...",
-        expires_at=datetime.utcnow() + timedelta(days=body.valid_days),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=body.valid_days),
     )
 
 
@@ -185,7 +186,7 @@ async def enroll_appliance(body: ZTPEnrollRequest):
 @router.get("/kernel-rules", response_model=list[KernelRuleResponse])
 async def list_kernel_rules(
     ip: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Query synchronized in-kernel blocked_ip_map."""
@@ -198,7 +199,7 @@ async def list_kernel_rules(
 @router.post("/kernel-rules/purge", response_model=KernelPurgeResponse)
 async def purge_kernel_rule(
     body: KernelPurgeRequest,
-    user: dict = Depends(get_current_admin),
+    user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Emergency purge false-positive IP across fleet."""

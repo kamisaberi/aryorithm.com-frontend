@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.overview import (
     OverviewMetricsResponse,
     ThreatMapResponse,
@@ -19,7 +20,7 @@ router = APIRouter(tags=["Mission Control"])
 @router.get("/overview/metrics", response_model=OverviewMetricsResponse)
 async def get_overview_metrics(
     enclave_id: str | None = Query(None),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """High-level KPI cards (Active nodes, drops, SLA, egress)."""
@@ -32,7 +33,7 @@ async def get_overview_metrics(
 
 
 @router.get("/overview/threat-map", response_model=ThreatMapResponse)
-async def get_threat_map(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_threat_map(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Geospatial and enclave attack coordinates."""
     return ThreatMapResponse(
         coordinates=[
@@ -45,7 +46,7 @@ async def get_threat_map(user: dict = Depends(get_current_user), db: AsyncSessio
 @router.get("/overview/latency-distribution", response_model=LatencyDistributionResponse)
 async def get_latency_distribution(
     window: str = Query("24h"),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Percentile histogram (p50, p90, p95, p99, p99.9)."""
@@ -55,7 +56,7 @@ async def get_latency_distribution(
 @router.get("/xai/recent", response_model=list[XAIAttributionResponse])
 async def get_recent_xai(
     limit: int = Query(10, ge=1, le=50),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Recent XAI feature attribution cards."""
@@ -76,7 +77,7 @@ async def get_recent_xai(
 @router.get("/xai/{incident_id}", response_model=XAIDetailResponse)
 async def get_xai_detail(
     incident_id: str,
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Deep-dive feature attribution for single incident."""

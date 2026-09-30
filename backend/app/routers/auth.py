@@ -52,7 +52,7 @@ async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
         RefreshToken(
             token=refresh_token,
             user_id=user.id,
-            expires_at=refresh_expires.replace(tzinfo=None),
+            expires_at=refresh_expires,
         )
     )
     await db.flush()
@@ -112,7 +112,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Account is deactivated",
         )
 
-    user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.last_login = datetime.now(timezone.utc)
     return await _issue_tokens(db, user)
 
 
@@ -146,12 +146,17 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
     result = await db.execute(
         select(RefreshToken).where(
             RefreshToken.token == body.refresh_token,
-            RefreshToken.revoked == False,  # noqa: E712
+            RefreshToken.revoked.is_(False),
         )
     )
     stored = result.scalar_one_or_none()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if stored is None or stored.expires_at < now:
+    now = datetime.now(timezone.utc)
+    # SQLite returns naive datetimes even for DateTime(timezone=True) —
+    # normalize to aware before comparing to prevent TypeError.
+    expires_at = stored.expires_at if stored else None
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if stored is None or expires_at is None or expires_at < now:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -196,7 +201,7 @@ async def create_tenant(
 ):
     """Onboard a new enterprise tenant."""
     try:
-        tier = TenantTier(body.tier)
+        tier = TenantTier(body.tier.strip().upper())
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
