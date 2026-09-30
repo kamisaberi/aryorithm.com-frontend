@@ -1,49 +1,75 @@
-import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
-import PageHeader from "@/components/ui/PageHeader";
+"use client";
 
-const feedItems = [
-  { id: 1, type: "anomaly", message: "Anomalous traffic pattern detected on node EU-WEST-04", severity: "high", time: "2 min ago" },
-  { id: 2, type: "model", message: "XAI model v2.4 canary deployed to 12% of fleet", severity: "info", time: "15 min ago" },
-  { id: 3, type: "threat", message: "Lateral movement attempt blocked — SCADA segment", severity: "critical", time: "32 min ago" },
-  { id: 4, type: "model", message: "Model drift detected — retraining scheduled", severity: "medium", time: "1 hour ago" },
-  { id: 5, type: "anomaly", message: "Unusual API key usage pattern — Partner: Sentinel", severity: "medium", time: "2 hours ago" },
-];
+import Badge from "@/components/ui/Badge";
+import Card from "@/components/ui/Card";
+import PageHeader from "@/components/ui/PageHeader";
+import { DUMMY_XAI } from "@/data/dummy";
+import { useBackend } from "@/hooks/useBackend";
+import { useAuth } from "@/lib/auth";
+import { backend } from "@/lib/backend";
+
+type Severity = "threat" | "telemetry" | "cyan" | "kernel";
+
+function severityOf(index: number, mitreId: string | null): Severity {
+  if (!mitreId) return "kernel";
+  if (index === 0) return "threat";
+  if (index === 1) return "telemetry";
+  return "cyan";
+}
+
+const dotStyles: Record<Severity, string> = {
+  threat: "bg-threat",
+  telemetry: "bg-telemetry",
+  cyan: "bg-cyan",
+  kernel: "bg-kernel",
+};
 
 export default function XAIFeedPage() {
+  const { token } = useAuth();
+  const { data: items, live } = useBackend(DUMMY_XAI, (t) => backend.xaiRecent(t), token);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Live XAI Feed"
         description="Real-time explainable AI predictions and model inference stream"
         breadcrumbs={[{ label: "Mission Control", href: "/dashboard" }, { label: "Live XAI Feed" }]}
-        actions={<Badge variant="kernel">Streaming</Badge>}
+        actions={
+          <Badge variant={live ? "kernel" : "muted"}>
+            Streaming{live ? "" : " (cached)"}
+          </Badge>
+        }
       />
       <Card>
         <div className="divide-y divide-hairline/60">
-          {feedItems.map((item) => (
-            <div key={item.id} className="flex items-start gap-4 px-5 py-4">
-              <span
-                className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
-                  item.severity === "critical" ? "bg-threat" :
-                  item.severity === "high" ? "bg-telemetry" :
-                  item.severity === "medium" ? "bg-cyan" : "bg-kernel"
-                }`}
-                aria-hidden="true"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] text-ink">{item.message}</p>
-                <div className="mt-1 flex items-center gap-3">
-                  <Badge variant={
-                    item.severity === "critical" ? "threat" :
-                    item.severity === "high" ? "telemetry" :
-                    item.severity === "medium" ? "cyan" : "kernel"
-                  }>{item.type}</Badge>
-                  <span className="font-mono text-[10px] text-muted/60">{item.time}</span>
+          {items.map((item, i) => {
+            const severity = severityOf(i, item.mitre_id);
+            return (
+              <div key={`${item.attacker_ip}-${i}`} className="flex items-start gap-4 px-5 py-4">
+                <span
+                  className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${dotStyles[severity]}`}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-ink">
+                    Blocked intrusion from <span className="font-mono">{item.attacker_ip}</span>
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <Badge variant={severity}>{item.mitre_id ? "threat" : "anomaly"}</Badge>
+                    {item.mitre_id && <Badge variant="cyan">{item.mitre_id}</Badge>}
+                    {item.attributions.map((a) => (
+                      <span
+                        key={a.feature}
+                        className="rounded border border-hairline bg-panel px-1.5 py-0.5 font-mono text-[10px] text-muted"
+                      >
+                        {a.feature}:{a.pct.toFixed(1)}%
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
     </div>
