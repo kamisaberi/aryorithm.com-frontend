@@ -22,6 +22,7 @@ export class ApiError extends Error {
 interface ApiOptions extends RequestInit {
   tenantId?: string | null;
   enclaveId?: string | null;
+  apiKey?: string | null;
 }
 
 function parseErrorMessage(errorData: unknown, status: number): { code: string; message: string; details: Record<string, unknown> } {
@@ -56,7 +57,7 @@ function parseErrorMessage(errorData: unknown, status: number): { code: string; 
 
 async function request<T>(endpoint: string, options: ApiOptions = {}, token?: string | null): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const { tenantId, enclaveId, ...init } = options;
+  const { tenantId, enclaveId, apiKey, ...init } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((init.headers as Record<string, string>) || {}),
@@ -70,6 +71,9 @@ async function request<T>(endpoint: string, options: ApiOptions = {}, token?: st
   }
   if (enclaveId) {
     headers["X-Enclave-ID"] = enclaveId;
+  }
+  if (apiKey) {
+    headers["X-API-Key"] = apiKey;
   }
 
   const response = await fetch(url, { ...init, headers });

@@ -1,8 +1,12 @@
 """Threat Defense & Collective Intelligence routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import logging
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.schemas.threat import (
@@ -13,9 +17,21 @@ from app.schemas.threat import (
     MitreHitResponse,
     ScadaResponse,
     IdentityBotResponse,
+    GlobalFeedResponse,
+    GlobalFeedIndicator,
 )
 
 router = APIRouter(prefix="/threats", tags=["Threat Defense"])
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def _check_nexus_api_key(x_api_key: str | None) -> None:
+    if not x_api_key or x_api_key != settings.NEXUS_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing X-API-Key",
+        )
 
 
 @router.get("/events", response_model=list[ThreatEventResponse])
@@ -97,3 +113,46 @@ async def get_identity_bot(
 ):
     """ITDR & Bot kinematics telemetry."""
     return IdentityBotResponse(impossible_velocity_hits=4, bot_kinematic_blocks=22)
+
+
+@router.get("/global-feed", response_model=GlobalFeedResponse)
+async def get_global_feed(
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+):
+    """Global threat indicators for Nexus fan-out — polled every ~20s.
+
+    Headers: X-API-Key, X-Tenant-ID (tenant optional, logged only).
+    """
+    _check_nexus_api_key(x_api_key)
+    indicators = [
+        GlobalFeedIndicator(
+            indicator="198.51.100.45",
+            type="ipv4",
+            severity="critical",
+            mitre_id="T0855",
+            description="Lateral movement — unauthorized command",
+        ),
+        GlobalFeedIndicator(
+            indicator="203.0.113.99",
+            type="ipv4",
+            severity="high",
+            mitre_id="T1059",
+            description="Command and scripting interpreter",
+        ),
+    ]
+    logger.info(
+        "GET /api/v1/threats/global-feed tenant=%s count=%d headers={X-API-Key: ****}",
+        x_tenant_id or "tenant-dev-local",
+        len(indicators),
+    )
+    print(
+        f"[threats/global-feed] tenant={x_tenant_id or 'tenant-dev-local'} "
+        f"count={len(indicators)} indicators={[i.indicator for i in indicators]}",
+        flush=True,
+    )
+    return GlobalFeedResponse(
+        indicators=indicators,
+        count=len(indicators),
+        updated_at=datetime.now(timezone.utc),
+    )

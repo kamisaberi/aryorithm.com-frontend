@@ -82,3 +82,29 @@ class KernelPurgeRequest(BaseModel):
 class KernelPurgeResponse(BaseModel):
     status: str
     ip: str
+
+
+class FleetSyncNode(BaseModel):
+    """Single edge appliance entry inside a fleet sync payload."""
+
+    node_id: str
+    site: str | None = None
+    status: str | None = None
+    cpu_pct: float | None = None
+    latency_us: float | None = None
+    eps: int | None = None
+    version: str | None = None
+    backend: str | None = None
+
+
+class FleetSyncRequest(BaseModel):
+    tenant_id: str
+    nodes_count: int
+    nodes: list[FleetSyncNode] = []
+
+
+class FleetSyncResponse(BaseModel):
+    status: str
+    tenant_id: str
+    nodes_count: int
+    synced: int

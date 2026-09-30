@@ -44,3 +44,17 @@ class ScadaResponse(BaseModel):
 class IdentityBotResponse(BaseModel):
     impossible_velocity_hits: int
     bot_kinematic_blocks: int
+
+
+class GlobalFeedIndicator(BaseModel):
+    indicator: str
+    type: str = "ipv4"
+    severity: str = "high"
+    mitre_id: str | None = None
+    description: str | None = None
+
+
+class GlobalFeedResponse(BaseModel):
+    indicators: list[GlobalFeedIndicator]
+    count: int
+    updated_at: datetime

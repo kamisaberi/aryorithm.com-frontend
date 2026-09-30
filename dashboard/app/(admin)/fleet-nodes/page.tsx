@@ -51,26 +51,31 @@ export default function FleetNodesPage() {
 
   useEffect(() => {
     if (!token) return;
-    api
-      .get<BackendNode[]>("/fleet/nodes", token)
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setNodes(
-            data.map((n) => ({
-              id: n.node_id,
-              name: n.node_id,
-              location: n.site,
-              status: n.status.toLowerCase(),
-              eps: formatEps(n.eps),
-              version: n.version,
-            }))
-          );
-          setLive(true);
-        }
-      })
-      .catch(() => {
-        // Keep fallback mock data when the API is unreachable.
-      });
+    const load = () =>
+      api
+        .get<BackendNode[]>("/fleet/nodes", token)
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setNodes(
+              data.map((n) => ({
+                id: n.node_id,
+                name: n.node_id,
+                location: n.site,
+                status: n.status.toLowerCase(),
+                eps: formatEps(n.eps),
+                version: n.version,
+              }))
+            );
+            setLive(true);
+          }
+        })
+        .catch(() => {
+          // Keep fallback mock data when the API is unreachable.
+        });
+    load();
+    // Re-check fleet status every 5s (same cadence as POST /fleet/sync).
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
   }, [token]);
 
   const columns = [

@@ -1,8 +1,11 @@
 """Fleet Management, Enclaves & Hardware ZTP routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import logging
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin
 from app.schemas.fleet import (
@@ -20,9 +23,58 @@ from app.schemas.fleet import (
     KernelRuleResponse,
     KernelPurgeRequest,
     KernelPurgeResponse,
+    FleetSyncRequest,
+    FleetSyncResponse,
 )
 
 router = APIRouter(prefix="/fleet", tags=["Fleet Management"])
+
+logger = logging.getLogger("uvicorn.error")
+
+
+def _check_nexus_api_key(x_api_key: str | None) -> None:
+    """Validate Nexus X-API-Key header (dev default: ary_dev_secret_key_8000)."""
+    if not x_api_key or x_api_key != settings.NEXUS_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing X-API-Key",
+        )
+
+
+@router.post("/sync", response_model=FleetSyncResponse)
+async def fleet_sync(
+    body: FleetSyncRequest,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+):
+    """Nexus edge-collector heartbeat — called every ~5s.
+
+    Headers: X-API-Key, X-Tenant-ID.
+    Body: { tenant_id, nodes_count, nodes: [...] }.
+    """
+    _check_nexus_api_key(x_api_key)
+    tenant_id = x_tenant_id or body.tenant_id
+    # Print to uvicorn terminal (both logger + print for visibility).
+    logger.info(
+        "POST /api/v1/fleet/sync tenant_id=%s nodes_count=%s nodes=%s "
+        "headers={X-API-Key: ****, X-Tenant-ID: %s}",
+        body.tenant_id,
+        body.nodes_count,
+        [n.node_id for n in body.nodes],
+        tenant_id,
+    )
+    print(
+        f"[fleet/sync] tenant_id={body.tenant_id} "
+        f"header_tenant={tenant_id} nodes_count={body.nodes_count} "
+        f"nodes={[n.model_dump() for n in body.nodes]}",
+        flush=True,
+    )
+    return FleetSyncResponse(
+        status="synced",
+        tenant_id=tenant_id,
+        nodes_count=body.nodes_count,
+        synced=len(body.nodes),
+    )
 
 
 @router.get("/nodes", response_model=list[NodeResponse])

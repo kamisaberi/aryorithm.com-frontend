@@ -13,8 +13,14 @@ import { useAuth } from "@/lib/auth";
 
 export default function ThreatBusPage() {
   const { token } = useAuth();
-  const events = useBackend(DUMMY_THREAT_EVENTS, (t) => backend.threatEvents(t), token);
-  const bus = useBackend(DUMMY_BUS, (t) => backend.collectiveBus(t), token);
+  const events = useBackend(DUMMY_THREAT_EVENTS, (t) => backend.threatEvents(t), token, 5000);
+  const bus = useBackend(DUMMY_BUS, (t) => backend.collectiveBus(t), token, 5000);
+  const feed = useBackend(
+    { indicators: [], count: 0, updated_at: "" },
+    (t) => backend.globalFeed(t),
+    token,
+    20000
+  );
   const live = events.live && bus.live;
 
   const [ip, setIp] = useState("");
@@ -144,6 +150,28 @@ export default function ThreatBusPage() {
       </Card>
       <Card>
         <Table columns={busColumns} data={bus.data} keyExtractor={(b) => b.rule_id} />
+      </Card>
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            Global Feed — auto-refresh every 20s
+          </p>
+          <Badge variant={feed.live ? "kernel" : "muted"}>
+            {feed.live ? `live · ${feed.data.count} IOCs` : "cached"}
+          </Badge>
+        </div>
+        {feed.data.indicators.length === 0 ? (
+          <p className="mt-3 font-mono text-[11px] text-muted">Waiting for GET /threats/global-feed…</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {feed.data.indicators.map((i) => (
+              <div key={i.indicator} className="flex items-center justify-between font-mono text-[11px]">
+                <span className="text-ink">{i.indicator}</span>
+                <span className="text-muted">{i.mitre_id ?? i.severity}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -58,6 +58,45 @@ export interface ThreatEvent {
   dropped: boolean;
   detected_at: string;
 }
+/* ---------- Nexus live sync (5s / 20s polling) ---------- */
+export interface FleetSyncNodePayload {
+  node_id: string;
+  site?: string;
+  status?: string;
+  cpu_pct?: number;
+  latency_us?: number;
+  eps?: number;
+  version?: string;
+  backend?: string;
+}
+export interface FleetSyncPayload {
+  tenant_id: string;
+  nodes_count: number;
+  nodes: FleetSyncNodePayload[];
+}
+export interface FleetSyncResult {
+  status: string;
+  tenant_id: string;
+  nodes_count: number;
+  synced: number;
+}
+export interface GlobalFeedIndicator {
+  indicator: string;
+  type: string;
+  severity: string;
+  mitre_id: string | null;
+  description: string | null;
+}
+export interface GlobalFeedResponse {
+  indicators: GlobalFeedIndicator[];
+  count: number;
+  updated_at: string;
+}
+
+export const NEXUS_API_KEY =
+  process.env.NEXT_PUBLIC_NEXUS_API_KEY || "ary_dev_secret_key_8000";
+export const NEXUS_TENANT_ID =
+  process.env.NEXT_PUBLIC_TENANT_ID || "tenant-dev-local";
 export interface CollectiveBusEntry {
   rule_id: string;
   origin_node: string;
@@ -200,6 +239,16 @@ export const backend = {
     get<ThreatEvent[]>("/threats/events?limit=50", t),
   collectiveBus: (t: string | null) =>
     get<CollectiveBusEntry[]>("/threats/collective-bus?limit=20", t),
+  globalFeed: (t: string | null) =>
+    api.get<GlobalFeedResponse>("/threats/global-feed", t, {
+      apiKey: NEXUS_API_KEY,
+      tenantId: NEXUS_TENANT_ID,
+    }),
+  fleetSync: (body: FleetSyncPayload, t: string | null) =>
+    api.post<FleetSyncResult>("/fleet/sync", body, t, {
+      apiKey: NEXUS_API_KEY,
+      tenantId: NEXUS_TENANT_ID,
+    }),
   broadcastThreat: (body: { ip: string; attributions?: object[] }, t: string | null) =>
     api.post<{ status: string; target_ip: string }>(
       "/threats/broadcast",

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Nexus edge-collector (X-API-Key) — dev default matches dashboard/Nexus simulator
+    NEXUS_API_KEY: str = "ary_dev_secret_key_8000"
+
     class Config:
         env_file = ".env"
         case_sensitive = True
