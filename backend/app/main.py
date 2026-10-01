@@ -98,6 +98,9 @@ app.include_router(overview.router, prefix="/api/v1")
 app.include_router(stream.router, prefix="/api/v1")
 app.include_router(tenants.router, prefix="/api/v1")
 app.include_router(models_router.router, prefix="/api/v1")
+# Compat alias: some edge clients / checkers call GET /v1/models (no /api).
+# Serve the identical handler there too so both paths return 200.
+app.include_router(models_router.router, prefix="/v1", include_in_schema=False)
 
 
 @app.get("/health", tags=["System"])
