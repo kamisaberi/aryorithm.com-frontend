@@ -1,6 +1,6 @@
 """Fleet management schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -85,12 +85,23 @@ class KernelPurgeResponse(BaseModel):
 
 
 class FleetSyncNode(BaseModel):
-    """Single edge appliance entry inside a fleet sync payload."""
+    """Single edge appliance entry — exact sentinel-nexus shape.
+
+    Nexus sends: node_id, site, status, cpu_pct, ebpf_drops,
+    mitigation_latency_us. Legacy dashboard fields (latency_us, eps,
+    version, backend) are kept optional for backward compat.
+    Extra keys are ignored so sender/backend never 422 on drift.
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     node_id: str
     site: str | None = None
     status: str | None = None
     cpu_pct: float | None = None
+    ebpf_drops: int | None = None
+    mitigation_latency_us: float | None = None
+    # Legacy / dashboard-simulator fields
     latency_us: float | None = None
     eps: int | None = None
     version: str | None = None
@@ -98,6 +109,8 @@ class FleetSyncNode(BaseModel):
 
 
 class FleetSyncRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     tenant_id: str
     nodes_count: int
     nodes: list[FleetSyncNode] = []

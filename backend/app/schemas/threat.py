@@ -58,3 +58,9 @@ class GlobalFeedResponse(BaseModel):
     indicators: list[GlobalFeedIndicator]
     count: int
     updated_at: datetime
+
+
+class GlobalFeedItem(BaseModel):
+    """Exact sentinel-nexus polling shape: [{"ip": "..."}]."""
+
+    ip: str

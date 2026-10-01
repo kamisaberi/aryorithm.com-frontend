@@ -64,6 +64,9 @@ export interface FleetSyncNodePayload {
   site?: string;
   status?: string;
   cpu_pct?: number;
+  ebpf_drops?: number;
+  mitigation_latency_us?: number;
+  // Legacy fields (backend ignores extras, kept for compat)
   latency_us?: number;
   eps?: number;
   version?: string;
@@ -91,6 +94,10 @@ export interface GlobalFeedResponse {
   indicators: GlobalFeedIndicator[];
   count: number;
   updated_at: string;
+}
+/** Exact sentinel-nexus shape: bare list [{"ip": "..."}] (or []). */
+export interface GlobalFeedItem {
+  ip: string;
 }
 
 export const NEXUS_API_KEY =
@@ -240,7 +247,12 @@ export const backend = {
   collectiveBus: (t: string | null) =>
     get<CollectiveBusEntry[]>("/threats/collective-bus?limit=20", t),
   globalFeed: (t: string | null) =>
-    api.get<GlobalFeedResponse>("/threats/global-feed", t, {
+    api.get<GlobalFeedItem[]>("/threats/global-feed", t, {
+      apiKey: NEXUS_API_KEY,
+      tenantId: NEXUS_TENANT_ID,
+    }),
+  pendingCommands: (tenantId: string, t: string | null) =>
+    api.get<unknown[]>(`/tenants/${tenantId}/commands/pending`, t, {
       apiKey: NEXUS_API_KEY,
       tenantId: NEXUS_TENANT_ID,
     }),

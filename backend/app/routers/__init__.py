@@ -1,6 +1,6 @@
 """API route handlers."""
 
-from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings, overview
+from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings, overview, tenants
 
 __all__ = [
     "auth",
@@ -12,4 +12,5 @@ __all__ = [
     "range_router",
     "settings",
     "overview",
+    "tenants",
 ]

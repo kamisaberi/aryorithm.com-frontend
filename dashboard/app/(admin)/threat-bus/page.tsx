@@ -16,7 +16,7 @@ export default function ThreatBusPage() {
   const events = useBackend(DUMMY_THREAT_EVENTS, (t) => backend.threatEvents(t), token, 5000);
   const bus = useBackend(DUMMY_BUS, (t) => backend.collectiveBus(t), token, 5000);
   const feed = useBackend(
-    { indicators: [], count: 0, updated_at: "" },
+    [],
     (t) => backend.globalFeed(t),
     token,
     20000
@@ -157,17 +157,17 @@ export default function ThreatBusPage() {
             Global Feed — auto-refresh every 20s
           </p>
           <Badge variant={feed.live ? "kernel" : "muted"}>
-            {feed.live ? `live · ${feed.data.count} IOCs` : "cached"}
+            {feed.live ? `live · ${feed.data.length} IOCs` : "cached"}
           </Badge>
         </div>
-        {feed.data.indicators.length === 0 ? (
+        {feed.data.length === 0 ? (
           <p className="mt-3 font-mono text-[11px] text-muted">Waiting for GET /threats/global-feed…</p>
         ) : (
           <div className="mt-3 space-y-2">
-            {feed.data.indicators.map((i) => (
-              <div key={i.indicator} className="flex items-center justify-between font-mono text-[11px]">
-                <span className="text-ink">{i.indicator}</span>
-                <span className="text-muted">{i.mitre_id ?? i.severity}</span>
+            {feed.data.map((i) => (
+              <div key={i.ip} className="flex items-center justify-between font-mono text-[11px]">
+                <span className="text-ink">{i.ip}</span>
+                <span className="text-muted">ipv4</span>
               </div>
             ))}
           </div>

@@ -6,9 +6,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user, get_current_admin
+from app.dependencies import get_current_user, get_current_admin, get_nexus_caller
 from app.models.user import User
 from app.schemas.fleet import (
     NodeResponse,
@@ -34,36 +33,30 @@ router = APIRouter(prefix="/fleet", tags=["Fleet Management"])
 logger = logging.getLogger("uvicorn.error")
 
 
-def _check_nexus_api_key(x_api_key: str | None) -> None:
-    """Validate Nexus X-API-Key header (dev default: ary_dev_secret_key_8000)."""
-    if not x_api_key or x_api_key != settings.NEXUS_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing X-API-Key",
-        )
-
-
 @router.post("/sync", response_model=FleetSyncResponse)
 async def fleet_sync(
     body: FleetSyncRequest,
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    caller: User | None = Depends(get_nexus_caller),
 ):
-    """Nexus edge-collector heartbeat — called every ~5s.
+    """Sentinel-nexus heartbeat — POST every ~5s.
 
-    Headers: X-API-Key, X-Tenant-ID.
-    Body: { tenant_id, nodes_count, nodes: [...] }.
+    Sender headers: `Authorization: Bearer <JWT>`, `X-Tenant-ID`.
+    Sender body: { tenant_id, nodes_count, nodes: [
+      {node_id, site, status, cpu_pct, ebpf_drops,
+       mitigation_latency_us} ] }.
+    Dashboard simulator may auth with `X-API-Key` instead of JWT.
     """
-    _check_nexus_api_key(x_api_key)
     tenant_id = x_tenant_id or body.tenant_id
     # Print to uvicorn terminal (both logger + print for visibility).
     logger.info(
         "POST /api/v1/fleet/sync tenant_id=%s nodes_count=%s nodes=%s "
-        "headers={X-API-Key: ****, X-Tenant-ID: %s}",
+        "header_tenant=%s user=%s",
         body.tenant_id,
         body.nodes_count,
         [n.node_id for n in body.nodes],
         tenant_id,
+        getattr(caller, "id", "api-key"),
     )
     print(
         f"[fleet/sync] tenant_id={body.tenant_id} "

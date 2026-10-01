@@ -34,3 +34,5 @@ backend/.DS_Store
 !dashboard/.env
 !main/.env
 !backend/.env
+
+temp.md

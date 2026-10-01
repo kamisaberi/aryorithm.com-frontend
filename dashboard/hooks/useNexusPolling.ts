@@ -5,12 +5,12 @@ import {
   backend,
   NEXUS_TENANT_ID,
   type FleetSyncResult,
-  type GlobalFeedResponse,
+  type GlobalFeedItem,
 } from "@/lib/backend";
 
 interface NexusPollingState {
   lastSync: FleetSyncResult | null;
-  lastFeed: GlobalFeedResponse | null;
+  lastFeed: GlobalFeedItem[] | null;
   syncError: string | null;
   feedError: string | null;
   lastSyncAt: string | null;
@@ -46,9 +46,9 @@ export function useNexusPolling(token: string | null, enabled = true) {
             tenant_id: NEXUS_TENANT_ID,
             nodes_count: 3,
             nodes: [
-              { node_id: "NODE-8fa9", site: "Substation-01", status: "ONLINE" },
-              { node_id: "NODE-9b2c", site: "Substation-02", status: "ONLINE" },
-              { node_id: "NODE-9c3d", site: "Substation-03", status: "ONLINE" },
+              { node_id: "NODE-8fa901", site: "PowerGrid-North-01", status: "ONLINE", cpu_pct: 14.2, ebpf_drops: 48, mitigation_latency_us: 0.84 },
+              { node_id: "NODE-c34b12", site: "Metro-General-Hospital", status: "ONLINE", cpu_pct: 18.7, ebpf_drops: 35, mitigation_latency_us: 0.79 },
+              { node_id: "NODE-77e190", site: "Coastal-Refinery-ZoneB", status: "ONLINE", cpu_pct: 11.5, ebpf_drops: 29, mitigation_latency_us: 0.88 },
             ],
           },
           tokenRef.current

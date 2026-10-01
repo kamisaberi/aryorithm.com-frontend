@@ -3,12 +3,11 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_nexus_caller
 from app.models.user import User
 from app.schemas.threat import (
     ThreatEventResponse,
@@ -18,21 +17,12 @@ from app.schemas.threat import (
     MitreHitResponse,
     ScadaResponse,
     IdentityBotResponse,
-    GlobalFeedResponse,
-    GlobalFeedIndicator,
+    GlobalFeedItem,
 )
 
 router = APIRouter(prefix="/threats", tags=["Threat Defense"])
 
 logger = logging.getLogger("uvicorn.error")
-
-
-def _check_nexus_api_key(x_api_key: str | None) -> None:
-    if not x_api_key or x_api_key != settings.NEXUS_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing X-API-Key",
-        )
 
 
 @router.get("/events", response_model=list[ThreatEventResponse])
@@ -116,44 +106,27 @@ async def get_identity_bot(
     return IdentityBotResponse(impossible_velocity_hits=4, bot_kinematic_blocks=22)
 
 
-@router.get("/global-feed", response_model=GlobalFeedResponse)
+@router.get("/global-feed", response_model=list[GlobalFeedItem])
 async def get_global_feed(
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    caller: User | None = Depends(get_nexus_caller),
 ):
-    """Global threat indicators for Nexus fan-out — polled every ~20s.
+    """Sentinel-nexus inbound threat polling — GET every ~20s.
 
-    Headers: X-API-Key, X-Tenant-ID (tenant optional, logged only).
+    Sender headers: `Authorization: Bearer <JWT>`, `X-Tenant-ID`.
+    Returns bare list `[{"ip": "..."}]` (or `[]` when empty) —
+    exactly what Nexus parses.
     """
-    _check_nexus_api_key(x_api_key)
-    indicators = [
-        GlobalFeedIndicator(
-            indicator="198.51.100.45",
-            type="ipv4",
-            severity="critical",
-            mitre_id="T0855",
-            description="Lateral movement — unauthorized command",
-        ),
-        GlobalFeedIndicator(
-            indicator="203.0.113.99",
-            type="ipv4",
-            severity="high",
-            mitre_id="T1059",
-            description="Command and scripting interpreter",
-        ),
-    ]
+    feed = [GlobalFeedItem(ip="185.220.101.5")]
     logger.info(
-        "GET /api/v1/threats/global-feed tenant=%s count=%d headers={X-API-Key: ****}",
+        "GET /api/v1/threats/global-feed tenant=%s count=%d user=%s",
         x_tenant_id or "tenant-dev-local",
-        len(indicators),
+        len(feed),
+        getattr(caller, "id", "api-key"),
     )
     print(
         f"[threats/global-feed] tenant={x_tenant_id or 'tenant-dev-local'} "
-        f"count={len(indicators)} indicators={[i.indicator for i in indicators]}",
+        f"count={len(feed)} ips={[i.ip for i in feed]}",
         flush=True,
     )
-    return GlobalFeedResponse(
-        indicators=indicators,
-        count=len(indicators),
-        updated_at=datetime.now(timezone.utc),
-    )
+    return feed

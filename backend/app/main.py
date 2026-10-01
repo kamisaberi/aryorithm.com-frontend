@@ -10,7 +10,7 @@ from app.database import engine, Base
 
 # Import ORM models so Base.metadata.create_all() creates all tables.
 import app.models  # noqa: F401
-from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream
+from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants
 
 
 @asynccontextmanager
@@ -52,6 +52,7 @@ app.include_router(range_router.router, prefix="/api/v1")
 app.include_router(settings_router.router, prefix="/api/v1")
 app.include_router(overview.router, prefix="/api/v1")
 app.include_router(stream.router, prefix="/api/v1")
+app.include_router(tenants.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
