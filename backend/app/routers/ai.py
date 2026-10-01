@@ -28,11 +28,11 @@ router = APIRouter(prefix="/ai", tags=["AI & Silicon"])
 
 @router.get("/models", response_model=list[ModelResponse])
 async def list_models(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """List versioned ONNX threat models."""
-    return [
-        ModelResponse(version="v2.0", sha256="abc123...", size_bytes=1420500, stage="FLEET_WIDE"),
-        ModelResponse(version="v2.4", sha256="def456...", size_bytes=1580000, stage="CANARY_5_PCT"),
-    ]
+    """List versioned ONNX threat models (legacy alias of GET /api/v1/models)."""
+    from app.services.model_inventory import list_models_for_tenant, to_metadata_response
+
+    rows = await list_models_for_tenant(db, user.tenant_id)
+    return [ModelResponse(**to_metadata_response(m)) for m in rows]
 
 
 @router.post("/models/upload", response_model=ModelUploadResponse)

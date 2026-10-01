@@ -58,7 +58,7 @@ export default function ModelHubPage() {
       key: "version",
       header: "Version",
       render: (m: AIModel) => (
-        <span className="font-mono text-[12px] font-medium text-ink">{m.version}</span>
+        <span className="font-mono text-[12px] font-medium text-ink">{m.filename ?? m.version ?? "—"}</span>
       ),
     },
     {
@@ -144,7 +144,7 @@ export default function ModelHubPage() {
         </div>
       </Card>
       <Card>
-        <Table columns={columns} data={models.data} keyExtractor={(m) => m.version} />
+        <Table columns={columns} data={models.data} keyExtractor={(m) => m.filename ?? m.version ?? m.sha256} />
       </Card>
     </div>
   );

@@ -48,6 +48,11 @@ async def main() -> None:
             user.is_active = True
             user.role = UserRole.TENANT_ADMIN
             print(f"Reset password for existing user {DEMO_EMAIL}")
+        await db.flush()
+        # Pre-populate baseline threat models per GET /api/v1/models spec.
+        from app.services.model_inventory import ensure_default_models
+
+        await ensure_default_models(db, user.tenant_id)
         await db.commit()
     print(f"Login with: {DEMO_EMAIL} / {DEMO_PASSWORD}")
 

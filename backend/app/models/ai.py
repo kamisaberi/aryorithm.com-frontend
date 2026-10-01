@@ -18,12 +18,23 @@ class ModelStage(str, enum.Enum):
     CANARY_12_PCT = "CANARY_12_PCT"
     FLEET_WIDE = "FLEET_WIDE"
     ROLLED_BACK = "ROLLED_BACK"
+    DISABLED = "DISABLED"
+
+
+# Strict spec enum for GET /api/v1/models (Threat Models Endpoint brief).
+class ThreatModelStage(str, enum.Enum):
+    FLEET_WIDE = "FLEET_WIDE"
+    CANARY_5_PCT = "CANARY_5_PCT"
+    SHADOW_MODE = "SHADOW_MODE"
+    DISABLED = "DISABLED"
 
 
 class Model(Base):
     __tablename__ = "models"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # Unique artifact filename, e.g. "network_threat_v1.onnx" (spec field).
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     version: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     sha256: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, default=0)

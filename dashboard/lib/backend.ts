@@ -126,9 +126,11 @@ export interface IdentityBotStatus {
 
 /* ---------- AI ---------- */
 export interface AIModel {
-  version: string;
+  version?: string;
+  filename: string;
   sha256: string;
   size_bytes: number;
+  download_url: string;
   stage: string;
 }
 export interface OTAStatus {

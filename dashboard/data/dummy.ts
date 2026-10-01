@@ -126,8 +126,8 @@ export const DUMMY_IDENTITY: IdentityBotStatus = {
 };
 
 export const DUMMY_MODELS: AIModel[] = [
-  { version: "v2.4", sha256: "9f2k…c41a", size_bytes: 1420500, stage: "FLEET_WIDE" },
-  { version: "v2.3", sha256: "7p4n…88bd", size_bytes: 1410200, stage: "RETIRED" },
+  { filename: "network_threat_v1.onnx", version: "v1", sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", size_bytes: 1420500, download_url: "/api/v1/models/network_threat_v1.onnx", stage: "FLEET_WIDE" },
+  { filename: "network_threat_v2.onnx", version: "v2", sha256: "8fa9c89b3f4618e47f5255470d9a690e7da3c6046e297893a776", size_bytes: 1485200, download_url: "/api/v1/models/network_threat_v2.onnx", stage: "SHADOW_MODE" },
 ];
 
 export const DUMMY_OTA: OTAStatus = {
