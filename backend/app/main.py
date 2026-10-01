@@ -2,11 +2,20 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import engine, Base
+from app.request_logging import (
+    RequestDumpMiddleware,
+    log_error_dump,
+    silence_invalid_http_request_warning,
+)
 
 # Import ORM models so Base.metadata.create_all() creates all tables.
 import app.models  # noqa: F401
@@ -40,6 +49,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Full request dump (method/path/headers/raw body) + drop uvicorn's bare
+# "Invalid HTTP request received." warning in favour of the detailed dump.
+app.add_middleware(RequestDumpMiddleware)
+silence_invalid_http_request_warning()
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """422 handler that prints the exact headers/body that failed validation."""
+    errors = jsonable_encoder(exc.errors())
+    await log_error_dump(request, 422, errors)
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """4xx/5xx handler that prints the exact headers/body of the failed request."""
+    if exc.status_code >= 400:
+        await log_error_dump(request, exc.status_code, exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """500 handler that prints the exact headers/body of the crashed request."""
+    import traceback
+
+    traceback.print_exc()
+    await log_error_dump(request, 500, f"{type(exc).__name__}: {exc}")
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 # Include all routers
 app.include_router(auth.router, prefix="/api/v1")
