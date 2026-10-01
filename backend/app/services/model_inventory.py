@@ -1,10 +1,73 @@
 """Shared inventory logic for GET /api/v1/models (spec brief)."""
 
+from pathlib import Path
+
 from sqlalchemy import inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import engine
 from app.models.ai import Model, ModelStage
+
+# Local mirror dir for ONNX binaries served by GET /api/v1/models/{filename}.
+# backend/app/services/model_inventory.py -> parents[2] == backend/
+MODEL_STORAGE_DIR = Path(__file__).resolve().parent.parent.parent / "storage" / "models"
+
+# Real-world cybersecurity ONNX artifacts (verified 2026-10-02).
+# sha256/size_bytes below are the actual upstream bytes. The two quantized
+# int8 models are mirrored under storage/models/; the 499MB CodeBERT
+# artifact stays Hugging Face-hosted and is served via 302 redirect.
+# Sources (all public, ungated Hugging Face repos):
+# - sms_spam_bert_tiny_int8: onnx-community/bert-tiny-finetuned-sms-spam-detection-ONNX
+#   (onnx/model_int8.onnx; base mrm8488/bert-tiny-finetuned-sms-spam-detection) — SMS smishing
+# - phishing_bert_small_int8: onnx-community/bert-small-phishing-ONNX
+#   (onnx/model_int8.onnx; base David-Egea/bert-small-phishing, MIT) — phishing text
+# - malicious_url_codebert: protectai/codebert-base-Malicious_URLs-onnx
+#   (model.onnx; base DunnBC22/codebert-base-Malicious_URLs) — malicious URLs
+WEB_MODELS: list[dict] = [
+    {
+        "filename": "sms_spam_bert_tiny_int8.onnx",
+        "version": "v3",
+        "sha256": "0ce41a2af81a71712cbfcd84f8b0b583e7a345db14ce179905aa1ca02c992d4a",
+        "size_bytes": 4490601,
+        "download_url": "/api/v1/models/sms_spam_bert_tiny_int8.onnx",
+        "stage": ModelStage.CANARY_5_PCT,
+    },
+    {
+        "filename": "phishing_bert_small_int8.onnx",
+        "version": "v4",
+        "sha256": "b82f10fd29dee2c9fe9cae51997529234bb889151965e0580c4f008e8124455e",
+        "size_bytes": 28990230,
+        "download_url": "/api/v1/models/phishing_bert_small_int8.onnx",
+        "stage": ModelStage.SHADOW_MODE,
+    },
+    {
+        "filename": "malicious_url_codebert.onnx",
+        "version": "v5",
+        "sha256": "6afa5ed584331bf116f19525e3818577337a5b91462650915ae52b7e1f521c39",
+        "size_bytes": 498876751,
+        "download_url": (
+            "https://huggingface.co/protectai/codebert-base-Malicious_URLs-onnx"
+            "/resolve/main/model.onnx"
+        ),
+        "stage": ModelStage.SHADOW_MODE,
+    },
+]
+
+# Mirror sources for seed_web_models.py (absolute-URL rows need no mirror).
+SOURCE_URLS: dict[str, str] = {
+    "sms_spam_bert_tiny_int8.onnx": (
+        "https://huggingface.co/onnx-community/bert-tiny-finetuned-sms-spam-detection-ONNX"
+        "/resolve/main/onnx/model_int8.onnx"
+    ),
+    "phishing_bert_small_int8.onnx": (
+        "https://huggingface.co/onnx-community/bert-small-phishing-ONNX"
+        "/resolve/main/onnx/model_int8.onnx"
+    ),
+    "malicious_url_codebert.onnx": (
+        "https://huggingface.co/protectai/codebert-base-Malicious_URLs-onnx"
+        "/resolve/main/model.onnx"
+    ),
+}
 
 # Built-in / default seed data from the spec brief (exact values).
 DEFAULT_MODELS: list[dict] = [
@@ -80,8 +143,24 @@ async def ensure_default_models(db: AsyncSession, tenant_id: str) -> None:
     await db.flush()
 
 
+async def ensure_web_models(db: AsyncSession, tenant_id: str) -> None:
+    """Idempotently seed real-world cybersecurity ONNX rows for a tenant.
+
+    Rows whose sha256 is still an unfilled placeholder are skipped, so a
+    half-configured entry can never land in the database.
+    """
+    await ensure_filename_column()
+    result = await db.execute(select(Model.filename).where(Model.tenant_id == tenant_id))
+    existing = set(result.scalars().all())
+    for meta in WEB_MODELS:
+        if meta["filename"] not in existing and "REPLACE_" not in meta["sha256"]:
+            db.add(Model(tenant_id=tenant_id, **meta))
+    await db.flush()
+
+
 async def list_models_for_tenant(db: AsyncSession, tenant_id: str) -> list[Model]:
     await ensure_default_models(db, tenant_id)
+    await ensure_web_models(db, tenant_id)
     result = await db.execute(
         select(Model).where(Model.tenant_id == tenant_id).order_by(Model.filename)
     )
