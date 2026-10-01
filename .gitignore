@@ -12,6 +12,7 @@ main/node_modules/
 main/.next/
 main/out/
 main/dist/
+
 main/*.log
 main/.DS_Store
 
