@@ -98,9 +98,23 @@ app.include_router(overview.router, prefix="/api/v1")
 app.include_router(stream.router, prefix="/api/v1")
 app.include_router(tenants.router, prefix="/api/v1")
 app.include_router(models_router.router, prefix="/api/v1")
-# Compat alias: some edge clients / checkers call GET /v1/models (no /api).
-# Serve the identical handler there too so both paths return 200.
-app.include_router(models_router.router, prefix="/v1", include_in_schema=False)
+
+
+@app.get("/v1/models", include_in_schema=False)
+async def openai_compat_models():
+    """Public stub for local dev-tool probing (e.g. OpenCode CLI).
+
+    Unauthenticated `GET /v1/models` (OpenAI-style) port probes must not
+    hit the authenticated threat-model inventory at GET /api/v1/models.
+    Returns an empty OpenAI-compatible list so probes get 200, not 401.
+    """
+    return {"object": "list", "data": []}
+
+
+@app.get("/v1/models/", include_in_schema=False)
+async def openai_compat_models_slash():
+    """Trailing-slash alias of the public /v1/models stub."""
+    return {"object": "list", "data": []}
 
 
 @app.get("/health", tags=["System"])
