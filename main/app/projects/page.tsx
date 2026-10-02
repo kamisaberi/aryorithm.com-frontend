@@ -8,7 +8,7 @@ import { PROJECTS } from "@/data/projects";
 
 export const metadata: Metadata = {
   title: "Projects & Applications | Aryorithm",
-  description: "Explore the Aryorithm ecosystem: Blackbox Sentinel, Sentinel Nexus, xInfer Engine, Blackbox Core, xInfer Forge, Sentinel-Lab, and SLAB Protocol.",
+  description: "Explore the Aryorithm ecosystem: Blackbox Sentinel, Sentinel Nexus, xInfer Essential, Blackbox Core, xInfer Forge, Sentinel-Lab, and SLAB Protocol.",
 };
 
 const CATEGORIES = ["Platform", "Engine", "Research", "Protocol"] as const;
@@ -85,7 +85,7 @@ export default function ProjectsPage() {
                 heading: "Quick Links",
                 items: [
                   { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
-                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "xInfer Essential", href: "/projects/xinfer-essential", meta: "v4.2.0" },
                   { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
                 ],
               },

@@ -104,7 +104,7 @@ export default function BlackboxSentinelPage() {
                 heading: "Related Projects",
                 items: [
                   { label: "Sentinel Nexus", href: "/projects/sentinel-nexus", meta: "v3.1.0" },
-                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "xInfer Essential", href: "/projects/xinfer-essential", meta: "v4.2.0" },
                   { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
                 ],
               },

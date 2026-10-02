@@ -31,14 +31,14 @@ export const PROJECTS: Project[] = [
     description: "The orchestration plane for fleet-wide collective immunity. Manages OTA canary deployments, attestation, and cross-appliance threat correlation.",
   },
   {
-    slug: "xinfer-engine",
-    name: "xInfer Engine",
-    tagline: "Heterogeneous Silicon Inference Runtime",
+    slug: "xinfer-essential",
+    name: "xInfer Essential",
+    tagline: "Universal Zero-Copy AI Runtime (libxinfer.so)",
     category: "Engine",
     color: "#00FFA3",
     status: "Generally Available",
     version: "v4.2.0",
-    description: "libxinfer.so — one model graph, fifteen silicon backends, zero-copy DMA-mapped memory. Sub-millisecond inference across NPU, GPU, and FPGA accelerators.",
+    description: "libxinfer.so — open-core C++20 execution engine with zero-copy DMA-mapped memory across 15 silicon targets. 11.8µs inference, 1.25M EPS, under 15 MB.",
   },
   {
     slug: "blackbox-core",

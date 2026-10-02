@@ -82,7 +82,7 @@ export default function BlackboxCorePage() {
                 heading: "Related Projects",
                 items: [
                   { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
-                  { label: "xInfer Engine", href: "/projects/xinfer-engine", meta: "v4.2.0" },
+                  { label: "xInfer Essential", href: "/projects/xinfer-essential", meta: "v4.2.0" },
                   { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
                 ],
               },
