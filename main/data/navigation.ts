@@ -45,6 +45,7 @@ export const NAV: NavGroup[] = [
       { name: "xInfer Forge", desc: "Air-gapped continual learning service", to: "/projects/xinfer-forge" },
       { name: "Sentinel-Lab", desc: "Open research & benchmark platform", to: "/projects/sentinel-lab" },
       { name: "SLAB Protocol", desc: "Zero-allocation binary wire protocol", to: "/projects/slab-protocol" },
+      { name: "Sentinel-Matrix", desc: "Autonomous cyber-range & digital twin mesh", to: "/projects/sentinel-matrix" },
     ],
   },
   {
@@ -114,6 +115,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "xInfer Forge", to: "/projects/xinfer-forge" },
       { label: "Sentinel-Lab", to: "/projects/sentinel-lab" },
       { label: "SLAB Protocol", to: "/projects/slab-protocol" },
+      { label: "Sentinel-Matrix", to: "/projects/sentinel-matrix" },
     ],
   },
   {
@@ -187,6 +189,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/projects/xinfer-forge": "xInfer Forge — Air-Gapped Continual Learning Service",
   "/projects/sentinel-lab": "Sentinel-Lab — Open Research & Benchmark Platform",
   "/projects/slab-protocol": "SLAB Protocol — Zero-Allocation Binary Wire Protocol",
+  "/projects/sentinel-matrix": "Sentinel-Matrix — Autonomous Cyber-Range & Digital Twins",
   "/research/sentinel-lab": "Sentinel-Lab — Open Research & Benchmark Platform",
   "/papers": "Research Papers & Publications",
   "/team": "Leadership, Architects & Careers",

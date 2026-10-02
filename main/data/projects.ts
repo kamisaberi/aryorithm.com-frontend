@@ -80,4 +80,14 @@ export const PROJECTS: Project[] = [
     version: "v1.0.0",
     description: "Synchronous Lightweight Air-gapped Binary wire protocol. Fixed-size frames, zero heap allocations, deterministic serialization for air-gapped environments.",
   },
+  {
+    slug: "sentinel-matrix",
+    name: "Sentinel-Matrix",
+    tagline: "Autonomous Cyber-Physical Range & Digital Twins",
+    category: "Research",
+    color: "#FFB800",
+    status: "Generally Available",
+    version: "v1.0.0",
+    description: "Encapsulated VMware cyber-range on 10.240.0.0/24: 7-channel OmniFlow traffic, real malware PCAP replay, live red-team adversary, closed-loop AI retraining.",
+  },
 ];
