@@ -41,14 +41,14 @@ export const PROJECTS: Project[] = [
     description: "libxinfer.so — open-core C++20 execution engine with zero-copy DMA-mapped memory across 15 silicon targets. 11.8µs inference, 1.25M EPS, under 15 MB.",
   },
   {
-    slug: "blackbox-core",
-    name: "Blackbox Core",
-    tagline: "eBPF/XDP Kernel Mitigation Engine",
+    slug: "blackbox-essential",
+    name: "Blackbox Essential",
+    tagline: "In-Kernel Active Defense (libblackbox.so)",
     category: "Engine",
     color: "#00E5FF",
     status: "Generally Available",
     version: "v2.8.3",
-    description: "libblackbox.so — the kernel-level fast-path inspection and mitigation engine. Achieves 0.84µs worst-case drop latency using XDP hooks and AF_XDP zero-copy drivers.",
+    description: "libblackbox.so — wire-speed eBPF/XDP packet dropping in 0.84µs, lock-free SPMC ring at 1.25M EPS, TPM 2.0 silicon root of trust.",
   },
   {
     slug: "xinfer-forge",

@@ -8,7 +8,7 @@ import { PROJECTS } from "@/data/projects";
 
 export const metadata: Metadata = {
   title: "Projects & Applications | Aryorithm",
-  description: "Explore the Aryorithm ecosystem: Blackbox Sentinel, Sentinel Nexus, xInfer Essential, Blackbox Core, xInfer Forge, Sentinel-Lab, and SLAB Protocol.",
+  description: "Explore the Aryorithm ecosystem: Blackbox Sentinel, Sentinel Nexus, xInfer Essential, Blackbox Essential, xInfer Forge, Sentinel-Lab, and SLAB Protocol.",
 };
 
 const CATEGORIES = ["Platform", "Engine", "Research", "Protocol"] as const;

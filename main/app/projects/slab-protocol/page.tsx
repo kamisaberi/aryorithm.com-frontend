@@ -83,7 +83,7 @@ export default function SlabProtocolPage() {
                 items: [
                   { label: "Sentinel-Lab", href: "/projects/sentinel-lab", meta: "v2.4.0" },
                   { label: "Sentinel Nexus", href: "/projects/sentinel-nexus", meta: "v3.1.0" },
-                  { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
+                  { label: "Blackbox Essential", href: "/projects/blackbox-essential", meta: "v2.8.3" },
                 ],
               },
             ]}

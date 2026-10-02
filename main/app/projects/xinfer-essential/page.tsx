@@ -326,7 +326,7 @@ export default function XInferEssentialPage() {
                 items: [
                   { label: "Blackbox Sentinel", href: "/projects/blackbox-sentinel", meta: "v4.2.1" },
                   { label: "xInfer Forge", href: "/projects/xinfer-forge", meta: "v1.0.0" },
-                  { label: "Blackbox Core", href: "/projects/blackbox-core", meta: "v2.8.3" },
+                  { label: "Blackbox Essential", href: "/projects/blackbox-essential", meta: "v2.8.3" },
                 ],
               },
             ]}
