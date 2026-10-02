@@ -64,3 +64,18 @@ class GlobalFeedItem(BaseModel):
     """Exact sentinel-nexus polling shape: [{"ip": "..."}]."""
 
     ip: str
+
+
+class XAIAttributionVector(BaseModel):
+    rank: int
+    feature: str
+    contribution_pct: float
+    observed: str
+    baseline: str
+    audit_note: str
+
+
+class XAIIncidentResponse(BaseModel):
+    attacker_ip: str
+    mitre_id: str | None = None
+    attributions: list[XAIAttributionVector] = []

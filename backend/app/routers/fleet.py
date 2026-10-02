@@ -4,10 +4,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin, get_nexus_caller
+from app.models.fleet import Enclave, Node, Sensor
 from app.models.user import User
 from app.schemas.fleet import (
     NodeResponse,
@@ -27,8 +29,15 @@ from app.schemas.fleet import (
     FleetSyncRequest,
     FleetSyncResponse,
     TopologyResponse,
+    GroupCreate,
+    GroupResponse,
+    GroupCreateResponse,
 )
-from app.services.fleet_topology import get_topology, sync_topology
+from app.services.fleet_topology import (
+    ensure_topology_schema,
+    get_topology,
+    sync_topology,
+)
 
 router = APIRouter(prefix="/fleet", tags=["Fleet Management"])
 
@@ -103,43 +112,72 @@ async def get_fleet_topology(
 async def list_nodes(
     status: str | None = Query(None),
     backend: str | None = Query(None),
+    enclave: str | None = Query(None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all registered edge appliances."""
-    # TODO: Implement with actual DB query
-    return [
-        NodeResponse(
-            node_id="NODE-8fa9",
-            site="Substation-01",
-            status="ONLINE",
-            cpu_pct=14.2,
-            latency_us=0.84,
-            eps=1250000,
-            version="v2.4.1",
-            backend="OPENVINO",
-        ),
-        NodeResponse(
-            node_id="NODE-9b2c",
-            site="Substation-02",
-            status="ONLINE",
-            cpu_pct=8.7,
-            latency_us=0.79,
-            eps=980000,
-            version="v2.4.1",
-            backend="OPENVINO",
-        ),
-    ]
+    """List all registered edge appliances (last synced state)."""
+    await ensure_topology_schema()
+    data = await get_topology(db, user.tenant_id)
+    out: list[NodeResponse] = []
+    for nx in data["nexus"]:
+        for n in nx["nodes"]:
+            if status and n["status"] != status.strip().upper():
+                continue
+            out.append(NodeResponse(
+                node_id=n["node_id"],
+                site=n["site"],
+                status=n["status"],
+                cpu_pct=n["cpu_pct"],
+                latency_us=n["mitigation_latency_us"],
+                eps=0,
+                version="",
+                backend="",
+            ))
+    # Fill static descriptors from the node rows.
+    result = await db.execute(select(Node).where(Node.tenant_id == user.tenant_id))
+    by_id = {row.node_id: row for row in result.scalars().all()}
+    for item in out:
+        row = by_id.get(item.node_id)
+        if row is not None:
+            if backend and (row.backend or "") != backend:
+                continue
+            item.eps = row.eps
+            item.version = row.version
+            item.backend = row.backend or ""
+    if backend:
+        out = [i for i in out if i.backend == backend]
+    _ = enclave  # enclave grouping lives under /fleet/groups; accepted for compat
+    return out
 
 
 @router.get("/nodes/{node_id}", response_model=NodeDetailResponse)
 async def get_node(node_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """Single node telemetry & ring buffer inspector."""
-    return NodeDetailResponse(
-        node_id=node_id,
-        ring_buffer_fill_pct=4,
-        kernel_drops=420,
-        hardware={"cpu": "ARM Cortex-A76", "tpm": "TPM 2.0", "memory_mb": 4096},
+    """Single node telemetry, live sensors & ring buffer inspector."""
+    await ensure_topology_schema()
+    data = await get_topology(db, user.tenant_id)
+    for nx in data["nexus"]:
+        for n in nx["nodes"]:
+            if n["node_id"] == node_id:
+                result = await db.execute(
+                    select(Node).where(
+                        Node.tenant_id == user.tenant_id,
+                        Node.node_id == node_id,
+                    )
+                )
+                row = result.scalar_one_or_none()
+                return NodeDetailResponse(
+                    node_id=node_id,
+                    ring_buffer_fill_pct=row.ring_buffer_fill_pct if row else 0,
+                    kernel_drops=(row.ebpf_drops if row else 0),
+                    hardware={"cpu": "ARM Cortex-A76", "tpm": "TPM 2.0", "memory_mb": 4096},
+                    site=n["site"],
+                    status=n["status"],
+                    sensors=n["sensors"],
+                )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Node not found",
     )
 
 
@@ -160,8 +198,117 @@ async def decommission_node(
     user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Decommission / unregister edge appliance."""
+    """Decommission / unregister edge appliance (purges node + sensors)."""
+    await ensure_topology_schema()
+    result = await db.execute(
+        select(Node).where(
+            Node.tenant_id == user.tenant_id,
+            Node.node_id == node_id,
+        )
+    )
+    node = result.scalar_one_or_none()
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Node not found",
+        )
+    result = await db.execute(
+        select(Sensor).where(
+            Sensor.tenant_id == user.tenant_id,
+            Sensor.node_node_id == node_id,
+        )
+    )
+    for sensor in result.scalars().all():
+        await db.delete(sensor)
+    await db.delete(node)
+    await db.flush()
     return NodeActionResponse(status="DECOMMISSIONED", node_id=node_id)
+
+
+async def _ensure_enclave_column() -> None:
+    def _migrate(sync_conn) -> None:
+        from sqlalchemy import inspect as _inspect
+        from sqlalchemy import text as _text
+
+        try:
+            cols = {c["name"] for c in _inspect(sync_conn).get_columns("enclaves")}
+        except Exception:
+            return
+        if "scada_mode" not in cols:
+            sync_conn.execute(_text("ALTER TABLE enclaves ADD COLUMN scada_mode BOOLEAN"))
+
+    from app.database import engine as _engine
+
+    async with _engine.begin() as conn:
+        await conn.run_sync(_migrate)
+
+
+@router.get("/groups", response_model=list[GroupResponse])
+async def list_groups(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List logical site enclaves / groups (OT, Medical, DMZ)."""
+    await _ensure_enclave_column()
+    result = await db.execute(select(Enclave).where(Enclave.tenant_id == user.tenant_id))
+    groups = list(result.scalars().all())
+    if not groups:
+        return [
+            GroupResponse(group_id="CRITICAL_OT", scada_mode=True, max_latency_us=800, node_count=0),
+            GroupResponse(group_id="MEDICAL_ZONE", scada_mode=False, max_latency_us=500, node_count=0),
+            GroupResponse(group_id="DMZ_PERIMETER", scada_mode=False, max_latency_us=1000, node_count=0),
+        ]
+    result = await db.execute(select(Node).where(Node.tenant_id == user.tenant_id))
+    nodes = list(result.scalars().all())
+    counts: dict[str, int] = {}
+    for g in groups:
+        counts[g.enclave_id] = sum(1 for n in nodes if n.enclave_id == g.id)
+    return [
+        GroupResponse(
+            group_id=g.enclave_id,
+            scada_mode=bool(g.scada_mode),
+            max_latency_us=g.max_latency_us,
+            node_count=counts.get(g.enclave_id, 0),
+        )
+        for g in groups
+    ]
+
+
+@router.post("/groups", response_model=GroupCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_group(
+    body: GroupCreate,
+    user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new physical or logical enclave zone."""
+    await _ensure_enclave_column()
+    group_id = body.group_id.strip()
+    if not group_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="group_id is required",
+        )
+    result = await db.execute(
+        select(Enclave).where(
+            Enclave.tenant_id == user.tenant_id,
+            Enclave.enclave_id == group_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        existing.max_latency_us = body.max_latency_us
+        existing.scada_mode = body.scada_mode
+        await db.flush()
+        return GroupCreateResponse(status="CREATED", group_id=group_id)
+    db.add(Enclave(
+        enclave_id=group_id,
+        name=group_id,
+        max_latency_us=body.max_latency_us,
+        scada_mode=body.scada_mode,
+        tenant_id=user.tenant_id,
+    ))
+    await db.flush()
+    return GroupCreateResponse(status="CREATED", group_id=group_id)
 
 
 @router.get("/enclaves", response_model=list[EnclaveResponse])

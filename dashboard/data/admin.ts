@@ -6,48 +6,53 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: "Overview", href: "/dashboard", icon: "◈" },
       { label: "Threat Map", href: "/threat-map", icon: "◉" },
-      { label: "Live XAI Feed", href: "/xai-feed", icon: "◷" },
+      { label: "Live XAI Stream", href: "/xai-feed", icon: "◷" },
     ],
   },
   {
-    label: "Edge Appliances",
+    label: "Edge Fleet",
     items: [
       { label: "Asset Topology", href: "/topology", icon: "⟁" },
-      { label: "Fleet Nodes", href: "/fleet-nodes", icon: "▣" },
-      { label: "Enclaves / OT", href: "/enclaves", icon: "◆" },
-      { label: "Provision (ZTP)", href: "/provisioning", icon: "⚡" },
+      { label: "Appliance Matrix", href: "/fleet-nodes", icon: "▣" },
+      { label: "Site Enclaves", href: "/enclaves", icon: "◆" },
+      { label: "Provisioning (ZTP)", href: "/provisioning", icon: "⚡" },
+      { label: "Kernel eBPF Rules", href: "/kernel-rules", icon: "⌘" },
     ],
   },
   {
-    label: "Collective Grid",
+    label: "Threat Defense",
     items: [
-      { label: "Threat Bus", href: "/threat-bus", icon: "⇄" },
+      { label: "Collective Grid", href: "/threat-bus", icon: "⇄" },
       { label: "MITRE ATT&CK", href: "/mitre", icon: "▦" },
-      { label: "SCADA Monitor", href: "/scada", icon: "◫" },
-      { label: "Identity & Bot", href: "/identity", icon: "◉" },
+      { label: "SCADA & OT Monitor", href: "/scada", icon: "◫" },
+      { label: "Identity & Bot Defense", href: "/identity", icon: "◉" },
     ],
   },
   {
     label: "AI & Silicon",
     items: [
-      { label: "Model Hub (OTA)", href: "/model-hub", icon: "⬡" },
-      { label: "Cloud Forge", href: "/cloud-forge", icon: "▲" },
-      { label: "15x Compiler", href: "/compiler", icon: "⟨⟩" },
+      { label: "Model Repository", href: "/model-hub", icon: "⬡" },
+      { label: "Cloud Model Forge", href: "/cloud-forge", icon: "▲" },
+      { label: "Silicon Compiler", href: "/compiler", icon: "⟨⟩" },
+      { label: "AI TRiSM Firewall", href: "/trism", icon: "⛨" },
     ],
   },
   {
     label: "Compliance GRC",
     items: [
-      { label: "NIS2 / DORA", href: "/compliance/nis2-dora", icon: "✓" },
-      { label: "IEC 62443 / CMMC", href: "/compliance/iec-62443", icon: "⛨" },
-      { label: "Insurance Proof", href: "/compliance/insurance", icon: "▤" },
+      { label: "EU NIS2 & DORA", href: "/compliance/nis2-dora", icon: "✓" },
+      { label: "IEC 62443 Industrial", href: "/compliance/iec-62443", icon: "⛨" },
+      { label: "CMMC 2.0 / NIST", href: "/compliance/cmmc-nist", icon: "▤" },
+      { label: "Insurance Verifier", href: "/compliance/insurance", icon: "◈" },
+      { label: "SBOM Tracker", href: "/compliance/sbom", icon: "≣" },
     ],
   },
   {
-    label: "Forensics (DFIR)",
+    label: "Digital Forensics",
     items: [
-      { label: "Evidence PCAP", href: "/forensics/evidence", icon: "◎" },
+      { label: "Evidence PCAP Vault", href: "/forensics/evidence", icon: "◎" },
       { label: "CDR Sanitizer", href: "/forensics/cdr", icon: "⌫" },
+      { label: "Firmware Analyzer", href: "/forensics/firmware", icon: "◍" },
     ],
   },
   {
@@ -55,22 +60,23 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: "Digital Twins", href: "/cyber-range/twins", icon: "⧉" },
       { label: "Attack Replay", href: "/cyber-range/replay", icon: "↻" },
+      { label: "Resilience Scoring", href: "/cyber-range/resilience", icon: "⬢" },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { label: "Access Control (RBAC)", href: "/users", icon: "◉" },
+      { label: "API Keys & Webhooks", href: "/api-keys", icon: "⚿" },
+      { label: "Licensing & Billing", href: "/billing", icon: "▣" },
+      { label: "Audit Trail", href: "/activity", icon: "◷" },
+      { label: "System", href: "/settings", icon: "⚙" },
     ],
   },
   {
     label: "Management",
     items: [
-      { label: "Users", href: "/users", icon: "◉", badge: "128" },
       { label: "Subscriptions", href: "/subscriptions", icon: "◆", badge: "42" },
-      { label: "Billing", href: "/billing", icon: "▣" },
-      { label: "API Keys", href: "/api-keys", icon: "⚿", badge: "18" },
-      { label: "Activity", href: "/activity", icon: "◷" },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { label: "Settings", href: "/settings", icon: "⚙" },
     ],
   },
 ];

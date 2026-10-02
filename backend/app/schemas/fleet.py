@@ -20,6 +20,29 @@ class NodeDetailResponse(BaseModel):
     ring_buffer_fill_pct: int
     kernel_drops: int
     hardware: dict
+    site: str | None = None
+    status: str | None = None
+    sensors: list["TopologySensor"] = []
+
+
+class GroupCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    group_id: str
+    max_latency_us: int = 1000
+    scada_mode: bool = False
+
+
+class GroupResponse(BaseModel):
+    group_id: str
+    scada_mode: bool
+    max_latency_us: int
+    node_count: int
+
+
+class GroupCreateResponse(BaseModel):
+    status: str
+    group_id: str
 
 
 class NodeRestartRequest(BaseModel):

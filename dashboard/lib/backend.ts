@@ -207,8 +207,7 @@ export interface ForgeDataset {
   high_uncertainty: number;
 }
 
-/* ---------- Compliance ---------- */
-export interface NIS2Status {
+/* ---------- Compliance ---------- */export interface NIS2Status {
   framework: string;
   compliant: boolean;
   incident_sla_verified: boolean;
@@ -220,6 +219,22 @@ export interface IECStatus {
 }
 export interface CMMCStatus {
   findings: { control_id: string; title: string; passed: boolean }[];
+}
+export interface SBOMComponent {
+  type: string;
+  name: string;
+  version: string;
+  purl: string;
+}
+export interface SBOM {
+  bomFormat: string;
+  specVersion: string;
+  components: SBOMComponent[];
+}
+export interface TrismResult {
+  safe: boolean;
+  risk_score: number;
+  sanitized_text: string | null;
 }
 export interface InsuranceProof {
   certified_sla_us: number;
@@ -363,11 +378,14 @@ export const backend = {
       body,
       t
     ),
+  trismEvaluate: (body: { prompt_text: string }, t: string | null) =>
+    api.post<TrismResult>("/ai/trism/evaluate", body, t),
 
   // Compliance
   nis2: (t: string | null) => get<NIS2Status>("/compliance/nis2", t),
   iec62443: (t: string | null) => get<IECStatus>("/compliance/iec62443", t),
   cmmc: (t: string | null) => get<CMMCStatus>("/compliance/cmmc", t),
+  sbom: (t: string | null) => get<SBOM>("/compliance/sbom", t),
   insurance: (t: string | null) =>
     get<InsuranceProof>("/compliance/insurance-proof", t),
   attestationLogs: (t: string | null) =>

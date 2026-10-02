@@ -18,6 +18,8 @@ from app.schemas.threat import (
     ScadaResponse,
     IdentityBotResponse,
     GlobalFeedItem,
+    XAIAttributionVector,
+    XAIIncidentResponse,
 )
 
 router = APIRouter(prefix="/threats", tags=["Threat Defense"])
@@ -130,3 +132,77 @@ async def get_global_feed(
         flush=True,
     )
     return feed
+
+
+def _sample_xai() -> list[XAIIncidentResponse]:
+    """Sample microsecond-residual attribution vectors (doc shape)."""
+    return [
+        XAIIncidentResponse(
+            attacker_ip="198.51.100.45",
+            mitre_id="T0855",
+            attributions=[
+                XAIAttributionVector(rank=1, feature="SCADA_FUNC_CODE", contribution_pct=54.2, observed="FC=0x5A (diag)", baseline="FC in {1..4}", audit_note="Unauthorized diagnostic function on Modbus/TCP"),
+                XAIAttributionVector(rank=2, feature="CMD_SEQUENCE", contribution_pct=21.8, observed="write-then-exec in 0.4ms", baseline=">50ms human gap", audit_note="Inhuman command chaining speed"),
+                XAIAttributionVector(rank=3, feature="PAYLOAD_ENTROPY", contribution_pct=13.1, observed="7.9 bits/byte", baseline="4.2 bits/byte", audit_note="Encrypted payload in cleartext protocol"),
+            ],
+        ),
+        XAIIncidentResponse(
+            attacker_ip="203.0.113.99",
+            mitre_id="T1059",
+            attributions=[
+                XAIAttributionVector(rank=1, feature="BRUTE_FORCE_RATE", contribution_pct=61.3, observed="240 auth/s", baseline="<5 auth/s", audit_note="Credential spraying burst"),
+                XAIAttributionVector(rank=2, feature="PAYLOAD_ENTROPY", contribution_pct=22.4, observed="7.6 bits/byte", baseline="4.2 bits/byte", audit_note="Packed executable transfer"),
+                XAIAttributionVector(rank=3, feature="DST_PORT_FANOUT", contribution_pct=9.8, observed="38 ports in 2s", baseline="1-2 ports", audit_note="Lateral sweep pattern"),
+            ],
+        ),
+    ]
+
+
+@router.get("/xai", response_model=list[XAIIncidentResponse])
+async def get_threat_xai(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Microsecond Residual XAI top-3 feature attribution vectors.
+
+    Served from stored xai_attributions when present, else the
+    reference sample vectors above (same contract either way).
+    """
+    from sqlalchemy import select
+
+    from app.models.overview import XAIAttribution
+
+    try:
+        result = await db.execute(
+            select(XAIAttribution).where(XAIAttribution.tenant_id == user.tenant_id)
+        )
+        rows = list(result.scalars().all())
+    except Exception:
+        rows = []
+    if rows:
+        out = []
+        for row in rows:
+            raw = row.attributions
+            if isinstance(raw, dict):
+                raw = raw.get("attributions", [])
+            attrs = raw if isinstance(raw, list) else []
+            vectors = []
+            for i, a in enumerate(attrs[:3], start=1):
+                if not isinstance(a, dict):
+                    continue
+                vectors.append(XAIAttributionVector(
+                    rank=int(a.get("rank", i)),
+                    feature=str(a.get("feature", "UNKNOWN")),
+                    contribution_pct=float(a.get("pct", a.get("contribution_pct", 0.0))),
+                    observed=str(a.get("observed", "")),
+                    baseline=str(a.get("baseline", "")),
+                    audit_note=str(a.get("audit_note", "")),
+                ))
+            out.append(XAIIncidentResponse(
+                attacker_ip=row.attacker_ip,
+                mitre_id=row.mitre_id,
+                attributions=vectors,
+            ))
+        if out:
+            return out
+    return _sample_xai()

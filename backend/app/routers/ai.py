@@ -48,7 +48,14 @@ async def upload_model(
 @router.get("/ota/status", response_model=OTAStatusResponse)
 async def get_ota_status(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Current canary staged rollout status."""
-    return OTAStatusResponse(stable_version="v2.0", candidate_version="v2.4", stage="CANARY_5_PCT")
+    from app.services import ota as ota_service
+
+    data = await ota_service.get_status(db, user.tenant_id)
+    return OTAStatusResponse(
+        stable_version=data["stable_version"],
+        candidate_version=data["candidate_version"],
+        stage=data["stage"],
+    )
 
 
 @router.post("/ota/stage", response_model=OTAStageResponse)
@@ -58,19 +65,30 @@ async def stage_ota(
     db: AsyncSession = Depends(get_db),
 ):
     """Stage candidate weights into SHADOW_MODE."""
-    return OTAStageResponse(status="candidate_staged", stage="SHADOW_MODE")
+    from app.services import ota as ota_service
+
+    data = await ota_service.stage_candidate(
+        db, user.tenant_id, body.version, body.sha256, body.url
+    )
+    return OTAStageResponse(status=data["status"], stage=data["stage"])
 
 
 @router.post("/ota/advance", response_model=OTAResponse)
 async def advance_ota(user: User = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Advance rollout (Shadow -> 5% -> Fleet)."""
-    return OTAResponse(status="advanced", new_stage="CANARY_12_PCT")
+    from app.services import ota as ota_service
+
+    data = await ota_service.advance(db, user.tenant_id)
+    return OTAResponse(status=data["status"], new_stage=data["new_stage"])
 
 
 @router.post("/ota/rollback", response_model=OTAResponse)
 async def rollback_ota(user: User = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Emergency rollback to previous stable model."""
-    return OTAResponse(status="emergency_rollback_executed", active="v2.0")
+    from app.services import ota as ota_service
+
+    data = await ota_service.rollback(db, user.tenant_id)
+    return OTAResponse(status=data["status"], active=data["active"])
 
 
 @router.get("/forge/datasets", response_model=list[ForgeDatasetResponse])
