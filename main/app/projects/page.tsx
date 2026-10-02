@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Explore the Aryorithm ecosystem: Blackbox Sentinel, Sentinel Nexus, xInfer Essential, Blackbox Essential, xInfer Forge, Sentinel-Lab, and SLAB Protocol.",
 };
 
-const CATEGORIES = ["Platform", "Engine", "Research", "Protocol"] as const;
+const CATEGORIES = ["Platform", "Engine", "Research"] as const;
 
 export default function ProjectsPage() {
   return (

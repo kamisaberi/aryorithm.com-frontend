@@ -71,16 +71,6 @@ export const PROJECTS: Project[] = [
     description: "Tier 5 open research platform for reproducible evaluation of cyber-physical defense systems. Apache-2.0 licensed, free to use.",
   },
   {
-    slug: "slab-protocol",
-    name: "SLAB Protocol",
-    tagline: "Zero-Allocation Binary Wire Protocol",
-    category: "Protocol",
-    color: "#FF3366",
-    status: "Open Standard",
-    version: "v1.0.0",
-    description: "Synchronous Lightweight Air-gapped Binary wire protocol. Fixed-size frames, zero heap allocations, deterministic serialization for air-gapped environments.",
-  },
-  {
     slug: "sentinel-matrix",
     name: "Sentinel-Matrix",
     tagline: "Autonomous Cyber-Physical Range & Digital Twins",
