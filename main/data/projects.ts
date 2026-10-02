@@ -90,4 +90,14 @@ export const PROJECTS: Project[] = [
     version: "v1.0.0",
     description: "Encapsulated VMware cyber-range on 10.240.0.0/24: 7-channel OmniFlow traffic, real malware PCAP replay, live red-team adversary, closed-loop AI retraining.",
   },
+  {
+    slug: "sentinel-stack",
+    name: "Sentinel-Stack",
+    tagline: "1-Click 6-Tier Ecosystem Installer",
+    category: "Engine",
+    color: "#00E5FF",
+    status: "Generally Available",
+    version: "v1.0.0",
+    description: "Master meta-orchestrator: resolves toolchains, compiles six C++20/eBPF tiers in DAG order, deploys systemd daemons, verifies 6/6 smoke tests.",
+  },
 ];

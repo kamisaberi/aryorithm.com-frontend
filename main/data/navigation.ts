@@ -46,6 +46,7 @@ export const NAV: NavGroup[] = [
       { name: "Sentinel-Lab", desc: "Open research & benchmark platform", to: "/projects/sentinel-lab" },
       { name: "SLAB Protocol", desc: "Zero-allocation binary wire protocol", to: "/projects/slab-protocol" },
       { name: "Sentinel-Matrix", desc: "Autonomous cyber-range & digital twin mesh", to: "/projects/sentinel-matrix" },
+      { name: "Sentinel-Stack", desc: "1-click 6-tier ecosystem installer", to: "/projects/sentinel-stack" },
     ],
   },
   {
@@ -116,6 +117,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Sentinel-Lab", to: "/projects/sentinel-lab" },
       { label: "SLAB Protocol", to: "/projects/slab-protocol" },
       { label: "Sentinel-Matrix", to: "/projects/sentinel-matrix" },
+      { label: "Sentinel-Stack", to: "/projects/sentinel-stack" },
     ],
   },
   {
@@ -190,6 +192,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/projects/sentinel-lab": "Sentinel-Lab — Open Research & Benchmark Platform",
   "/projects/slab-protocol": "SLAB Protocol — Zero-Allocation Binary Wire Protocol",
   "/projects/sentinel-matrix": "Sentinel-Matrix — Autonomous Cyber-Range & Digital Twins",
+  "/projects/sentinel-stack": "Sentinel-Stack — 1-Click 6-Tier Ecosystem Installer",
   "/research/sentinel-lab": "Sentinel-Lab — Open Research & Benchmark Platform",
   "/papers": "Research Papers & Publications",
   "/team": "Leadership, Architects & Careers",
