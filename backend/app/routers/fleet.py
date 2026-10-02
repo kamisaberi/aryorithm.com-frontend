@@ -26,7 +26,9 @@ from app.schemas.fleet import (
     KernelPurgeResponse,
     FleetSyncRequest,
     FleetSyncResponse,
+    TopologyResponse,
 )
+from app.services.fleet_topology import get_topology, sync_topology
 
 router = APIRouter(prefix="/fleet", tags=["Fleet Management"])
 
@@ -38,14 +40,21 @@ async def fleet_sync(
     body: FleetSyncRequest,
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     caller: User | None = Depends(get_nexus_caller),
+    db: AsyncSession = Depends(get_db),
 ):
     """Sentinel-nexus heartbeat — POST every ~5s.
 
     Sender headers: `Authorization: Bearer <JWT>`, `X-Tenant-ID`.
-    Sender body: { tenant_id, nodes_count, nodes: [
-      {node_id, site, status, cpu_pct, ebpf_drops,
-       mitigation_latency_us} ] }.
+    Sender body: { tenant_id, nexus_id, nexus_version, timestamp,
+      nodes_count, nodes: [
+      {node_id, site, hostname, status, cpu_pct, ebpf_drops,
+       mitigation_latency_us, sensors: [
+       {sensor_id, name, type, protocol, ip_address, status,
+        last_packet_seen_sec_ago} ] } ] }.
     Dashboard simulator may auth with `X-API-Key` instead of JWT.
+
+    Persists only the last update (upsert nexus/nodes/sensors, prune
+    sensors missing from the payload).
     """
     tenant_id = x_tenant_id or body.tenant_id
     # Print to uvicorn terminal (both logger + print for visibility).
@@ -64,12 +73,30 @@ async def fleet_sync(
         f"nodes={[n.model_dump() for n in body.nodes]}",
         flush=True,
     )
+    stored = await sync_topology(db, body, x_tenant_id, caller)
     return FleetSyncResponse(
         status="synced",
-        tenant_id=tenant_id,
+        tenant_id=stored["tenant_id"],
         nodes_count=body.nodes_count,
-        synced=len(body.nodes),
+        synced=stored["nodes_synced"],
+        nexus_id=stored["nexus_id"],
+        sensors_synced=stored["sensors_synced"],
     )
+
+
+@router.get("/topology", response_model=TopologyResponse)
+async def get_fleet_topology(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Last synced 4-tier topology (tenant -> nexus -> nodes -> sensors).
+
+    Effective statuses come from the cascading health engine:
+    stale nexus => children UNREACHABLE, stale node => OFFLINE,
+    quiet sensor => SILENT / FAULT_NO_DATA.
+    """
+    data = await get_topology(db, user.tenant_id)
+    return TopologyResponse(**data)
 
 
 @router.get("/nodes", response_model=list[NodeResponse])

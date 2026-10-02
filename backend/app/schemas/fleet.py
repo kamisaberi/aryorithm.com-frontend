@@ -84,12 +84,32 @@ class KernelPurgeResponse(BaseModel):
     ip: str
 
 
+class FleetSyncSensor(BaseModel):
+    """Single monitored asset — exact sentinel-nexus shape (Tier 3).
+
+    sensor_id is the deterministic identifier from blackbox-sentinel
+    (MAC + IP + protocol address). All metadata is optional so sender
+    drift never 422s; extra keys are ignored.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    sensor_id: str
+    name: str | None = None
+    type: str | None = None
+    protocol: str | None = None
+    ip_address: str | None = None
+    status: str | None = None
+    last_packet_seen_sec_ago: float | None = None
+
+
 class FleetSyncNode(BaseModel):
     """Single edge appliance entry — exact sentinel-nexus shape.
 
     Nexus sends: node_id, site, status, cpu_pct, ebpf_drops,
     mitigation_latency_us. Legacy dashboard fields (latency_us, eps,
     version, backend) are kept optional for backward compat.
+    Tier-3 sensors ride along as an embedded list.
     Extra keys are ignored so sender/backend never 422 on drift.
     """
 
@@ -106,6 +126,10 @@ class FleetSyncNode(BaseModel):
     eps: int | None = None
     version: str | None = None
     backend: str | None = None
+    # 4-tier topology extensions
+    hostname: str | None = None
+    sensors_count: int | None = None
+    sensors: list[FleetSyncSensor] = []
 
 
 class FleetSyncRequest(BaseModel):
@@ -114,6 +138,10 @@ class FleetSyncRequest(BaseModel):
     tenant_id: str
     nodes_count: int
     nodes: list[FleetSyncNode] = []
+    # Tier-1 nexus identity (absent in legacy simulator payloads).
+    nexus_id: str | None = None
+    nexus_version: str | None = None
+    timestamp: int | float | None = None
 
 
 class FleetSyncResponse(BaseModel):
@@ -121,3 +149,55 @@ class FleetSyncResponse(BaseModel):
     tenant_id: str
     nodes_count: int
     synced: int
+    nexus_id: str | None = None
+    sensors_synced: int = 0
+
+
+class TopologySensor(BaseModel):
+    sensor_id: str
+    name: str
+    type: str
+    protocol: str
+    ip_address: str | None = None
+    reported_status: str
+    status: str  # effective status from the cascading health engine
+    last_packet_seen_sec_ago: float | None = None
+
+
+class TopologyNode(BaseModel):
+    node_id: str
+    site: str
+    hostname: str | None = None
+    reported_status: str
+    status: str  # effective status (UNREACHABLE when parent nexus is down)
+    cpu_pct: float
+    ebpf_drops: int
+    mitigation_latency_us: float
+    last_heartbeat_sec_ago: float | None = None
+    sensors: list[TopologySensor] = []
+
+
+class TopologyNexus(BaseModel):
+    nexus_id: str
+    version: str
+    status: str  # ONLINE when seen within the heartbeat window
+    last_seen_sec_ago: float | None = None
+    nodes: list[TopologyNode] = []
+
+
+class TopologySummary(BaseModel):
+    nexus_online: int = 0
+    nexus_offline: int = 0
+    nodes_online: int = 0
+    nodes_degraded: int = 0
+    nodes_offline: int = 0
+    nodes_unreachable: int = 0
+    sensors_active: int = 0
+    sensors_fault: int = 0
+    sensors_silent: int = 0
+
+
+class TopologyResponse(BaseModel):
+    tenant_id: str
+    nexus: list[TopologyNexus] = []
+    summary: TopologySummary = TopologySummary()

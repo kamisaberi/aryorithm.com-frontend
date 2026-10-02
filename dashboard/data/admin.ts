@@ -12,6 +12,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Edge Appliances",
     items: [
+      { label: "Asset Topology", href: "/topology", icon: "⟁" },
       { label: "Fleet Nodes", href: "/fleet-nodes", icon: "▣" },
       { label: "Enclaves / OT", href: "/enclaves", icon: "◆" },
       { label: "Provision (ZTP)", href: "/provisioning", icon: "⚡" },

@@ -59,13 +59,25 @@ export interface ThreatEvent {
   detected_at: string;
 }
 /* ---------- Nexus live sync (5s / 20s polling) ---------- */
+export interface FleetSyncSensorPayload {
+  sensor_id: string;
+  name?: string;
+  type?: string;
+  protocol?: string;
+  ip_address?: string;
+  status?: string;
+  last_packet_seen_sec_ago?: number;
+}
 export interface FleetSyncNodePayload {
   node_id: string;
   site?: string;
+  hostname?: string;
   status?: string;
   cpu_pct?: number;
   ebpf_drops?: number;
   mitigation_latency_us?: number;
+  sensors_count?: number;
+  sensors?: FleetSyncSensorPayload[];
   // Legacy fields (backend ignores extras, kept for compat)
   latency_us?: number;
   eps?: number;
@@ -74,6 +86,9 @@ export interface FleetSyncNodePayload {
 }
 export interface FleetSyncPayload {
   tenant_id: string;
+  nexus_id?: string;
+  nexus_version?: string;
+  timestamp?: number;
   nodes_count: number;
   nodes: FleetSyncNodePayload[];
 }
@@ -82,6 +97,54 @@ export interface FleetSyncResult {
   tenant_id: string;
   nodes_count: number;
   synced: number;
+  nexus_id?: string | null;
+  sensors_synced?: number;
+}
+/* ---------- 4-tier topology (tenant -> nexus -> node -> sensor) ---------- */
+export interface TopologySensor {
+  sensor_id: string;
+  name: string;
+  type: string;
+  protocol: string;
+  ip_address: string | null;
+  reported_status: string;
+  status: string;
+  last_packet_seen_sec_ago: number | null;
+}
+export interface TopologyNode {
+  node_id: string;
+  site: string;
+  hostname: string | null;
+  reported_status: string;
+  status: string;
+  cpu_pct: number;
+  ebpf_drops: number;
+  mitigation_latency_us: number;
+  last_heartbeat_sec_ago: number | null;
+  sensors: TopologySensor[];
+}
+export interface TopologyNexus {
+  nexus_id: string;
+  version: string;
+  status: string;
+  last_seen_sec_ago: number | null;
+  nodes: TopologyNode[];
+}
+export interface TopologySummary {
+  nexus_online: number;
+  nexus_offline: number;
+  nodes_online: number;
+  nodes_degraded: number;
+  nodes_offline: number;
+  nodes_unreachable: number;
+  sensors_active: number;
+  sensors_fault: number;
+  sensors_silent: number;
+}
+export interface Topology {
+  tenant_id: string;
+  nexus: TopologyNexus[];
+  summary: TopologySummary;
 }
 export interface GlobalFeedIndicator {
   indicator: string;
@@ -227,6 +290,7 @@ export const backend = {
 
   // Fleet
   fleetNodes: (t: string | null) => get<FleetNode[]>("/fleet/nodes", t),
+  topology: (t: string | null) => get<Topology>("/fleet/topology", t),
   enclaves: (t: string | null) => get<Enclave[]>("/fleet/enclaves", t),
   kernelRules: (t: string | null) =>
     get<KernelRule[]>("/fleet/kernel-rules", t),
