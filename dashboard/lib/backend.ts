@@ -247,6 +247,84 @@ export interface RansomwareHash {
   first_detected: number;
   status: string;
 }
+export interface MedicalScanner {
+  scanner_id: string;
+  name: string;
+  ae_title: string;
+  ip_address: string;
+  department: string;
+  connected_sentinel_node: string;
+  status: string;
+  unencrypted_hl7_detected: boolean;
+  last_cstore_timestamp: number | null;
+}
+export interface PACSEvent {
+  event_id: string;
+  timestamp: number;
+  ae_title: string;
+  source_ip: string;
+  destination_ip: string;
+  anomaly_type: string;
+  mitre_id: string | null;
+  action_enforced: string;
+  mitigation_latency_us: number;
+  details: string;
+}
+export interface Vessel {
+  vessel_mmsi: string;
+  vessel_name: string;
+  vessel_type: string;
+  current_lat: number;
+  current_lng: number;
+  satellite_link_status: string;
+  bandwidth_saved_mb: number;
+  connected_sentinel_node: string;
+  active_threats_count: number;
+  spoofing_detected: boolean;
+}
+export interface ITDREvent {
+  incident_id: string;
+  timestamp: number;
+  targeted_user: string;
+  attacker_ip: string;
+  attack_technique: string;
+  mitre_id: string | null;
+  encryption_type_requested: string;
+  status: string;
+  recommended_action: string;
+}
+export interface BotVerdict {
+  session_id: string;
+  verdict: string;
+  bot_probability: number;
+  confidence: string;
+  attribution_factors: string[];
+  action_recommended: string;
+}
+export interface ZTNASession {
+  user_email: string;
+  current_risk_score: number;
+  risk_tier: string;
+  risk_factors: string[];
+  active_enclaves_accessed: string[];
+  automated_action: string;
+  timestamp: number;
+}
+export interface FirmwareFinding {
+  severity: string;
+  category: string;
+  description: string;
+}
+export interface FirmwareReport {
+  task_id: string;
+  filename: string;
+  sha256: string;
+  cpu_architecture: string;
+  extracted_filesystem: string;
+  security_score: string;
+  findings: FirmwareFinding[];
+  vulnerabilities: Record<string, unknown>[];
+}
 export interface IdentityBotStatus {
   impossible_velocity_hits: number;
   bot_kinematic_blocks: number;
@@ -487,6 +565,24 @@ export const backend = {
     get<GlobalFeedVerbose[]>("/threats/global-feed?verbose=true", t),
   ransomwareHashes: (t: string | null) =>
     get<RansomwareHash[]>("/threats/ransomware-hashes", t),
+  medicalScanners: (t: string | null) =>
+    get<MedicalScanner[]>("/cps/medical/scanners", t),
+  pacsEvents: (t: string | null) =>
+    get<PACSEvent[]>("/cps/medical/pacs-events", t),
+  vessels: (t: string | null) =>
+    get<Vessel[]>("/cps/maritime/vessels", t),
+  itdrEvents: (t: string | null) =>
+    get<ITDREvent[]>("/threats/itdr/events", t),
+  revokeSession: (body: { user_principal_name: string; reason?: string }, t: string | null) =>
+    api.post<{ status: string; user_principal_name: string; revoked_at: number }>(
+      "/threats/itdr/revoke-session", body, t
+    ),
+  botEvaluate: (body: { session_id: string; kinematic_vectors: { x: number; y: number; dt_ms: number }[]; keystroke_jitter_ms?: number }, t: string | null) =>
+    api.post<BotVerdict>("/bot/evaluate", body, t),
+  ztnaSessions: (t: string | null) =>
+    get<ZTNASession[]>("/ztna/sessions", t),
+  firmwareReport: (taskId: string, t: string | null) =>
+    get<FirmwareReport>(`/dfir/firmware/reports/${taskId}`, t),
   pendingCommands: (tenantId: string, t: string | null) =>
     api.get<unknown[]>(`/tenants/${tenantId}/commands/pending`, t, {
       apiKey: NEXUS_API_KEY,

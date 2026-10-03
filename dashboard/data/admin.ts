@@ -30,6 +30,16 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: "MITRE ATT&CK", href: "/mitre", icon: "▦" },
       { label: "SCADA Monitor", href: "/scada", icon: "◨" },
       { label: "Identity & Bot Defense", href: "/identity", icon: "◉" },
+      { label: "Identity & ITDR", href: "/threats/identity-itdr", icon: "◐", highlight: "red" },
+      { label: "Bot Kinematics API", href: "/threats/bot-kinematics", icon: "〜", highlight: "red" },
+      { label: "Zero Trust (ZTNA)", href: "/threats/ztna", icon: "◒", highlight: "red" },
+    ],
+  },
+  {
+    label: "Specialized CPS",
+    items: [
+      { label: "Medical & IoMT", href: "/threats/medical-pacs", icon: "✚", highlight: "red" },
+      { label: "Maritime Fleet", href: "/fleet/maritime", icon: "⚓", highlight: "red" },
     ],
   },
   {
@@ -55,8 +65,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Digital Forensics",
     items: [
       { label: "Evidence PCAP Vault", href: "/forensics/evidence", icon: "◎" },
-      { label: "CDR Sanitizer", href: "/forensics/cdr", icon: "⌫" },
-      { label: "Firmware Analyzer", href: "/forensics/firmware", icon: "◍" },
+      { label: "CDR Sanitizer (classic)", href: "/forensics/cdr", icon: "⌫" },
+      { label: "Firmware Analyzer (classic)", href: "/forensics/firmware", icon: "◍" },
+      { label: "CDR Sanitizer", href: "/dfir/cdr-sanitizer", icon: "⬣", highlight: "red" },
+      { label: "Firmware Analyzer", href: "/dfir/firmware-analyzer", icon: "⬔", highlight: "red" },
     ],
   },
   {

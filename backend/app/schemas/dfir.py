@@ -15,5 +15,19 @@ class FirmwareDissectResponse(BaseModel):
     status: str
 
 
+class FirmwareFinding(BaseModel):
+    severity: str
+    category: str
+    description: str
+
+
 class FirmwareReportResponse(BaseModel):
-    vulnerabilities: list[dict]
+    task_id: str
+    filename: str = ""
+    sha256: str = ""
+    cpu_architecture: str = "UNKNOWN"
+    extracted_filesystem: str = "UNKNOWN"
+    security_score: str = "UNKNOWN"
+    findings: list[FirmwareFinding] = []
+    # Legacy alias kept for older dashboard builds.
+    vulnerabilities: list[dict] = []
