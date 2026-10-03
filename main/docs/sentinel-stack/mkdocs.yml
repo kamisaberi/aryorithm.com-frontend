@@ -1,0 +1,98 @@
+site_name: Sentinel-Stack Docs
+site_description: One-command builds of the full six-tier active defense ecosystem.
+repo_url: https://github.com/kamisaberi/sentinel-stack
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Getting Started:
+  - Getting Started:
+    - "Architecture at a Glance": getting-started/architecture-at-a-glance.md
+    - "One-Click Quickstart": getting-started/one-click-quickstart.md
+    - "Overview": getting-started/overview.md
+    - "Post-Install Next Steps": getting-started/post-install-next-steps.md
+    - "System Requirements": getting-started/system-requirements.md
+    - "Verifying Installed Stack": getting-started/verifying-installed-stack.md
+  - Architecture:
+    - "Air-Gapped Installation Model": architecture/air-gapped-installation-model.md
+    - "Atomic Rollback Safeguards": architecture/atomic-rollback-safeguards.md
+    - "Dependency Graph Formalization": architecture/dependency-graph-formalization.md
+    - "Meta-Installer Architecture": architecture/meta-installer-architecture.md
+    - "System Layout & Paths": architecture/system-layout-and-paths.md
+    - "Topological Compilation DAG": architecture/topological-compilation-dag.md
+  - Installation Phases:
+    - "Phase 0: System Validation": installation-phases/phase-0-system-validation.md
+    - "Phase 1: Dependency Resolution": installation-phases/phase-1-dependency-resolution.md
+    - "Phase 2: Repository Synchronization": installation-phases/phase-2-repository-synchronization.md
+    - "Phase 3: Topological Compilation": installation-phases/phase-3-topological-compilation.md
+    - "Phase 4: systemd Daemonization": installation-phases/phase-4-systemd-daemonization.md
+    - "Phase 5: Smoke Testing": installation-phases/phase-5-smoke-testing.md
+    - "Pipeline Overview": installation-phases/pipeline-overview.md
+  - Dependency Management:
+    - "eBPF Compiler Toolchains": dependency-management/ebpf-compiler-toolchains.md
+    - "Non-Interactive Execution": dependency-management/non-interactive-execution.md
+    - "OpenVINO / TensorRT Prerequisites": dependency-management/openvino-tensorrt-prerequisites.md
+    - "PEP 668 Python Virtual Env": dependency-management/pep-668-python-virtual-env.md
+    - "t64 Package Resolution": dependency-management/t64-package-resolution.md
+    - "Ubuntu Packaging Engine": dependency-management/ubuntu-packaging-engine.md
+  - Compilation DAG Tiers:
+    - "Building Tier 1: xinfer": compilation-dag-tiers/building-tier-1-xinfer.md
+    - "Building Tier 2: blackbox": compilation-dag-tiers/building-tier-2-blackbox.md
+    - "Building Tier 3: sentinel": compilation-dag-tiers/building-tier-3-sentinel.md
+    - "Building Tier 4: forge": compilation-dag-tiers/building-tier-4-forge.md
+    - "Building Tier 5: lab": compilation-dag-tiers/building-tier-5-lab.md
+    - "Building Tier 6: nexus": compilation-dag-tiers/building-tier-6-nexus.md
+    - "Dynamic Linker Cache (ldconfig)": compilation-dag-tiers/dynamic-linker-cache-ldconfig.md
+    - "Parallel Job Scaling & RAM": compilation-dag-tiers/parallel-job-scaling-ram.md
+  - systemd Daemonization:
+    - "blackbox-sentinel.service": systemd-daemonization/blackbox-sentinel-service.md
+    - "Daemon Logging & journalctl": systemd-daemonization/daemon-logging-and-journalctl.md
+    - "Linux Capabilities Management": systemd-daemonization/linux-capabilities-management.md
+    - "Real-Time Process Scheduling": systemd-daemonization/real-time-process-scheduling.md
+    - "sentinel-nexus.service": systemd-daemonization/sentinel-nexus-service.md
+    - "systemd Architecture": systemd-daemonization/systemd-architecture.md
+  - Verification & Smoke Tests:
+    - "Automated CI/CD Integration": verification-and-smoke-tests/automated-ci-cd-integration.md
+    - "Tier 1 Check: libxinfer": verification-and-smoke-tests/tier-1-libxinfer-check.md
+    - "Tier 2 Check: libblackbox": verification-and-smoke-tests/tier-2-libblackbox-check.md
+    - "Tier 3 Check: sentinel": verification-and-smoke-tests/tier-3-sentinel-check.md
+    - "Tier 4 Check: forge-cli": verification-and-smoke-tests/tier-4-forge-cli-check.md
+    - "Tier 5 Check: sentinel_lab": verification-and-smoke-tests/tier-5-sentinel-lab-check.md
+    - "Tier 6 Check: nexus-ctl": verification-and-smoke-tests/tier-6-nexus-ctl-check.md
+    - "Verification Suite Overview": verification-and-smoke-tests/verification-suite-overview.md
+  - Bridge to Sentinel-Matrix:
+    - "Dynamic Library Extraction (ldd)": bridge-to-sentinel-matrix/dynamic-library-extraction-ldd.md
+    - "Harvesting Host Binaries": bridge-to-sentinel-matrix/harvesting-host-binaries.md
+    - "Matrix Bridge Architecture": bridge-to-sentinel-matrix/matrix-bridge-architecture.md
+    - "Proto & Web Asset Handover": bridge-to-sentinel-matrix/proto-and-web-asset-handover.md
+    - "VMware Docker Mesh Handshake": bridge-to-sentinel-matrix/vmware-docker-mesh-handshake.md
+  - Configuration & Customization:
+    - "Configuring Git Branches & Tags": configuration-and-customization/configuring-git-branches-and-tags.md
+    - "Customizing CMake Build Flags": configuration-and-customization/customizing-cmake-build-flags.md
+    - "Customizing Install Paths": configuration-and-customization/customizing-install-paths.md
+    - "stack.yaml Specification": configuration-and-customization/stack-yaml-specification.md
+  - Operations & Makefile:
+    - "Automated Backup & Recovery": operations-and-makefile/automated-backup-and-recovery.md
+    - "Clean Uninstallation Guide": operations-and-makefile/clean-uninstallation-guide.md
+    - "Makefile Reference": operations-and-makefile/makefile-reference.md
+    - "Monitoring Daemons Status": operations-and-makefile/monitoring-daemons-status.md
+    - "Updating Installed Tiers": operations-and-makefile/updating-installed-tiers.md
+  - Troubleshooting:
+    - "Dynamic Linker: Library Not Found": troubleshooting/dynamic-linker-library-not-found.md
+    - "Technical FAQ": troubleshooting/faq.md
+    - "gRPC/Protobuf Linking Errors": troubleshooting/grpc-protobuf-linking-errors.md
+    - "Missing Kernel Headers": troubleshooting/missing-kernel-headers.md
+    - "OOM Compiler Crashes": troubleshooting/oom-compiler-crashes.md
+    - "Python Externally-Managed Errors": troubleshooting/python-externally-managed-errors.md
+    - "Support Channels": troubleshooting/support.md
+    - "systemd Failed Starts": troubleshooting/systemd-service-failed-starts.md

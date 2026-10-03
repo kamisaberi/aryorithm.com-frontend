@@ -138,6 +138,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "sentinel-stack",
+    title: "Sentinel-Stack (install.sh)",
+    color: "#00E5FF",
+    desc: "1-click 6-tier installer — full documentation: phases, DAG builds, daemons, verification.",
+    links: [
+      { label: "Full Documentation (81 guides)", to: "/docs/sentinel-stack" },
+      { label: "6-Phase Pipeline", to: "/docs/sentinel-stack/installation-phases" },
+      { label: "Compilation DAG", to: "/docs/sentinel-stack/compilation-dag-tiers" },
+      { label: "Matrix Bridge", to: "/docs/sentinel-stack/bridge-to-sentinel-matrix" },
+      { label: "Makefile Runbook", to: "/docs/sentinel-stack/operations-and-makefile" },
+    ],
+  },
+  {
     id: "protocol-engineering",
     title: "Protocol Engineering",
     color: "#FFB800",
