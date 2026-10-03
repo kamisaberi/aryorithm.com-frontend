@@ -10,18 +10,6 @@ export const metadata: Metadata = {
 
 const DOC_SECTIONS = [
   {
-    id: "getting-started",
-    title: "Getting Started",
-    color: "#00E5FF",
-    desc: "Deploy your first Blackbox Sentinel appliance in an air-gapped segment.",
-    links: [
-      { label: "Quick Start Guide", to: "/docs#getting-started" },
-      { label: "Hardware Requirements", to: "/docs#getting-started" },
-      { label: "Air-Gapped Installation", to: "/docs#getting-started" },
-      { label: "First Appliance Boot", to: "/docs#getting-started" },
-    ],
-  },
-  {
     id: "blackbox-essential",
     title: "Blackbox Essential (libblackbox.so)",
     color: "#00E5FF",
@@ -61,19 +49,6 @@ const DOC_SECTIONS = [
     ],
   },
   {
-    id: "blackbox-core",
-    title: "Blackbox Core (eBPF/XDP)",
-    color: "#00E5FF",
-    desc: "Kernel-level fast-path inspection, mitigation, and the AF_XDP datapath.",
-    links: [
-      { label: "Fast-Path Architecture", to: "/technology/blackbox#fast-path" },
-      { label: "eBPF Program Reference", to: "/docs#blackbox-core" },
-      { label: "AF_XDP UMEM Configuration", to: "/docs#blackbox-core" },
-      { label: "Verifier Compatibility Matrix", to: "/docs#blackbox-core" },
-      { label: "XDP Hook Reference", to: "/docs#blackbox-core" },
-    ],
-  },
-  {
     id: "xinfer-engine",
     title: "xInfer Essential (libxinfer.so)",
     color: "#00FFA3",
@@ -97,18 +72,6 @@ const DOC_SECTIONS = [
       { label: "Canary OTA & RollbackGuard", to: "/docs/sentinel-nexus/canary-ota-rollout" },
       { label: "nexus-ctl CLI", to: "/docs/sentinel-nexus/operations-cli-nexus-ctl" },
       { label: "REST API Reference", to: "/docs/sentinel-nexus/rest-api-reference" },
-    ],
-  },
-  {
-    id: "sentinel-nexus",
-    title: "Sentinel Nexus (Orchestration)",
-    color: "#FFB800",
-    desc: "The Tier 6 collective defense command plane — fleet management and attestation.",
-    links: [
-      { label: "Nexus Architecture", to: "/platform/nexus" },
-      { label: "OTA Canary Pipeline", to: "/platform/nexus#nexus-capabilities" },
-      { label: "Fleet Health Dashboard", to: "/platform/nexus#nexus-command-center" },
-      { label: "Attestation Validator", to: "/platform/nexus#nexus-capabilities" },
     ],
   },
   {
@@ -150,54 +113,6 @@ const DOC_SECTIONS = [
       { label: "Makefile Runbook", to: "/docs/sentinel-stack/operations-and-makefile" },
     ],
   },
-  {
-    id: "protocol-engineering",
-    title: "Protocol Engineering",
-    color: "#FFB800",
-    desc: "Industrial protocol dissectors, physical constraint maps, and SCADA integration.",
-    links: [
-      { label: "30 Industrial Plugins", to: "/products/sentinel#plugin-showcase" },
-      { label: "Physical Constraint Maps", to: "/docs#protocol-engineering" },
-      { label: "Modbus / DNP3 / IEC 61850", to: "/docs#protocol-engineering" },
-      { label: "S7comm / Profinet Dissectors", to: "/docs#protocol-engineering" },
-    ],
-  },
-  {
-    id: "slab-protocol",
-    title: "SLAB Wire Protocol",
-    color: "#FF3366",
-    desc: "The zero-allocation binary frame specification for air-gapped environments.",
-    links: [
-      { label: "SLAB Specification", to: "/research/sentinel-lab#slab-protocol" },
-      { label: "Reference Implementation (C)", to: "/docs#slab-protocol" },
-      { label: "Reference Implementation (Rust)", to: "/docs#slab-protocol" },
-      { label: "Conformance Test Vectors", to: "/docs#slab-protocol" },
-    ],
-  },
-  {
-    id: "api-reference",
-    title: "API Reference",
-    color: "#00E5FF",
-    desc: "REST and gRPC APIs for appliance management, fleet orchestration, and evidence carving.",
-    links: [
-      { label: "Appliance Management API", to: "/docs#api-reference" },
-      { label: "Fleet Orchestration API", to: "/docs#api-reference" },
-      { label: "Evidence Carving API", to: "/docs#api-reference" },
-      { label: "Webhook & Alerting", to: "/docs#api-reference" },
-    ],
-  },
-  {
-    id: "security",
-    title: "Security & Compliance",
-    color: "#FF3366",
-    desc: "Attestation, SBOM, regulatory crosswalks, and responsible disclosure.",
-    links: [
-      { label: "TPM 2.0 Attestation Profile", to: "/platform/nexus#nexus-capabilities" },
-      { label: "SBOM Repository", to: "/trust#sbom-repository" },
-      { label: "Regulatory Crosswalks", to: "/trust#regulatory-crosswalks" },
-      { label: "Responsible Disclosure (PGP)", to: "/contact#pgp-panel" },
-    ],
-  },
 ];
 
 export default function DocsPage() {
@@ -215,12 +130,12 @@ export default function DocsPage() {
             Documentation & <span className="text-cyan">Integration Guides.</span>
           </h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-[1.75] text-muted">
-            Everything you need to deploy, configure, and integrate the Aryorithm sovereign defense stack. Air-gapped
-            friendly — no external CDN, no cloud tenancy, no tracking.
+            Eight complete product manuals — one per project. Pick your tier below and start reading.
+            Air-gapped friendly — no external CDN, no cloud tenancy, no tracking.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="#getting-started" className="rounded-md bg-cyan px-6 py-3 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-void hover:brightness-110">
-              [ Quick Start ]
+            <Link href="#docs-index" className="rounded-md bg-cyan px-6 py-3 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-void hover:brightness-110">
+              [ Browse The 8 Manuals ]
             </Link>
             <Link href="/contact" className="rounded-md border border-hairline px-6 py-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink hover:border-cyan/60 hover:text-cyan">
               [ Talk To An Engineer ]
