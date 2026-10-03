@@ -35,6 +35,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "blackbox-sentinel",
+    title: "Blackbox Sentinel (sentinel daemon)",
+    color: "#00E5FF",
+    desc: "Turnkey XDR appliance — full documentation: 26 subsystems, 30 plugins, uplink, console.",
+    links: [
+      { label: "Full Documentation (120+ guides)", to: "/docs/blackbox-sentinel" },
+      { label: "26 Subsystems", to: "/docs/blackbox-sentinel/subsystems-26" },
+      { label: "30 Protocol Plugins", to: "/docs/blackbox-sentinel/plugins-30" },
+      { label: "Nexus Uplink Sync", to: "/docs/blackbox-sentinel/nexus-uplink" },
+      { label: "Web Command Center", to: "/docs/blackbox-sentinel/web-command-center" },
+    ],
+  },
+  {
     id: "blackbox-core",
     title: "Blackbox Core (eBPF/XDP)",
     color: "#00E5FF",
