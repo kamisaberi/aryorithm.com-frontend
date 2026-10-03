@@ -39,11 +39,13 @@ export default function CompilerPage() {
     setResult(null);
     setError(null);
     try {
-      const res = await backend.compileModel(
-        { model_id: modelId.trim(), target },
-        token
-      );
-      setResult(`Task ${res.task_id}: ${res.status}`);
+      const form = new FormData();
+      form.append("file", new Blob([`{"model_id":"${modelId.trim()}"}`], { type: "application/octet-stream" }), `${modelId.trim()}.onnx`);
+      form.append("target_silicon", target);
+      form.append("precision", "FP16");
+      const res = await backend.compileModel(form, token);
+      const status = await backend.compileTask(res.task_id, token);
+      setResult(`Task ${status.task_id}: ${status.status}${status.output_filename ? ` → ${status.output_filename}` : ""}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Compilation failed");
     } finally {

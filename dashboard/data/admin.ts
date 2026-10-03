@@ -13,8 +13,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Edge Fleet",
     items: [
       { label: "Asset Topology", href: "/topology", icon: "⟁" },
-      { label: "Appliance Matrix", href: "/fleet/appliances", icon: "▣" },
-      { label: "Site Enclaves", href: "/fleet/enclaves", icon: "◆" },
+      { label: "Appliance Matrix", href: "/fleet/appliances", icon: "▣", highlight: true },
+      { label: "Site Enclaves", href: "/fleet/enclaves", icon: "◆", highlight: true },
       { label: "Fleet Nodes", href: "/fleet-nodes", icon: "❏" },
       { label: "Provisioning (ZTP)", href: "/provisioning", icon: "⚡" },
       { label: "Kernel eBPF Rules", href: "/kernel-rules", icon: "⌘" },
@@ -23,9 +23,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Threat Defense",
     items: [
-      { label: "Collective Grid", href: "/threats/collective-grid", icon: "⇄" },
-      { label: "SCADA & OT Monitor", href: "/threats/scada-cps", icon: "◫" },
-      { label: "Ransomware Vault", href: "/threats/ransomware-clearinghouse", icon: "⛨" },
+      { label: "Collective Grid", href: "/threats/collective-grid", icon: "⇄", highlight: true },
+      { label: "SCADA & OT Monitor", href: "/threats/scada-cps", icon: "◫", highlight: true },
+      { label: "Ransomware Vault", href: "/threats/ransomware-clearinghouse", icon: "⛨", highlight: true },
       { label: "Threat Bus", href: "/threat-bus", icon: "≋" },
       { label: "MITRE ATT&CK", href: "/mitre", icon: "▦" },
       { label: "SCADA Monitor", href: "/scada", icon: "◨" },
@@ -37,17 +37,17 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: "Model Repository", href: "/model-hub", icon: "⬡" },
       { label: "Cloud Model Forge", href: "/cloud-forge", icon: "▲" },
-      { label: "Silicon Compiler", href: "/compiler", icon: "⟨⟩" },
-      { label: "AI TRiSM Firewall", href: "/trism", icon: "⛨" },
+      { label: "Silicon Compiler", href: "/ai/silicon-compiler", icon: "⟨⟩", highlight: "green" },
+      { label: "AI TRiSM Firewall", href: "/ai/trism-firewall", icon: "⛨", highlight: "green" },
     ],
   },
   {
     label: "Compliance GRC",
     items: [
-      { label: "EU NIS2 & DORA", href: "/compliance/nis2-dora", icon: "✓" },
+      { label: "EU NIS2 & DORA", href: "/compliance/nis2-dora", icon: "✓", highlight: "green" },
       { label: "IEC 62443 Industrial", href: "/compliance/iec-62443", icon: "⛨" },
-      { label: "CMMC 2.0 / NIST", href: "/compliance/cmmc-nist", icon: "▤" },
-      { label: "Insurance Verifier", href: "/compliance/insurance", icon: "◈" },
+      { label: "CMMC 2.0 / NIST", href: "/compliance/cmmc-nist", icon: "▤", highlight: "green" },
+      { label: "Insurance Verifier", href: "/compliance/insurance", icon: "◈", highlight: "green" },
       { label: "SBOM Tracker", href: "/compliance/sbom", icon: "≣" },
     ],
   },

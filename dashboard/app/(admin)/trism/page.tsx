@@ -58,12 +58,14 @@ export default function TrismPage() {
       {result && (
         <Card className="p-5">
           <div className="flex flex-wrap items-center gap-3">
-            <Badge variant={result.safe ? "kernel" : "threat"}>{result.safe ? "SAFE" : "BLOCKED"}</Badge>
+            <Badge variant={result.safe_to_forward ? "kernel" : "threat"}>{result.safe_to_forward ? "SAFE" : "BLOCKED"}</Badge>
             <span className="font-mono text-[12px] text-muted">risk_score {result.risk_score.toFixed(3)}</span>
+            <span className="font-mono text-[11px] text-muted">{result.threat_category} · {result.action_enforced}</span>
           </div>
-          {result.sanitized_text && (
-            <p className="mt-3 whitespace-pre-wrap font-mono text-[12px] text-ink">{result.sanitized_text}</p>
+          {result.sanitized_prompt && (
+            <p className="mt-3 whitespace-pre-wrap font-mono text-[12px] text-ink">{result.sanitized_prompt}</p>
           )}
+          <p className="mt-2 font-mono text-[11px] text-muted">{result.audit_reason}</p>
         </Card>
       )}
     </div>

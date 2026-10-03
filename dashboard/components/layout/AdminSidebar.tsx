@@ -46,7 +46,7 @@ export default function AdminSidebar() {
                         <span className="flex h-5 w-5 items-center justify-center text-[14px]" aria-hidden="true">
                           {item.icon}
                         </span>
-                        {item.label}
+                        <span className={item.highlight === "green" ? "text-kernel" : item.highlight ? "text-telemetry" : undefined}>{item.label}</span>
                         {item.badge && (
                           <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan">
                             {item.badge}

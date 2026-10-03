@@ -272,18 +272,11 @@ export interface ForgeDataset {
   high_uncertainty: number;
 }
 
-/* ---------- Compliance ---------- */export interface NIS2Status {
-  framework: string;
-  compliant: boolean;
-  incident_sla_verified: boolean;
-}
+/* ---------- Compliance ---------- */
 export interface IECStatus {
   standard: string;
   system_integrity: string;
   zones_verified: number;
-}
-export interface CMMCStatus {
-  findings: { control_id: string; title: string; passed: boolean }[];
 }
 export interface SBOMComponent {
   type: string;
@@ -297,14 +290,69 @@ export interface SBOM {
   components: SBOMComponent[];
 }
 export interface TrismResult {
-  safe: boolean;
+  safe_to_forward: boolean;
   risk_score: number;
-  sanitized_text: string | null;
+  threat_category: string;
+  mitre_atlas_id: string | null;
+  action_enforced: string;
+  sanitized_prompt: string | null;
+  audit_reason: string;
+}
+export interface NIS2Mandate {
+  article: string;
+  title: string;
+  status: string;
+  evidence: string;
+}
+export interface NIS2Status {
+  framework: string;
+  overall_status: string;
+  compliance_score_pct: number;
+  statutory_mandates: NIS2Mandate[];
+  last_audit_timestamp: number;
+}
+export interface CMMCControl {
+  control_id: string;
+  title: string;
+  status: string;
+  evidence: string;
+}
+export interface CMMCStatus {
+  standard: string;
+  certified_level: string;
+  controls_evaluated: number;
+  controls_passed: number;
+  score_percentage: number;
+  key_findings: CMMCControl[];
 }
 export interface InsuranceProof {
-  certified_sla_us: number;
-  hardware_root: string;
-  insurance_discount_score: string;
+  tenant_name: string;
+  certified_tier: string;
+  insurance_discount_eligibility: boolean;
+  estimated_discount_range_pct: string;
+  actuarial_telemetry: {
+    total_protected_nodes: number;
+    p50_mitigation_latency_us: number;
+    p99_mitigation_latency_us: number;
+    tpm2_hardware_root_coverage_pct: number;
+    ransomware_lateral_containment_sla_us: number;
+    unmitigated_breach_window_sec: number;
+  };
+  cryptographic_verification_token: string;
+  issued_timestamp: number;
+  valid_until_timestamp: number;
+}
+export interface CompileTask {
+  task_id: string;
+  model_name?: string | null;
+  target_silicon?: string | null;
+  status: string;
+  estimated_seconds?: number;
+  output_filename?: string | null;
+  sha256?: string | null;
+  size_bytes?: number | null;
+  latency_speedup_factor?: string | null;
+  download_url?: string | null;
 }
 export interface AttestationLog {
   timestamp: string;
@@ -479,14 +527,14 @@ export const backend = {
     get<ForgeDataset[]>("/ai/forge/datasets", t),
   forgeTrain: (body: { dataset_id: string; epochs?: number }, t: string | null) =>
     api.post<{ job_id: string; status: string }>("/ai/forge/train", body, t),
-  compileModel: (body: { model_id: string; target: string }, t: string | null) =>
-    api.post<{ task_id: string; status: string }>(
-      "/ai/compiler/compile",
-      body,
-      t
-    ),
-  trismEvaluate: (body: { prompt_text: string }, t: string | null) =>
+  compileModel: (form: FormData, t: string | null) =>
+    api.postForm<CompileTask>("/ai/compiler/compile", form, t),
+  compileTask: (taskId: string, t: string | null) =>
+    get<CompileTask>(`/ai/compiler/tasks/${taskId}`, t),
+  trismEvaluate: (body: { prompt_text: string; user_id?: string; sanitize_pii?: boolean }, t: string | null) =>
     api.post<TrismResult>("/ai/trism/evaluate", body, t),
+  exportCompliance: (body: { framework: string; format: string; include_sla_proofs?: boolean; reporting_period_days?: number }, t: string | null) =>
+    api.postBlob("/compliance/export", body, t),
 
   // Compliance
   nis2: (t: string | null) => get<NIS2Status>("/compliance/nis2", t),

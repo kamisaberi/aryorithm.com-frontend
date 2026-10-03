@@ -6,7 +6,7 @@ from app.models.threat import (
     ThreatEvent, CollectiveBusLog, MitreHit, ScadaAnomaly, IdentityBotEvent,
     GlobalThreat, ScadaEvent, RansomwareHash,
 )
-from app.models.ai import Model, OTARollout, ForgeDataset, CompileTask, TrismResult
+from app.models.ai import Model, OTARollout, ForgeDataset, CompileTask, TrismResult, TrismAuditLog
 from app.models.compliance import ComplianceRecord, AttestationLog, InsuranceProof
 from app.models.dfir import PCAP, FirmwareReport
 from app.models.range import DigitalTwin, AttackReplay, ResilienceScore
@@ -19,7 +19,7 @@ __all__ = [
     "Node", "Enclave", "ProvisioningToken", "KernelRule", "NexusInstance", "Sensor",
     "ThreatEvent", "CollectiveBusLog", "MitreHit", "ScadaAnomaly", "IdentityBotEvent",
     "GlobalThreat", "ScadaEvent", "RansomwareHash",
-    "Model", "OTARollout", "ForgeDataset", "CompileTask", "TrismResult",
+    "Model", "OTARollout", "ForgeDataset", "CompileTask", "TrismResult", "TrismAuditLog",
     "ComplianceRecord", "AttestationLog", "InsuranceProof",
     "PCAP", "FirmwareReport",
     "DigitalTwin", "AttackReplay", "ResilienceScore",

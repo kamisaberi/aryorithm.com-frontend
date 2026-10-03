@@ -108,19 +108,35 @@ class CompileRequest(BaseModel):
 
 class CompileResponse(BaseModel):
     task_id: str
+    model_name: str | None = None
+    target_silicon: str | None = None
     status: str
+    estimated_seconds: int = 15
 
 
 class CompileStatusResponse(BaseModel):
+    task_id: str
     status: str
+    output_filename: str | None = None
+    sha256: str | None = None
+    size_bytes: int | None = None
+    latency_speedup_factor: str | None = None
     download_url: str | None = None
 
 
 class TrismRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     prompt_text: str
+    user_id: str | None = None
+    sanitize_pii: bool = True
 
 
 class TrismResponse(BaseModel):
-    safe: bool
+    safe_to_forward: bool
     risk_score: float
-    sanitized_text: str | None = None
+    threat_category: str
+    mitre_atlas_id: str | None = None
+    action_enforced: str
+    sanitized_prompt: str | None = None
+    audit_reason: str

@@ -23,6 +23,8 @@ interface ApiOptions extends RequestInit {
   tenantId?: string | null;
   enclaveId?: string | null;
   apiKey?: string | null;
+  /** Set for FormData uploads so the JSON content type is not forced. */
+  noJsonContentType?: boolean;
 }
 
 function parseErrorMessage(errorData: unknown, status: number): { code: string; message: string; details: Record<string, unknown> } {
@@ -57,11 +59,13 @@ function parseErrorMessage(errorData: unknown, status: number): { code: string; 
 
 async function request<T>(endpoint: string, options: ApiOptions = {}, token?: string | null): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const { tenantId, enclaveId, apiKey, ...init } = options;
+  const { tenantId, enclaveId, apiKey, noJsonContentType, ...init } = options;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...((init.headers as Record<string, string>) || {}),
   };
+  if (!noJsonContentType && !(init.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -108,6 +112,28 @@ export const api = {
 
   post: <T>(endpoint: string, body?: unknown, token?: string | null, options?: ApiOptions) =>
     request<T>(endpoint, { method: "POST", body: JSON.stringify(body), ...(options || {}) }, token),
+
+  postForm: <T>(endpoint: string, form: FormData, token?: string | null, options?: ApiOptions) => {
+    const merged: ApiOptions = { method: "POST", body: form as unknown as BodyInit, ...(options || {}) };
+    (merged as Record<string, unknown>).noJsonContentType = true;
+    return request<T>(endpoint, merged, token);
+  },
+
+  postBlob: async (endpoint: string, body?: unknown, token?: string | null, options?: ApiOptions): Promise<Blob> => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    try {
+      const { getSelectedTenant } = await import("./tenant");
+      const selected = getSelectedTenant();
+      if (selected) headers["X-Tenant-ID"] = selected;
+    } catch {
+      /* no tenant context */
+    }
+    const response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers });
+    if (!response.ok) throw new Error(`Export failed with status ${response.status}`);
+    return response.blob();
+  },
 
   put: <T>(endpoint: string, body?: unknown, token?: string | null, options?: ApiOptions) =>
     request<T>(endpoint, { method: "PUT", body: JSON.stringify(body), ...(options || {}) }, token),

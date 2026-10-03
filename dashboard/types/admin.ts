@@ -3,6 +3,8 @@ export interface AdminNavItem {
   href: string;
   icon: string;
   badge?: string;
+  /** Yellow (true) or green ("green") highlight for freshly added items. */
+  highlight?: boolean | "green";
 }
 
 export interface AdminNavGroup {

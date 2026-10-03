@@ -153,9 +153,15 @@ export const DUMMY_FORGE: ForgeDataset[] = [
 ];
 
 export const DUMMY_NIS2: NIS2Status = {
-  framework: "EU NIS2",
-  compliant: true,
-  incident_sla_verified: true,
+  framework: "EU NIS2 Directive (Directive 2022/2555)",
+  overall_status: "COMPLIANT",
+  compliance_score_pct: 100.0,
+  statutory_mandates: [
+    { article: "Article 21.2(a)", title: "Incident Handling & Rapid Containment", status: "PASS", evidence: "In-kernel eBPF mitigation verified at 0.84 µs SLA." },
+    { article: "Article 21.2(b)", title: "Business Continuity & Supply Chain Integrity", status: "PASS", evidence: "100% autonomous edge operation verified." },
+    { article: "Article 21.2(c)", title: "Cryptography & Data Sovereignty", status: "PASS", evidence: "$0 cloud data egress verified." },
+  ],
+  last_audit_timestamp: 1774998000,
 };
 
 export const DUMMY_IEC: IECStatus = {
@@ -165,17 +171,34 @@ export const DUMMY_IEC: IECStatus = {
 };
 
 export const DUMMY_CMMC: CMMCStatus = {
-  findings: [
-    { control_id: "IA.L2-3.5.1", title: "TPM 2.0 Auth", passed: true },
-    { control_id: "SC.L2-3.13.2", title: "Boundary Protection", passed: true },
-    { control_id: "AU.L2-3.3.1", title: "Audit Logging", passed: false },
+  standard: "CMMC 2.0 Level 2 / NIST SP 800-171",
+  certified_level: "LEVEL_2_READY",
+  controls_evaluated: 110,
+  controls_passed: 110,
+  score_percentage: 100.0,
+  key_findings: [
+    { control_id: "IA.L2-3.5.1", title: "TPM 2.0 Auth", status: "PASS", evidence: "PCR 0/4 quotes verified." },
+    { control_id: "SC.L2-3.13.2", title: "Boundary Protection", status: "PASS", evidence: "Zone segmentation enforced." },
+    { control_id: "AU.L2-3.3.1", title: "Audit Logging", status: "FAIL", evidence: "Gaps in log retention window." },
   ],
 };
 
 export const DUMMY_INSURANCE: InsuranceProof = {
-  certified_sla_us: 0.84,
-  hardware_root: "TPM 2.0",
-  insurance_discount_score: "TIER_A",
+  tenant_name: "EuroGrid Energy Group",
+  certified_tier: "TIER_A_PLUS",
+  insurance_discount_eligibility: true,
+  estimated_discount_range_pct: "25% - 38%",
+  actuarial_telemetry: {
+    total_protected_nodes: 124,
+    p50_mitigation_latency_us: 0.84,
+    p99_mitigation_latency_us: 0.98,
+    tpm2_hardware_root_coverage_pct: 100.0,
+    ransomware_lateral_containment_sla_us: 0.84,
+    unmitigated_breach_window_sec: 0.0,
+  },
+  cryptographic_verification_token: "ARY-INS-PROOF-9f8a2b-2026",
+  issued_timestamp: 1774998000,
+  valid_until_timestamp: 1782774000,
 };
 
 export const DUMMY_ATTESTATION: AttestationLog[] = [

@@ -4,12 +4,10 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
-import { backend, type CMMCStatus } from "@/lib/backend";
+import { backend, type CMMCControl } from "@/lib/backend";
 import { useAuth } from "@/lib/auth";
 import { useBackend } from "@/hooks/useBackend";
 import { DUMMY_IEC, DUMMY_CMMC } from "@/data/dummy";
-
-type Finding = CMMCStatus["findings"][number];
 
 export default function Iec62443Page() {
   const { token } = useAuth();
@@ -21,23 +19,23 @@ export default function Iec62443Page() {
     {
       key: "control_id",
       header: "Control ID",
-      render: (f: Finding) => (
+      render: (f: CMMCControl) => (
         <span className="font-mono text-[11px] text-ink">{f.control_id}</span>
       ),
     },
     {
       key: "title",
       header: "Title",
-      render: (f: Finding) => (
+      render: (f: CMMCControl) => (
         <span className="text-[12px] text-ink">{f.title}</span>
       ),
     },
     {
       key: "passed",
       header: "Passed",
-      render: (f: Finding) => (
-        <Badge variant={f.passed ? "kernel" : "threat"}>
-          {f.passed ? "passed" : "failed"}
+      render: (f: CMMCControl) => (
+        <Badge variant={f.status === "PASS" ? "kernel" : "threat"}>
+          {f.status === "PASS" ? "passed" : "failed"}
         </Badge>
       ),
     },
@@ -72,7 +70,7 @@ export default function Iec62443Page() {
       <Card>
         <Table
           columns={columns}
-          data={cmmc.data.findings}
+          data={cmmc.data.key_findings}
           keyExtractor={(f) => f.control_id}
         />
       </Card>

@@ -24,6 +24,8 @@ class ComplianceRecord(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     framework: Mapped[ComplianceFramework] = mapped_column(SQLEnum(ComplianceFramework), nullable=False, index=True)
     compliant: Mapped[bool] = mapped_column(Boolean, default=True)
+    score_pct: Mapped[float] = mapped_column(Float, default=100.0)
+    status: Mapped[str] = mapped_column(String(32), default="COMPLIANT")
     findings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
