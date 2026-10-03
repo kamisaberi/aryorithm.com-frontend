@@ -2,6 +2,38 @@ import type { NavGroup, FooterColumn } from "@/types/navigation";
 
 export const NAV: NavGroup[] = [
   {
+    label: "Platform",
+    match: ["/platform/nexus"],
+    items: [
+      { name: "Sentinel Nexus", desc: "Tier 6 collective defense command plane", to: "/platform/nexus" },
+      { name: "Nexus Command Center", desc: "Port 9443 fleet HUD simulation", to: "/platform/nexus", section: "nexus-command-center" },
+      { name: "Fleet Overview", desc: "Health, canary waves, heartbeat meters", to: "/platform/nexus", section: "nexus-command-center" },
+      { name: "OTA Canary Pipeline", desc: "Shadow → 5% cohort → fleet promote", to: "/platform/nexus", section: "nexus-capabilities" },
+    ],
+  },
+  {
+    label: "Products",
+    match: ["/products/sentinel"],
+    items: [
+      { name: "Blackbox Sentinel Edge", desc: "Tier 3 cyber-physical XDR appliance", to: "/products/sentinel" },
+      { name: "Appliance Form Factors", desc: "S-1000 · S-5000 · V-Edge", to: "/products/sentinel", section: "form-factors" },
+      { name: "26 Subsystems", desc: "Decoupled native module matrix", to: "/products/sentinel", section: "subsystem-matrix" },
+      { name: "30 Industrial Plugins", desc: "dlopen protocol dissector catalogue", to: "/products/sentinel", section: "plugin-showcase" },
+    ],
+  },
+  {
+    label: "Technology",
+    match: ["/technology/xinfer", "/technology/blackbox", "/technology/forge"],
+    items: [
+      { name: "xInfer Engine", desc: "libxinfer.so — 15 silicon backends", to: "/technology/xinfer" },
+      { name: "Silicon Matrix", desc: "15-platform zero-copy support grid", to: "/technology/xinfer", section: "silicon-matrix" },
+      { name: "Blackbox Core", desc: "libblackbox.so — eBPF/XDP kernel engine", to: "/technology/blackbox" },
+      { name: "Fast-Path Inspection", desc: "Frame lifecycle to XDP_DROP", to: "/technology/blackbox", section: "fast-path" },
+      { name: "xInfer Forge", desc: "Air-gapped continual learning service", to: "/technology/forge" },
+      { name: "Regression Safety Gate", desc: "golden_attacks.yaml watchdog", to: "/technology/forge", section: "safety-gate" },
+    ],
+  },
+  {
     label: "Projects",
     match: ["/projects"],
     items: [
