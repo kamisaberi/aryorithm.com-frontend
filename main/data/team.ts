@@ -161,6 +161,281 @@ export const TEAM_MEMBERS: TeamMember[] = [
   },
 ];
 
+export interface DirectoryMember {
+  slug: string;
+  name: string;
+  title: string;
+  group: "leadership" | "kernel" | "systems" | "strategy";
+  tier: string;
+  education: string;
+  email: string;
+  github?: string;
+  pgp?: boolean;
+  badges: string[];
+  bio: string[];
+  metric: [string, string];
+}
+
+export const MEMBER_GROUPS = [
+  { slug: "leadership", label: "Leadership" },
+  { slug: "kernel", label: "Kernel & Silicon" },
+  { slug: "systems", label: "Systems & AI" },
+  { slug: "strategy", label: "Compliance & Strategy" },
+] as const;
+
+export const GROUP_COLORS: Record<string, string> = {
+  leadership: "#00E5FF",
+  kernel: "#00FFA3",
+  systems: "#FFB800",
+  strategy: "#FF3366",
+};
+
+export const DIRECTORY: DirectoryMember[] = [
+  {
+    slug: "maarten-van-den-berg",
+    name: "Maarten van den Berg",
+    title: "Chief Executive Officer (CEO)",
+    group: "leadership",
+    tier: "Executive Leadership",
+    education: "M.Sc. Computer Engineering (TU Delft), MBA (INSEAD)",
+    email: "maarten.vandenberg@aryorithm.com",
+    badges: ["Enterprise OT sales", "Public procurement", "Dual-use deployment"],
+    bio: [
+      "Maarten van den Berg brings over 18 years of leadership experience scaling enterprise infrastructure and industrial cybersecurity companies across Europe and North America. Prior to co-founding Aryorithm, he served as VP of Enterprise Sales at a leading European OT security firm, driving regional adoption across energy grids, maritime ports, and manufacturing conglomerates.",
+      "At Aryorithm, Maarten leads corporate strategy, investor relations, and government defense partnerships — establishing autonomous active defense as the sovereign security standard for European critical infrastructure under the EU NIS2 Directive, working directly with national cyber agencies, utility boards, and defense accelerators.",
+    ],
+    metric: ["Leadership experience", "18+ yrs"],
+  },
+  {
+    slug: "kamran-saberifard",
+    name: "Kamran Saberifard",
+    title: "Chief Technology Officer (CTO) & Chief Systems Architect",
+    group: "leadership",
+    tier: "Executive Leadership",
+    education: "B.Sc. Software Engineering, Systems Architect",
+    email: "kamran.saberifard@aryorithm.com",
+    github: "https://github.com/kamisaberi",
+    pgp: true,
+    badges: ["libblackbox.so", "libxinfer.so", "eBPF/XDP", "SPMC rings", "SLAB protocol"],
+    bio: [
+      "Kamran Saberifard is the creator and chief architect of the Aryorithm six-tier active defense ecosystem. After years investigating the latency barriers of userspace detection engines and cloud SIEM lakes, he engineered libblackbox.so — pioneering driver-level Linux eBPF/XDP hooks for deterministic wire-speed mitigation in 0.84 microseconds.",
+      "As CTO, Kamran directs research and systems engineering across all architectural tiers: the universal C++20 libxinfer.so runtime on 15 silicon backends, the lock-free SPMC EventRingBuffer at 1.25M EPS, the SLAB binary wire protocol, and the Sentinel Nexus collective defense grid — keeping every codebase sovereign, air-gapped, and deterministic.",
+    ],
+    metric: ["Worst-case drop path", "0.84 µs"],
+  },
+  {
+    slug: "annika-lindqvist",
+    name: "Annika Lindqvist",
+    title: "Chief Financial Officer (CFO) & Head of Corporate Development",
+    group: "leadership",
+    tier: "Executive Leadership",
+    education: "M.Sc. Finance & Economics (Hanken, Helsinki)",
+    email: "annika.lindqvist@aryorithm.com",
+    badges: ["Deep-tech venture finance", "Horizon Europe", "IP structures"],
+    bio: [
+      "Annika Lindqvist oversees global financial operations, capital allocation, and corporate governance. With 14+ years in deep-tech venture finance — including Investment Director at a Nordic fund for industrial automation and dual-use software — she has structured dozens of enterprise licensing deals and cross-border IP holdings between the Netherlands and the Baltics.",
+      "At Aryorithm, Annika runs fiscal strategy, subsidiary expansion, and European startup-regulatory compliance, balancing hardware appliance CapEx against high-margin cloud SaaS subscriptions and defense procurement escrows.",
+    ],
+    metric: ["Deep-tech finance", "14+ yrs"],
+  },
+  {
+    slug: "henrik-de-vries",
+    name: "Dr. Henrik de Vries",
+    title: "Chief Information Security Officer (CISO) & VP of Trust",
+    group: "leadership",
+    tier: "Executive Leadership",
+    education: "Ph.D. Information Security (Royal Holloway), CISSP, CISM",
+    email: "henrik.devries@aryorithm.com",
+    pgp: true,
+    badges: ["SCADA defense", "Zero-trust", "IEC 62443", "CMMC 2.0"],
+    bio: [
+      "Dr. Henrik de Vries has spent two decades defending national critical infrastructure against nation-state cyber warfare. As CSO of a major Northern European transmission system operator, he protected high-voltage substations and cross-border interconnects, and has advised European task forces on SCADA vulnerability management and incident containment.",
+      "At Aryorithm, Henrik directs internal security, sovereign cryptographic key governance, and certification audits — holding every appliance and cloud service to IEC 62443-3-3/4-2, CMMC 2.0 Level 2, and NIST SP 800-171 — and serves as executive liaison to customer CISOs.",
+    ],
+    metric: ["Critical-infrastructure defense", "20+ yrs"],
+  },
+  {
+    slug: "elena-rostova",
+    name: "Dr. Elena Rostova",
+    title: "VP of Engineering & Distributed Systems",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "Ph.D. Distributed Systems & Concurrency (ETH Zürich)",
+    email: "elena.rostova@aryorithm.com",
+    badges: ["Lock-free IPC", "HFT execution engines", "Formal verification"],
+    bio: [
+      "Dr. Elena Rostova leads core software engineering — CI, testing, and production stabilization of all native C++20 codebases. She previously led a high-frequency trading execution engine team in Amsterdam, optimizing lock-free queues, zero-copy sockets, and core pinning under sub-microsecond SLAs.",
+      "Elena owns the Sentinel Nexus Command Plane architecture, scaling collective defense broadcasts to 5,000 edge nodes within 50 milliseconds. Her research spans formal verification of concurrent structures and consensus under hostile networks.",
+    ],
+    metric: ["Collective fanout", "< 50 ms"],
+  },
+  {
+    slug: "lukas-weber",
+    name: "Lukas Weber",
+    title: "Head of Linux Kernel & eBPF/XDP Engineering",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "M.Sc. Computer Science (Karlsruhe Institute of Technology)",
+    email: "lukas.weber@aryorithm.com",
+    badges: ["Linux kernel contributor", "AF_XDP", "BPF CO-RE", "10/40GbE"],
+    bio: [
+      "Lukas Weber is a Linux kernel contributor and low-level networking specialist leading Aryorithm's eBPF/XDP research group, with senior systems experience across edge networking and virtualization infrastructure.",
+      "At Aryorithm, Lukas owns the performance, portability, and safety of xdp_filter.o — including CO-RE via vmlinux.h and BTF — so in-kernel threat filters run reliably across enterprise distributions, RT-PREEMPT kernels, and hypervisor vNICs without host header compilation.",
+    ],
+    metric: ["Verifier suite", "kernel 5.15–6.11"],
+  },
+  {
+    slug: "tariq-al-mansoor",
+    name: "Dr. Tariq Al-Mansoor",
+    title: "Head of AI Silicon Compilation & Acceleration",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "Ph.D. Computer Architecture (Imperial College London)",
+    email: "tariq.almansoor@aryorithm.com",
+    badges: ["INT8/FP8 quantization", "Tensor graphs", "OpenVINO", "TensorRT"],
+    bio: [
+      "Dr. Tariq Al-Mansoor directs heterogeneous hardware inference, with a background in semiconductor research labs and edge AI vendors and publications on quantization, memory-mapped tensor graphs, and compiler optimizations.",
+      "Tariq oversees all 15 silicon backends in libxinfer.so — the unified pointer-mapping engine running neural threat detection natively on OpenVINO NPUs, TensorRT CUDA cores, RKNPU2 engines, and Hailo-8 accelerators with no heap allocation or managed dependencies.",
+    ],
+    metric: ["Silicon backends", "15"],
+  },
+  {
+    slug: "bram-visser",
+    name: "Bram Visser",
+    title: "Principal Cyber-Physical (SCADA/ICS) Security Architect",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "B.Sc. Industrial Automation (TU Eindhoven), GICSP",
+    email: "bram.visser@aryorithm.com",
+    badges: ["Modbus", "DNP3", "PROFINET", "S7Comm", "18_cps_sec"],
+    bio: [
+      "Bram Visser is an authority on industrial protocols, PLC firmware, and SCADA process safety, with 16 years of field engineering across refineries, offshore platforms, and water utilities — from Stuxnet-style tampering to Industroyer trip commands.",
+      "At Aryorithm, Bram leads Subsystem 18 (18_cps_sec) and the 30 industrial protocol plugins, building semantic dissectors that translate mechanical safety envelopes — temperature, pressure, velocity limits — into deterministic in-kernel drop policies.",
+    ],
+    metric: ["Field engineering", "16 yrs"],
+  },
+  {
+    slug: "sofia-kallas",
+    name: "Sofia Kallas",
+    title: "Lead Cryptographer & Hardware Silicon Trust Architect",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "M.Sc. Applied Cryptography (University of Tartu)",
+    email: "sofia.kallas@aryorithm.com",
+    badges: ["TPM 2.0", "TSS2", "Secure boot", "Side-channel resistance"],
+    bio: [
+      "Sofia Kallas directs Aryorithm's hardware root-of-trust program, with a background in secure elements, PKI, and sovereign e-identity systems from Estonia's digital government ecosystem.",
+      "Sofia designed the Adaptive 3-Tier Hardware Identity Engine in libblackbox.so — TCG TSS2 quote verification, endorsement-key binding, and anti-tamper mechanisms guaranteeing no virtual appliance or edge device can be cloned or spoofed across the defense grid.",
+    ],
+    metric: ["Identity tiers", "3 ordered"],
+  },
+  {
+    slug: "arto-korhonen",
+    name: "Arto Korhonen",
+    title: "Lead Cloud & SaaS Architect (Backend)",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "M.Sc. Software Engineering (Aalto University)",
+    email: "arto.korhonen@aryorithm.com",
+    badges: ["FastAPI", "Multi-tenancy", "SSE telemetry", "Go"],
+    bio: [
+      "Arto Korhonen leads cloud platform engineering for app.aryorithm.com and the SaaS sync backend, with a background in real-time telecom backbones built in Helsinki.",
+      "Arto architected the multi-tenant REST route tables, JWT middleware, and SSE telemetry multiplexer connecting Nexus to cloud customers — millions of daily fleet events at sub-10ms UI push latency with strict tenant isolation.",
+    ],
+    metric: ["UI push latency", "< 10 ms"],
+  },
+  {
+    slug: "chantal-dubois",
+    name: "Chantal Dubois",
+    title: "Lead Frontend Architect & Design Systems Engineer",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "B.A. Visual Design & B.Sc. Computer Science (ULB)",
+    email: "chantal.dubois@aryorithm.com",
+    badges: ["Zero-CDN SPA", "Canvas rendering", "High-density dataviz"],
+    bio: [
+      "Chantal Dubois directs frontend architecture and UX across the air-gapped embedded command centers and the cloud SaaS app, previously a senior UI/UX engineer at an enterprise observability platform.",
+      "Chantal built the Radial Topology Canvas and the real-time MITRE heatmap in Sentinel Nexus, enforcing the strict zero-CDN architecture — instantaneous rendering and microsecond telemetry with no third-party fonts or trackers.",
+    ],
+    metric: ["External requests", "0"],
+  },
+  {
+    slug: "mateo-rossi",
+    name: "Dr. Mateo Rossi",
+    title: "Lead Machine Learning Scientist (Continual AI & Forge)",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "Ph.D. Machine Learning (Politecnico di Milano)",
+    email: "mateo.rossi@aryorithm.com",
+    badges: ["Self-supervised learning", "InfoNCE", "MAE", "Adversarial robustness"],
+    bio: [
+      "Dr. Mateo Rossi leads continual representation learning research, with an academic background in self-supervised learning, information theory, and adversarial robustness.",
+      "Mateo engineered the xinfer-forge adaptation pipeline — the 32-dimensional MAE masking strategy and InfoNCE loss letting edge appliances adapt to site drift autonomously — and designed the Golden Attack Regression Safety Gate, proving local fine-tuning cannot be poisoned.",
+    ],
+    metric: ["Adaptation cycle", "< 20 s CPU"],
+  },
+  {
+    slug: "niels-meijer",
+    name: "Niels Meijer",
+    title: "Senior Security Verification & Chaos Engineering Lead",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "M.Sc. Software Security (University of Amsterdam)",
+    email: "niels.meijer@aryorithm.com",
+    badges: ["Red-teaming", "OmniFlow", "PCAP replay", "Chaos harnesses"],
+    bio: [
+      "Niels Meijer leads red-teaming, adversary emulation, and resilience verification, with a background in offensive security and automated exploitation.",
+      "Niels built the sentinel-matrix mesh and the OmniFlow traffic engine — the live adversary container, authentic Industroyer/Triton/Stuxnet PCAP streaming, and the chaos harnesses that continuously stress-test automated rollback circuits at wire speed.",
+    ],
+    metric: ["Replay fidelity", "byte-for-byte"],
+  },
+  {
+    slug: "ingrid-holmberg",
+    name: "Ingrid Holmberg",
+    title: "VP of Product Management (Critical Infrastructure & Defense)",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "M.Sc. Industrial Systems (KTH Stockholm)",
+    email: "ingrid.holmberg@aryorithm.com",
+    badges: ["Industrial robotics", "Pilot evaluations", "OT workflows"],
+    bio: [
+      "Ingrid Holmberg leads product strategy across Aryorithm's commercial offerings, previously a principal PM at an industrial robotics and automation manufacturer translating factory-floor requirements into software specs.",
+      "Ingrid bridges customer engineering with kernel architects — managing the S-1000/S-5000 appliance lifecycle, municipal utility pilots, and ensuring features serve substation engineers and plant managers directly.",
+    ],
+    metric: ["Pilot-to-live", "10 days"],
+  },
+  {
+    slug: "sarah-van-leeuwen",
+    name: "Dr. Sarah van Leeuwen",
+    title: "Head of Global Regulatory Compliance & Certification",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "LL.M. Technology Law, Ph.D. Cyber Law & Policy (Leiden)",
+    email: "sarah.vanleeuwen@aryorithm.com",
+    badges: ["NIS2", "DORA", "CRA", "C3PAO liaison"],
+    bio: [
+      "Dr. Sarah van Leeuwen directs international cybersecurity compliance and government policy engagement, previously advising on EU cybersecurity legislation across NIS2, DORA, and the Cyber Resilience Act.",
+      "At Aryorithm, Sarah designed the automated audit engines (CmmcAuditEngine.cpp, ScadaAuditEngine.cpp), oversees certified evidence packages, liaises with C3PAOs, and helps customers convert verified telemetry into lower insurance premiums and clean statutory reporting.",
+    ],
+    metric: ["Frameworks covered", "NIS2·DORA·CRA"],
+  },
+  {
+    slug: "marcus-vance",
+    name: "Marcus Vance",
+    title: "VP of Strategic Partnerships & Industrial Integrations",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "B.Sc. Electrical Engineering (Purdue), Executive Fellow (Cambridge)",
+    email: "marcus.vance@aryorithm.com",
+    badges: ["Intel", "NVIDIA", "Siemens", "ABB", "Schneider"],
+    bio: [
+      "Marcus Vance leads alliances, silicon partner programs, and integrator channels, with 20 years of enterprise tech sales connecting startups with global hardware leaders across North America, the Nordics, and the Middle East.",
+      "Marcus runs engagements with Intel (OpenVINO/Liftoff), NVIDIA (Inception/Jetson), and industrial OEMs — embedding the runtime into third-party industrial PCs and building regional partnerships with defense and infrastructure contractors.",
+    ],
+    metric: ["Alliance experience", "20 yrs"],
+  },
+];
+
 export interface Role {
   id: string;
   title: string;
