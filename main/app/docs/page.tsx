@@ -99,6 +99,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "sentinel-lab",
+    title: "Sentinel-Lab (sentinel_lab)",
+    color: "#00E5FF",
+    desc: "Open research testbed — full documentation: SLAB, dual-silicon, harness, preprint.",
+    links: [
+      { label: "Full Documentation (67 guides)", to: "/docs/sentinel-lab" },
+      { label: "SLAB Protocol", to: "/docs/sentinel-lab/slab-protocol" },
+      { label: "10-Minute Harness", to: "/docs/sentinel-lab/evaluation-harness" },
+      { label: "Thesis Guide", to: "/docs/sentinel-lab/university-curriculum" },
+      { label: "Preprint & Zenodo", to: "/docs/sentinel-lab/preprint-and-open-science" },
+    ],
+  },
+  {
     id: "protocol-engineering",
     title: "Protocol Engineering",
     color: "#FFB800",
