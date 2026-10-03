@@ -36,15 +36,15 @@ const DOC_SECTIONS = [
   },
   {
     id: "xinfer-engine",
-    title: "xInfer Engine (libxinfer.so)",
+    title: "xInfer Essential (libxinfer.so)",
     color: "#00FFA3",
-    desc: "The heterogeneous silicon runtime — 15 backends, zero-copy, one model graph.",
+    desc: "The heterogeneous silicon runtime — full documentation: setup, 15 backends, memory, plugins, API.",
     links: [
-      { label: "Silicon Backend Matrix", to: "/technology/xinfer#silicon-matrix" },
-      { label: "Model Graph Specification", to: "/docs#xinfer-engine" },
-      { label: "int8 Quantization Pipeline", to: "/docs#xinfer-engine" },
-      { label: "Operator Fusion Reference", to: "/docs#xinfer-engine" },
-      { label: "Tensor Arena Layout", to: "/docs#xinfer-engine" },
+      { label: "Full Documentation (75 guides)", to: "/docs/xinfer-essential" },
+      { label: "Silicon Backend Matrix", to: "/docs/xinfer-essential/silicon-backends" },
+      { label: "Zero-Copy Memory Model", to: "/docs/xinfer-essential/architecture/zero-copy-model" },
+      { label: "Plugin Architecture", to: "/docs/xinfer-essential/plugin-development/plugin-architecture" },
+      { label: "C++20 API Reference", to: "/docs/xinfer-essential/api-reference" },
     ],
   },
   {
