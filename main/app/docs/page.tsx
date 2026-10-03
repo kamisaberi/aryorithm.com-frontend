@@ -48,6 +48,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "xinfer-forge",
+    title: "xInfer Forge (forge-cli)",
+    color: "#00FFA3",
+    desc: "Continual learning daemon — full documentation: MAE engine, golden gate, export, staging.",
+    links: [
+      { label: "Full Documentation (75 guides)", to: "/docs/xinfer-forge" },
+      { label: "Self-Supervised MAE Engine", to: "/docs/xinfer-forge/self-supervised-engine" },
+      { label: "Golden Safety Gate", to: "/docs/xinfer-forge/safety-regression-gate" },
+      { label: "forge-cli Reference", to: "/docs/xinfer-forge/cli-reference" },
+      { label: "Nexus Staging Bridge", to: "/docs/xinfer-forge/nexus-integration" },
+    ],
+  },
+  {
     id: "blackbox-core",
     title: "Blackbox Core (eBPF/XDP)",
     color: "#00E5FF",

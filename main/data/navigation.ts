@@ -200,6 +200,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/docs/xinfer-essential": "xInfer Essential — Full Documentation",
   "/docs/blackbox-essential": "Blackbox Essential — Full Documentation",
   "/docs/blackbox-sentinel": "Blackbox Sentinel — Full Documentation",
+  "/docs/xinfer-forge": "xInfer Forge — Full Documentation",
   "/support": "Support & Help Center",
   "/help": "Help Center — All Articles",
   "/portal": "Customer Enclave — Authentication & Activation",
