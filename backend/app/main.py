@@ -19,7 +19,7 @@ from app.request_logging import (
 
 # Import ORM models so Base.metadata.create_all() creates all tables.
 import app.models  # noqa: F401
-from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants, models as models_router, ota as ota_router, plans as plans_router, cps as cps_router, identity as identity_router
+from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants, models as models_router, ota as ota_router, plans as plans_router, cps as cps_router, identity as identity_router, soc as soc_router, support as support_router
 
 
 @asynccontextmanager
@@ -102,6 +102,8 @@ app.include_router(ota_router.router, prefix="/api/v1")
 app.include_router(plans_router.router, prefix="/api/v1")
 app.include_router(cps_router.router, prefix="/api/v1")
 app.include_router(identity_router.router, prefix="/api/v1")
+app.include_router(soc_router.router, prefix="/api/v1")
+app.include_router(support_router.router, prefix="/api/v1")
 
 
 @app.get("/v1/models", include_in_schema=False)

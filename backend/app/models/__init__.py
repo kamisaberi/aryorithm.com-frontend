@@ -9,7 +9,7 @@ from app.models.threat import (
 )
 from app.models.ai import Model, OTARollout, ForgeDataset, CompileTask, TrismResult, TrismAuditLog
 from app.models.compliance import ComplianceRecord, AttestationLog, InsuranceProof
-from app.models.range import DigitalTwin, AttackReplay, ResilienceScore
+from app.models.range import DigitalTwin, AttackReplay, ResilienceScore, RangeInstance, ResilienceEvaluation, MDRIncident, MDRMessage, EmergencyDispatch
 from app.models.settings import APIKey, Webhook, BillingRecord, AuditLog
 from app.models.subscription import SubscriptionPlan, PlanEntitlement
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
@@ -23,6 +23,7 @@ __all__ = [
     "ComplianceRecord", "AttestationLog", "InsuranceProof",
     "PCAP", "FirmwareReport", "MedicalScanner", "Vessel", "ITDREvent", "ZTNASession",
     "DigitalTwin", "AttackReplay", "ResilienceScore",
+    "RangeInstance", "ResilienceEvaluation", "MDRIncident", "MDRMessage", "EmergencyDispatch",
     "APIKey", "Webhook", "BillingRecord", "AuditLog",
     "SubscriptionPlan", "PlanEntitlement",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",

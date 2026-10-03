@@ -247,6 +247,73 @@ export interface RansomwareHash {
   first_detected: number;
   status: string;
 }
+export interface TwinBlueprint {
+  blueprint_id: string;
+  name: string;
+  description: string;
+  protocols: string[];
+}
+export interface TwinNode {
+  id: string;
+  ip: string;
+  role: string;
+}
+export interface RangeInstance {
+  instance_id: string;
+  status: string;
+  blueprint_id: string;
+  enclave_name: string;
+  assigned_sandbox_ip: string;
+  web_console_url: string;
+  expires_at_timestamp: number;
+  allocated_nodes: TwinNode[];
+}
+export interface ResilienceBench {
+  resilience_score: number;
+  rating_tier: string;
+  metrics: {
+    mean_time_to_fleet_immunity_ms: number;
+    mttfi_target_sla_ms: number;
+    p50_kernel_mitigation_latency_us: number;
+    p99_kernel_mitigation_latency_us: number;
+    auto_rollback_latency_ms: number;
+    simulated_attack_containment_rate_pct: number;
+  };
+  tested_malware_profiles: string[];
+  last_evaluation_timestamp: number;
+}
+export interface MDRIncident {
+  incident_id: string;
+  severity: string;
+  target_site: string;
+  protocol: string;
+  threat_summary: string;
+  in_kernel_drop_verified: boolean;
+  aryorithm_analyst_assigned: string;
+  analyst_verdict: string;
+  status: string;
+  created_timestamp: number;
+  contained_timestamp: number | null;
+}
+export interface MDRMessage {
+  author: string;
+  author_role: string;
+  body: string;
+  created_timestamp: number;
+}
+export interface MDRIncidentDetail extends MDRIncident {
+  messages: MDRMessage[];
+  pcap_links: string[];
+}
+export interface EmergencyDispatch {
+  dispatch_id: string;
+  affected_enclave: string;
+  urgency: string;
+  status: string;
+  response_time_seconds: number | null;
+  sla_met: boolean | null;
+  created_timestamp: number;
+}
 export interface MedicalScanner {
   scanner_id: string;
   name: string;
@@ -583,6 +650,34 @@ export const backend = {
     get<ZTNASession[]>("/ztna/sessions", t),
   firmwareReport: (taskId: string, t: string | null) =>
     get<FirmwareReport>(`/dfir/firmware/reports/${taskId}`, t),
+  twinBlueprints: (t: string | null) =>
+    get<TwinBlueprint[]>("/range/blueprints", t),
+  twinInstances: (t: string | null) =>
+    get<RangeInstance[]>("/range/instances", t),
+  provisionTwin: (body: { blueprint_id: string; enclave_name?: string; duration_hours?: number; traffic_profile?: string }, t: string | null) =>
+    api.post<RangeInstance>("/range/instances/provision", body, t),
+  pauseTwin: (instanceId: string, t: string | null) =>
+    api.post<{ status: string; sandbox_ip: string | null }>(`/range/instances/${instanceId}/pause`, {}, t),
+  resumeTwin: (instanceId: string, t: string | null) =>
+    api.post<{ status: string; sandbox_ip: string | null }>(`/range/instances/${instanceId}/resume`, {}, t),
+  terminateTwin: (instanceId: string, t: string | null) =>
+    api.delete<{ status: string; sandbox_ip: string | null }>(`/range/instances/${instanceId}`, t),
+  resilienceBench: (t: string | null) =>
+    get<ResilienceBench>("/range/resilience/score", t),
+  resilienceHistory: (t: string | null) =>
+    get<{ score: number; evaluated_at: number }[]>("/range/resilience/history", t),
+  mdrIncidents: (t: string | null) =>
+    get<MDRIncident[]>("/soc/incidents", t),
+  mdrIncident: (incidentId: string, t: string | null) =>
+    get<MDRIncidentDetail>(`/soc/incidents/${incidentId}`, t),
+  mdrMessage: (incidentId: string, body: { author?: string; author_role?: string; body: string }, t: string | null) =>
+    api.post<MDRMessage>(`/soc/incidents/${incidentId}/messages`, body, t),
+  emergencyDispatch: (body: { affected_enclave: string; urgency?: string; incident_notes?: string }, t: string | null) =>
+    api.post<{ dispatch_id: string; status: string; sla_window_minutes: number; sla_deadline_timestamp: number; assigned_responders: string[]; emergency_bridge_link: string }>(
+      "/support/emergency-dispatch", body, t
+    ),
+  slaHistory: (t: string | null) =>
+    get<EmergencyDispatch[]>("/support/sla-history", t),
   pendingCommands: (tenantId: string, t: string | null) =>
     api.get<unknown[]>(`/tenants/${tenantId}/commands/pending`, t, {
       apiKey: NEXUS_API_KEY,

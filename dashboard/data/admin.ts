@@ -5,6 +5,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Mission Control",
     items: [
       { label: "Overview", href: "/dashboard", icon: "◈" },
+      { label: "MDR Triage Hub", href: "/dashboard/mdr-triage", icon: "◍", highlight: "orange" },
       { label: "Threat Map", href: "/threat-map", icon: "◉" },
       { label: "Live XAI Stream", href: "/xai-feed", icon: "◷" },
     ],
@@ -74,9 +75,11 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Cyber Range",
     items: [
-      { label: "Digital Twins", href: "/cyber-range/twins", icon: "⧉" },
+      { label: "Digital Twins", href: "/range/digital-twins", icon: "⬣", highlight: "orange" },
+      { label: "Resilience Bench", href: "/range/resilience-bench", icon: "⬔", highlight: "orange" },
+      { label: "Twins (classic)", href: "/cyber-range/twins", icon: "⧉" },
       { label: "Attack Replay", href: "/cyber-range/replay", icon: "↻" },
-      { label: "Resilience Scoring", href: "/cyber-range/resilience", icon: "⬢" },
+      { label: "Resilience (classic)", href: "/cyber-range/resilience", icon: "⬢" },
     ],
   },
   {
@@ -85,6 +88,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: "Access Control (RBAC)", href: "/users", icon: "◉" },
       { label: "API Keys & Webhooks", href: "/api-keys", icon: "⚿" },
       { label: "Licensing & Billing", href: "/billing", icon: "▣" },
+      { label: "Emergency SLA & Triage", href: "/settings/emergency-sla", icon: "⚠", highlight: "orange" },
       { label: "Audit Trail", href: "/activity", icon: "◷" },
       { label: "System", href: "/settings", icon: "⚙" },
     ],
