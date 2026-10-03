@@ -8,6 +8,11 @@ export default function PageLoader() {
   const [progress, setProgress] = useState(0);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Stable string snapshot: the searchParams *object* identity can change
+  // across navigations that keep the same query (e.g. in-page `#anchor`
+  // clicks), which would otherwise re-trigger the effect below and flash
+  // the fullscreen loader on same-page jumps.
+  const search = searchParams.toString();
 
   useEffect(() => {
     setLoading(true);
@@ -36,7 +41,18 @@ export default function PageLoader() {
       clearInterval(timer);
       clearTimeout(timeout);
     };
-  }, [pathname, searchParams]);
+  }, [pathname, search]);
+
+  // Belt & braces: a hash-only jump must never leave the overlay up,
+  // no matter what triggered it.
+  useEffect(() => {
+    const hide = () => {
+      setLoading(false);
+      setProgress(0);
+    };
+    window.addEventListener("hashchange", hide);
+    return () => window.removeEventListener("hashchange", hide);
+  }, []);
 
   if (!loading) return null;
 
