@@ -2,39 +2,6 @@ import type { NavGroup, FooterColumn } from "@/types/navigation";
 
 export const NAV: NavGroup[] = [
   {
-    label: "Platform",
-    match: ["/platform/nexus"],
-    items: [
-      { name: "Sentinel Nexus", desc: "Tier 6 collective defense command plane", to: "/platform/nexus" },
-      { name: "Nexus Command Center", desc: "Port 9443 fleet HUD simulation", to: "/platform/nexus", section: "nexus-command-center" },
-      { name: "Fleet Overview", desc: "Health, canary waves, heartbeat meters", to: "/platform/nexus", section: "nexus-command-center" },
-      { name: "OTA Canary Pipeline", desc: "Shadow → 5% cohort → fleet promote", to: "/platform/nexus", section: "nexus-capabilities" },
-    ],
-  },
-  {
-    label: "Products",
-    match: ["/products/sentinel"],
-    items: [
-      { name: "Blackbox Sentinel Edge", desc: "Tier 3 cyber-physical XDR appliance", to: "/products/sentinel" },
-      { name: "Appliance Form Factors", desc: "S-1000 · S-5000 · V-Edge", to: "/products/sentinel", section: "form-factors" },
-      { name: "26 Subsystems", desc: "Decoupled native module matrix", to: "/products/sentinel", section: "subsystem-matrix" },
-      { name: "30 Industrial Plugins", desc: "dlopen protocol dissector catalogue", to: "/products/sentinel", section: "plugin-showcase" },
-    ],
-  },
-  {
-    label: "Technology",
-    match: ["/technology/xinfer", "/technology/blackbox", "/technology/forge"],
-    items: [
-      { name: "xInfer Engine", desc: "libxinfer.so — 15 silicon backends", to: "/technology/xinfer" },
-      { name: "Silicon Matrix", desc: "15-platform zero-copy support grid", to: "/technology/xinfer", section: "silicon-matrix" },
-      { name: "Blackbox Core", desc: "libblackbox.so — eBPF/XDP kernel engine", to: "/technology/blackbox" },
-      { name: "Fast-Path Inspection", desc: "Frame lifecycle to XDP_DROP", to: "/technology/blackbox", section: "fast-path" },
-      { name: "xInfer Forge", desc: "Air-gapped continual learning service", to: "/technology/forge" },
-      { name: "Regression Safety Gate", desc: "golden_attacks.yaml watchdog", to: "/technology/forge", section: "safety-gate" },
-    ],
-  },
-  { label: "Pricing", match: ["/pricing"], to: "/pricing" },
-  {
     label: "Projects",
     match: ["/projects"],
     items: [
@@ -49,39 +16,22 @@ export const NAV: NavGroup[] = [
       { name: "Sentinel-Stack", desc: "1-click 6-tier ecosystem installer", to: "/projects/sentinel-stack" },
     ],
   },
-  {
-    label: "Research",
-    match: ["/research/sentinel-lab", "/insights", "/faq", "/papers"],
-    items: [
-      { name: "Sentinel-Lab", desc: "Tier 5 open research & benchmark platform", to: "/research/sentinel-lab" },
-      { name: "Papers & Publications", desc: "Peer-reviewed research & open-access papers", to: "/papers" },
-      { name: "Academic Preprint", desc: "Sub-millisecond active defense (PDF)", to: "/research/sentinel-lab", section: "preprint" },
-      { name: "SLAB Wire Protocol", desc: "Zero-allocation binary frame spec", to: "/research/sentinel-lab", section: "slab-protocol" },
-      { name: "Technical Insights", desc: "Kernel dissections & post-mortems", to: "/insights" },
-      { name: "Architectural FAQ", desc: "Deep-tech engineering answers", to: "/faq" },
-      { name: "Open Research Tier", desc: "Free open-core libraries & benchmarks", to: "/pricing", section: "licensing-matrix" },
-    ],
-  },
-  {
-    label: "Company",
-    match: ["/about", "/trust", "/contact", "/team", "/careers", "/news", "/partners", "/docs", "/support"],
-    items: [
-      { name: "Mission & Sovereignty", desc: "The Aryorithm manifesto & four pillars", to: "/about" },
-      { name: "Team & Careers", desc: "Systems & kernel architects · open roles", to: "/team" },
-      { name: "Careers", desc: "Join the guild · perks · process", to: "/careers" },
-      { name: "News & Advisories", desc: "Product releases · threat advisories", to: "/news" },
-      { name: "Partner Program", desc: "Alliances · integrations · OEM", to: "/partners" },
-      { name: "Documentation", desc: "API reference · integration guides", to: "/docs" },
-      { name: "Support", desc: "Help center · training · resources", to: "/support" },
-      { name: "Help Center", desc: "Browse all help articles by category", to: "/help" },
-      { name: "Sovereign Trust", desc: "Attestation, crosswalks & SBOM repository", to: "/trust" },
-      { name: "Standards & Compliance", desc: "CMMC 2.0 · IEC 62443 · NIS2", to: "/trust", section: "regulatory-crosswalks" },
-      { name: "Defense Procurement", desc: "Encrypted intake & clearance desk", to: "/contact" },
-    ],
-  },
+  { label: "Pricing", match: ["/pricing"], to: "/pricing" },
 ];
 
+// Former header groups (Platform, Products, Technology, Research, Company)
+// now live exclusively in FOOTER_COLUMNS below, organized by category.
+
 export const FOOTER_COLUMNS: FooterColumn[] = [
+  {
+    title: "Platform",
+    links: [
+      { label: "Sentinel Nexus Command Plane", to: "/platform/nexus" },
+      { label: "Nexus Command Center", to: "/platform/nexus", section: "nexus-command-center" },
+      { label: "Fleet Overview", to: "/platform/nexus", section: "nexus-command-center" },
+      { label: "OTA Canary Pipeline", to: "/platform/nexus", section: "nexus-capabilities" },
+    ],
+  },
   {
     title: "Products",
     links: [
@@ -143,6 +93,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Support Center", to: "/support" },
       { label: "Help Center", to: "/help" },
       { label: "Pricing & Licensing", to: "/pricing" },
+      { label: "Open Research Tier", to: "/pricing", section: "subscription-matrix" },
       { label: "Defense Procurement Desk", to: "/contact" },
     ],
   },
