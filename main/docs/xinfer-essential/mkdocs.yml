@@ -1,0 +1,102 @@
+site_name: xInfer Essential Docs
+site_description: Zero-copy C++20 neural inference across 15 silicon targets.
+repo_url: https://github.com/kamisaberi/xinfer
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Getting Started:
+  - Getting Started:
+    - CMake Integration: getting-started/cmake-integration.md
+    - Hello World: getting-started/hello-world.md
+    - Installation: getting-started/installation.md
+    - Overview: getting-started/overview.md
+    - System Requirements: getting-started/system-requirements.md
+    - Verifying Installation: getting-started/verifying-installation.md
+  - Architecture:
+    - Core Engine Design: architecture/core-engine-design.md
+    - Memory Domains: architecture/memory-domains.md
+    - Symbol Isolation: architecture/symbol-isolation.md
+    - Thread Safety & Concurrency: architecture/thread-safety-concurrency.md
+    - Zero-Copy Model: architecture/zero-copy-model.md
+  - Silicon Backends:
+    - Ambarella CVFlow: silicon-backends/ambarella-cvflow.md
+    - AMD Ryzen AI: silicon-backends/amd-ryzen-ai.md
+    - AMD Vitis AI: silicon-backends/amd-vitis-ai.md
+    - Apple CoreML: silicon-backends/apple-coreml.md
+    - Google Coral EdgeTPU: silicon-backends/google-coral-edgetpu.md
+    - Hailo HailoRT: silicon-backends/hailo-hailort.md
+    - Silicon Compatibility Matrix: silicon-backends/index.md
+    - Intel FPGA AI Suite: silicon-backends/intel-fpga-ai-suite.md
+    - Intel OpenVINO: silicon-backends/intel-openvino.md
+    - Lattice sensAI: silicon-backends/lattice-sensai.md
+    - MediaTek NeuroPilot: silicon-backends/mediatek-neuropilot.md
+    - Microchip VectorBlox: silicon-backends/microchip-vectorblox.md
+    - NVIDIA TensorRT: silicon-backends/nvidia-tensorrt.md
+    - Qualcomm QNN: silicon-backends/qualcomm-qnn.md
+    - Rockchip RKNN: silicon-backends/rockchip-rknn.md
+    - Samsung ENN: silicon-backends/samsung-enn.md
+  - Memory Management:
+    - Alignment & Cache Behavior: memory-management/alignment-and-cache.md
+    - DMA-BUF Integration: memory-management/dma-buf-integration.md
+    - Host-Pinned Memory: memory-management/host-pinned-memory.md
+    - Tensor Backing Buffers: memory-management/tensor-backing-buffers.md
+    - Unified Memory: memory-management/unified-memory.md
+  - Plugin Development:
+    - Building Custom Plugins: plugin-development/building-custom-plugins.md
+    - IInferencePlugin Interface: plugin-development/iinference-plugin-interface.md
+    - Plugin Architecture: plugin-development/plugin-architecture.md
+    - Plugin Lifecycle: plugin-development/plugin-lifecycle.md
+    - AES Weight Decryption: plugin-development/standard-plugins/aes-weight-decryption.md
+    - DICOM PACS Normalizer: plugin-development/standard-plugins/dicom-pacs-normalizer.md
+    - Mel Spectrogram FFT: plugin-development/standard-plugins/mel-spectrogram-fft.md
+    - Modbus APDU Vectorizer: plugin-development/standard-plugins/modbus-apdu-vectorizer.md
+    - NetFlow Tensor Assembler: plugin-development/standard-plugins/netflow-tensor-assembler.md
+    - NVDEC Video Unpacker: plugin-development/standard-plugins/nvdec-video-unpacker.md
+    - Thermal Matrix Normalizer: plugin-development/standard-plugins/thermal-matrix-normalizer.md
+    - UltraFace Detector: plugin-development/standard-plugins/ultraface-detector.md
+    - YOLO NMS Decoder: plugin-development/standard-plugins/yolo-nms-decoder.md
+  - Model Hub:
+    - Air-Gapped Offline Mode: model-hub/air-gapped-offline-mode.md
+    - Cryptographic Verification: model-hub/cryptographic-verification.md
+    - HTTPS Caching Rules: model-hub/https-caching-rules.md
+    - ModelHub Architecture: model-hub/modelhub-architecture.md
+    - Supported Model Formats: model-hub/supported-model-formats.md
+  - API Reference:
+    - Data Types & Enums: api-reference/data-types.md
+    - xinfer::EngineConfig: api-reference/engine-config.md
+    - Error Handling: api-reference/error-handling.md
+    - API Reference Overview: api-reference/index.md
+    - xinfer::InferenceEngine: api-reference/inference-engine.md
+    - xinfer::ModelHub: api-reference/model-hub.md
+    - xinfer::PluginManager: api-reference/plugin-manager.md
+    - xinfer::Tensor: api-reference/tensor.md
+  - Tutorials:
+    - Dual-Model Shadow Execution: tutorials/dual-model-shadow-execution.md
+    - NetFlow Threat Autoencoder: tutorials/netflow-threat-autoencoder.md
+    - Real-Time YOLO Edge Vision: tutorials/realtime-yolo-edge-vision.md
+    - SCADA Modbus Anomaly Detection: tutorials/scada-modbus-anomaly-detection.md
+    - Thermal Overheating Detector: tutorials/thermal-overheating-detector.md
+  - Benchmarking:
+    - Bare-Metal Results: benchmarking/bare-metal-results.md
+    - Comparative Studies: benchmarking/comparative-studies.md
+    - Memory Profiling: benchmarking/memory-profiling.md
+    - Benchmark Methodology: benchmarking/methodology.md
+    - Power Efficiency: benchmarking/power-efficiency-joules.md
+  - Troubleshooting:
+    - Backend Initialization Failures: troubleshooting/backend-initialization-failures.md
+    - Common Build Errors: troubleshooting/common-build-errors.md
+    - Technical FAQ: troubleshooting/faq.md
+    - Linker & Symbol Conflicts: troubleshooting/linker-symbol-conflicts.md
+    - Out-of-Memory Diagnostics: troubleshooting/out-of-memory-diagnostics.md
+    - Support Channels: troubleshooting/support.md
