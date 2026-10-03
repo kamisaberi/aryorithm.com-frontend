@@ -30,18 +30,35 @@ export interface XAIAttribution {
 export interface FleetNode {
   node_id: string;
   site: string;
+  hostname?: string | null;
+  kernel_version?: string | null;
   status: string;
   cpu_pct: number;
+  ram_mb?: number;
+  npu_temp_c?: number;
+  packets_inspected?: number;
+  ebpf_drops?: number;
+  mitigation_latency_us?: number;
   latency_us: number;
   eps: number;
   version: string;
   backend: string;
+  last_heartbeat_timestamp?: number | null;
+  sensors_count?: number;
 }
 export interface Enclave {
   enclave_id: string;
   name: string;
   max_latency_us: number;
   node_count: number;
+}
+export interface FleetGroup {
+  group_id: string;
+  description: string;
+  scada_mode: boolean;
+  max_latency_us: number;
+  node_count: number;
+  active_threats: number;
 }
 export interface KernelRule {
   rule_id: string;
@@ -72,8 +89,12 @@ export interface FleetSyncNodePayload {
   node_id: string;
   site?: string;
   hostname?: string;
+  kernel_version?: string;
   status?: string;
   cpu_pct?: number;
+  ram_mb?: number;
+  npu_temp_c?: number;
+  packets_inspected?: number;
   ebpf_drops?: number;
   mitigation_latency_us?: number;
   sensors_count?: number;
@@ -181,6 +202,50 @@ export interface ScadaStatus {
   modbus_violations: number;
   dnp3_violations: number;
   overrides_blocked: number;
+}
+export interface ScadaEvent {
+  timestamp: number;
+  appliance_id: string;
+  site: string;
+  protocol: string;
+  plc_ip: string | null;
+  attacker_ip: string;
+  function_code: string;
+  register_address: number | null;
+  mitre_id: string | null;
+  action: string;
+  mitigation_time_us: number;
+}
+export interface ScadaMonitor {
+  summary: {
+    modbus_violations_total: number;
+    iec104_trips_blocked: number;
+    s7comm_writes_blocked: number;
+    dnp3_anomalies_total: number;
+  };
+  recent_events: ScadaEvent[];
+}
+export interface GlobalFeedVerbose {
+  indicator_id: string;
+  ip: string;
+  subnet_mask: number;
+  threat_type: string;
+  mitre_id: string | null;
+  confidence: number;
+  first_seen_timestamp: number;
+  expires_at_timestamp: number;
+  origin_anonymized_sector: string;
+  total_appliances_blocked: number;
+}
+export interface RansomwareHash {
+  sha256: string;
+  process_name: string;
+  detected_entropy: number;
+  nominal_baseline: number;
+  burst_iops: number;
+  reported_by_site: string;
+  first_detected: number;
+  status: string;
 }
 export interface IdentityBotStatus {
   impossible_velocity_hits: number;
@@ -332,7 +397,17 @@ export const backend = {
     get<XAIAttribution[]>("/xai/recent?limit=10", t),
 
   // Fleet
-  fleetNodes: (t: string | null) => get<FleetNode[]>("/fleet/nodes", t),
+  fleetNodes: (t: string | null, params?: { status?: string; backend?: string; enclave_id?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.backend) q.set("backend", params.backend);
+    if (params?.enclave_id) q.set("enclave_id", params.enclave_id);
+    const qs = q.toString();
+    return get<FleetNode[]>(`/fleet/nodes${qs ? `?${qs}` : ""}`, t);
+  },
+  fleetGroups: (t: string | null) => get<FleetGroup[]>("/fleet/groups", t),
+  createFleetGroup: (body: { group_id: string; description?: string; scada_mode?: boolean; max_allowed_latency_us?: number }, t: string | null) =>
+    api.post<{ status: string; group_id: string }>("/fleet/groups", body, t),
   topology: (t: string | null) => get<Topology>("/fleet/topology", t),
   enclaves: (t: string | null) => get<Enclave[]>("/fleet/enclaves", t),
   kernelRules: (t: string | null) =>
@@ -360,6 +435,10 @@ export const backend = {
       apiKey: NEXUS_API_KEY,
       tenantId: NEXUS_TENANT_ID,
     }),
+  globalFeedVerbose: (t: string | null) =>
+    get<GlobalFeedVerbose[]>("/threats/global-feed?verbose=true", t),
+  ransomwareHashes: (t: string | null) =>
+    get<RansomwareHash[]>("/threats/ransomware-hashes", t),
   pendingCommands: (tenantId: string, t: string | null) =>
     api.get<unknown[]>(`/tenants/${tenantId}/commands/pending`, t, {
       apiKey: NEXUS_API_KEY,
@@ -377,7 +456,7 @@ export const backend = {
       t
     ),
   mitre: (t: string | null) => get<MitreHit[]>("/threats/mitre", t),
-  scada: (t: string | null) => get<ScadaStatus>("/threats/scada", t),
+  scada: (t: string | null) => get<ScadaMonitor>("/threats/scada", t),
   identityBot: (t: string | null) =>
     get<IdentityBotStatus>("/threats/identity-bot", t),
 

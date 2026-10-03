@@ -66,6 +66,58 @@ class GlobalFeedItem(BaseModel):
     ip: str
 
 
+class GlobalFeedVerboseItem(BaseModel):
+    """Rich collective-defense feed row (Service 7, ?verbose=true)."""
+
+    indicator_id: str
+    ip: str
+    subnet_mask: int = 32
+    threat_type: str
+    mitre_id: str | None = None
+    confidence: float = 0.0
+    first_seen_timestamp: int
+    expires_at_timestamp: int
+    origin_anonymized_sector: str
+    total_appliances_blocked: int
+
+
+class ScadaSummary(BaseModel):
+    modbus_violations_total: int = 0
+    iec104_trips_blocked: int = 0
+    s7comm_writes_blocked: int = 0
+    dnp3_anomalies_total: int = 0
+
+
+class ScadaEventItem(BaseModel):
+    timestamp: int
+    appliance_id: str
+    site: str
+    protocol: str
+    plc_ip: str | None = None
+    attacker_ip: str
+    function_code: str
+    register_address: int | None = None
+    mitre_id: str | None = None
+    action: str
+    mitigation_time_us: float
+
+
+class ScadaMonitorResponse(BaseModel):
+    summary: ScadaSummary
+    recent_events: list[ScadaEventItem] = []
+
+
+class RansomwareHashResponse(BaseModel):
+    sha256: str
+    process_name: str
+    detected_entropy: float
+    nominal_baseline: float
+    burst_iops: int
+    reported_by_site: str
+    first_detected: int
+    status: str
+
+
 class XAIAttributionVector(BaseModel):
     rank: int
     feature: str

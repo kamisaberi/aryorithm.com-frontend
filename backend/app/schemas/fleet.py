@@ -7,12 +7,21 @@ from datetime import datetime
 class NodeResponse(BaseModel):
     node_id: str
     site: str
+    hostname: str | None = None
+    kernel_version: str | None = None
     status: str
     cpu_pct: float
-    latency_us: float
-    eps: int
-    version: str
-    backend: str
+    ram_mb: float = 0.0
+    npu_temp_c: float = 0.0
+    packets_inspected: int = 0
+    ebpf_drops: int = 0
+    mitigation_latency_us: float = 0.0
+    latency_us: float = 0.0
+    eps: int = 0
+    version: str = ""
+    backend: str = ""
+    last_heartbeat_timestamp: int | None = None
+    sensors_count: int = 0
 
 
 class NodeDetailResponse(BaseModel):
@@ -29,15 +38,19 @@ class GroupCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     group_id: str
-    max_latency_us: int = 1000
+    description: str = ""
     scada_mode: bool = False
+    max_latency_us: int = 1000
+    max_allowed_latency_us: int | None = None
 
 
 class GroupResponse(BaseModel):
     group_id: str
+    description: str = ""
     scada_mode: bool
     max_latency_us: int
     node_count: int
+    active_threats: int = 0
 
 
 class GroupCreateResponse(BaseModel):
@@ -151,6 +164,10 @@ class FleetSyncNode(BaseModel):
     backend: str | None = None
     # 4-tier topology extensions
     hostname: str | None = None
+    kernel_version: str | None = None
+    ram_mb: float | None = None
+    npu_temp_c: float | None = None
+    packets_inspected: int | None = None
     sensors_count: int | None = None
     sensors: list[FleetSyncSensor] = []
 

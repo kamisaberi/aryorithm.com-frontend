@@ -31,6 +31,15 @@ _NODE_NEW_COLUMNS: dict[str, str] = {
     "hostname": "VARCHAR(255)",
     "ebpf_drops": "INTEGER",
     "mitigation_latency_us": "FLOAT",
+    "kernel_version": "VARCHAR(64)",
+    "ram_mb": "FLOAT",
+    "npu_temp_c": "FLOAT",
+    "packets_inspected": "INTEGER",
+}
+
+_ENCLAVE_NEW_COLUMNS: dict[str, str] = {
+    "scada_mode": "BOOLEAN",
+    "description": "TEXT",
 }
 
 
@@ -62,12 +71,19 @@ async def ensure_topology_schema() -> None:
         Base.metadata.create_all(sync_conn)
         insp = inspect(sync_conn)
         try:
-            cols = {c["name"] for c in insp.get_columns("nodes")}
+            node_cols = {c["name"] for c in insp.get_columns("nodes")}
         except Exception:
-            cols = set()
+            node_cols = set()
         for name, ddl in _NODE_NEW_COLUMNS.items():
-            if name not in cols:
+            if name not in node_cols:
                 sync_conn.execute(text(f"ALTER TABLE nodes ADD COLUMN {name} {ddl}"))
+        try:
+            enclave_cols = {c["name"] for c in insp.get_columns("enclaves")}
+        except Exception:
+            enclave_cols = set()
+        for name, ddl in _ENCLAVE_NEW_COLUMNS.items():
+            if name not in enclave_cols:
+                sync_conn.execute(text(f"ALTER TABLE enclaves ADD COLUMN {name} {ddl}"))
 
     async with engine.begin() as conn:
         await conn.run_sync(_migrate)
@@ -159,6 +175,10 @@ async def sync_topology(
                 hostname=n.hostname,
                 ebpf_drops=n.ebpf_drops or 0,
                 mitigation_latency_us=n.mitigation_latency_us or 0.0,
+                kernel_version=(n.kernel_version[:64] if n.kernel_version else None),
+                ram_mb=n.ram_mb or 0.0,
+                npu_temp_c=n.npu_temp_c or 0.0,
+                packets_inspected=n.packets_inspected or 0,
                 nexus_id=nexus_id,
                 tenant_id=tenant.id,
                 last_heartbeat=now,
@@ -180,6 +200,14 @@ async def sync_topology(
                 node.backend = n.backend[:64]
             if n.hostname:
                 node.hostname = n.hostname
+            if n.kernel_version:
+                node.kernel_version = n.kernel_version[:64]
+            if n.ram_mb is not None:
+                node.ram_mb = n.ram_mb
+            if n.npu_temp_c is not None:
+                node.npu_temp_c = n.npu_temp_c
+            if n.packets_inspected is not None:
+                node.packets_inspected = n.packets_inspected
             if n.ebpf_drops is not None:
                 node.ebpf_drops = n.ebpf_drops
             if n.mitigation_latency_us is not None:
@@ -364,9 +392,16 @@ async def get_topology(db: AsyncSession, tenant_id: str) -> dict:
                 "node_id": node.node_id,
                 "site": node.site,
                 "hostname": node.hostname,
+                "kernel_version": node.kernel_version,
+                "backend": node.backend,
+                "version": node.version,
+                "eps": node.eps,
                 "reported_status": reported,
                 "status": st,
                 "cpu_pct": node.cpu_pct,
+                "ram_mb": node.ram_mb,
+                "npu_temp_c": node.npu_temp_c,
+                "packets_inspected": node.packets_inspected,
                 "ebpf_drops": node.ebpf_drops,
                 "mitigation_latency_us": node.mitigation_latency_us,
                 "last_heartbeat_sec_ago": _sec_ago(node.last_heartbeat, now),

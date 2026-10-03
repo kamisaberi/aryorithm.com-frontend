@@ -83,3 +83,63 @@ class IdentityBotEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class GlobalThreat(Base):
+    """Central anonymized IOC feed (Service 7). Tenant NULL = global row."""
+
+    __tablename__ = "global_threats"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    indicator_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    ip: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    subnet_mask: Mapped[int] = mapped_column(Integer, default=32)
+    threat_type: Mapped[str] = mapped_column(String(64), default="THREAT_SCADA_ANOMALY")
+    mitre_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    origin_sector: Mapped[str] = mapped_column(String(64), default="ENERGY_UTILITY")
+    appliances_blocked: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+
+
+class ScadaEvent(Base):
+    """Physical actuation log (Service 8) — only the last update per key is kept."""
+
+    __tablename__ = "scada_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    site: Mapped[str] = mapped_column(String(255), default="")
+    protocol: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    plc_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    attacker_ip: Mapped[str] = mapped_column(String(64), nullable=False)
+    function_code: Mapped[str] = mapped_column(String(64), default="")
+    register_address: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mitre_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    action: Mapped[str] = mapped_column(String(32), default="XDP_DROP")
+    mitigation_time_us: Mapped[float] = mapped_column(Float, default=0.0)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class RansomwareHash(Base):
+    """High-entropy IOC clearinghouse (Service 9). Tenant NULL = global row."""
+
+    __tablename__ = "ransomware_hashes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    sha256: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    process_name: Mapped[str] = mapped_column(String(255), default="")
+    detected_entropy: Mapped[float] = mapped_column(Float, default=0.0)
+    nominal_baseline: Mapped[float] = mapped_column(Float, default=3.84)
+    burst_iops: Mapped[int] = mapped_column(Integer, default=0)
+    reported_by_site: Mapped[str] = mapped_column(String(255), default="")
+    first_detected: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(32), default="BLOCKED_FLEET_WIDE")
+
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)

@@ -45,6 +45,10 @@ class Node(Base):
     hostname: Mapped[str | None] = mapped_column(String(255), nullable=True)
     ebpf_drops: Mapped[int] = mapped_column(Integer, default=0)
     mitigation_latency_us: Mapped[float] = mapped_column(Float, default=0.0)
+    kernel_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ram_mb: Mapped[float] = mapped_column(Float, default=0.0)
+    npu_temp_c: Mapped[float] = mapped_column(Float, default=0.0)
+    packets_inspected: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class NexusInstance(Base):
@@ -102,6 +106,7 @@ class Enclave(Base):
     max_latency_us: Mapped[int] = mapped_column(Integer, default=1000)
     node_count: Mapped[int] = mapped_column(Integer, default=0)
     scada_mode: Mapped[bool] = mapped_column(Boolean, default=False)
+    description: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

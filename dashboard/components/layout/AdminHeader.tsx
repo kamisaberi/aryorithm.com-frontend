@@ -1,12 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { getSelectedTenant, setSelectedTenant } from "@/lib/tenant";
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [tenant, setTenant] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTenant(getSelectedTenant());
+  }, []);
+
+  const tenants = user?.tenants ?? [];
+  const activeTenant = tenants.find((t) => t.id === tenant) ?? tenants[0] ?? null;
+
+  const switchTenant = (id: string) => {
+    setSelectedTenant(id);
+    setTenant(id);
+    window.location.reload();
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-hairline bg-void/95 px-6 backdrop-blur-xl">
@@ -38,6 +53,22 @@ export default function AdminHeader() {
 
       {/* Actions */}
       <div className="ml-auto flex items-center gap-3">
+        {/* Organization switcher (MSSP tenants) */}
+        {tenants.length > 0 && (
+          <select
+            value={activeTenant?.id ?? ""}
+            onChange={(e) => switchTenant(e.target.value)}
+            className="admin-input max-w-[220px] font-mono text-[11px]"
+            aria-label="Switch organization"
+            title="Switch organization"
+          >
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
         {/* Notifications */}
         <button
           type="button"

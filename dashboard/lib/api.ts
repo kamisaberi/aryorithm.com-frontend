@@ -66,8 +66,19 @@ async function request<T>(endpoint: string, options: ApiOptions = {}, token?: st
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  if (tenantId) {
-    headers["X-Tenant-ID"] = tenantId;
+  // Explicit per-call tenant wins; otherwise use the header switcher
+  // selection (Service 3: 1-click tenant context without re-login).
+  let effectiveTenant = tenantId ?? null;
+  if (!effectiveTenant) {
+    try {
+      const { getSelectedTenant } = await import("./tenant");
+      effectiveTenant = getSelectedTenant();
+    } catch {
+      effectiveTenant = null;
+    }
+  }
+  if (effectiveTenant) {
+    headers["X-Tenant-ID"] = effectiveTenant;
   }
   if (enclaveId) {
     headers["X-Enclave-ID"] = enclaveId;

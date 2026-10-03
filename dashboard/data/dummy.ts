@@ -21,6 +21,7 @@ import type {
   PCAP,
   ResilienceScore,
   ScadaStatus,
+  ScadaMonitor,
   ThreatCoordinate,
   ThreatEvent,
   Twin,
@@ -113,6 +114,16 @@ export const DUMMY_MITRE: MitreHit[] = [
   { technique_id: "T1059", name: "Command-Line Interface", count: 9 },
   { technique_id: "T0806", name: "Brute Force I/O", count: 6 },
 ];
+
+export const DUMMY_SCADA_MONITOR: ScadaMonitor = {
+  summary: {
+    modbus_violations_total: 12,
+    iec104_trips_blocked: 3,
+    s7comm_writes_blocked: 11,
+    dnp3_anomalies_total: 2,
+  },
+  recent_events: [],
+};
 
 export const DUMMY_SCADA: ScadaStatus = {
   modbus_violations: 12,

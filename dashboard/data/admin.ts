@@ -13,8 +13,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Edge Fleet",
     items: [
       { label: "Asset Topology", href: "/topology", icon: "⟁" },
-      { label: "Appliance Matrix", href: "/fleet-nodes", icon: "▣" },
-      { label: "Site Enclaves", href: "/enclaves", icon: "◆" },
+      { label: "Appliance Matrix", href: "/fleet/appliances", icon: "▣" },
+      { label: "Site Enclaves", href: "/fleet/enclaves", icon: "◆" },
+      { label: "Fleet Nodes", href: "/fleet-nodes", icon: "❏" },
       { label: "Provisioning (ZTP)", href: "/provisioning", icon: "⚡" },
       { label: "Kernel eBPF Rules", href: "/kernel-rules", icon: "⌘" },
     ],
@@ -22,9 +23,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Threat Defense",
     items: [
-      { label: "Collective Grid", href: "/threat-bus", icon: "⇄" },
+      { label: "Collective Grid", href: "/threats/collective-grid", icon: "⇄" },
+      { label: "SCADA & OT Monitor", href: "/threats/scada-cps", icon: "◫" },
+      { label: "Ransomware Vault", href: "/threats/ransomware-clearinghouse", icon: "⛨" },
+      { label: "Threat Bus", href: "/threat-bus", icon: "≋" },
       { label: "MITRE ATT&CK", href: "/mitre", icon: "▦" },
-      { label: "SCADA & OT Monitor", href: "/scada", icon: "◫" },
+      { label: "SCADA Monitor", href: "/scada", icon: "◨" },
       { label: "Identity & Bot Defense", href: "/identity", icon: "◉" },
     ],
   },

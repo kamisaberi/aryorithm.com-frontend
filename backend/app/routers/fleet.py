@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, get_current_admin, get_nexus_caller
 from app.models.fleet import Enclave, Node, Sensor
+from app.models.threat import ThreatEvent
 from app.models.user import User
 from app.schemas.fleet import (
     NodeResponse,
@@ -113,26 +114,48 @@ async def list_nodes(
     status: str | None = Query(None),
     backend: str | None = Query(None),
     enclave: str | None = Query(None),
+    enclave_id: str | None = Query(None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all registered edge appliances (last synced state)."""
+    """List all registered edge appliances (last synced state).
+
+    Liveness rule (Service 1): a heartbeat older than 15s overrides the
+    status to OFFLINE regardless of the last reported value.
+    """
     await ensure_topology_schema()
     data = await get_topology(db, user.tenant_id)
     out: list[NodeResponse] = []
     for nx in data["nexus"]:
         for n in nx["nodes"]:
-            if status and n["status"] != status.strip().upper():
+            effective = n["status"]
+            hb = n.get("last_heartbeat_sec_ago")
+            if hb is None or hb > 15.0:
+                effective = "OFFLINE"
+            if status and effective != status.strip().upper():
                 continue
+            sensors = n.get("sensors", [])
             out.append(NodeResponse(
                 node_id=n["node_id"],
                 site=n["site"],
-                status=n["status"],
+                hostname=n.get("hostname"),
+                kernel_version=n.get("kernel_version"),
+                status=effective,
                 cpu_pct=n["cpu_pct"],
+                ram_mb=n.get("ram_mb") or 0.0,
+                npu_temp_c=n.get("npu_temp_c") or 0.0,
+                packets_inspected=n.get("packets_inspected") or 0,
+                ebpf_drops=n["ebpf_drops"],
+                mitigation_latency_us=n["mitigation_latency_us"],
                 latency_us=n["mitigation_latency_us"],
-                eps=0,
-                version="",
-                backend="",
+                eps=n.get("eps") or 0,
+                version=n.get("version") or "",
+                backend=(n.get("backend") or "").upper(),
+                last_heartbeat_timestamp=(
+                    None if hb is None
+                    else int(datetime.now(timezone.utc).timestamp() - hb)
+                ),
+                sensors_count=len(sensors),
             ))
     # Fill static descriptors from the node rows.
     result = await db.execute(select(Node).where(Node.tenant_id == user.tenant_id))
@@ -140,14 +163,12 @@ async def list_nodes(
     for item in out:
         row = by_id.get(item.node_id)
         if row is not None:
-            if backend and (row.backend or "") != backend:
-                continue
             item.eps = row.eps
             item.version = row.version
-            item.backend = row.backend or ""
+            item.backend = (row.backend or "").upper()
     if backend:
-        out = [i for i in out if i.backend == backend]
-    _ = enclave  # enclave grouping lives under /fleet/groups; accepted for compat
+        out = [i for i in out if i.backend == backend.strip().upper()]
+    _ = enclave or enclave_id  # grouping lives under /fleet/groups; accepted for compat
     return out
 
 
@@ -226,21 +247,9 @@ async def decommission_node(
 
 
 async def _ensure_enclave_column() -> None:
-    def _migrate(sync_conn) -> None:
-        from sqlalchemy import inspect as _inspect
-        from sqlalchemy import text as _text
+    from app.services.fleet_topology import ensure_topology_schema
 
-        try:
-            cols = {c["name"] for c in _inspect(sync_conn).get_columns("enclaves")}
-        except Exception:
-            return
-        if "scada_mode" not in cols:
-            sync_conn.execute(_text("ALTER TABLE enclaves ADD COLUMN scada_mode BOOLEAN"))
-
-    from app.database import engine as _engine
-
-    async with _engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await ensure_topology_schema()
 
 
 @router.get("/groups", response_model=list[GroupResponse])
@@ -263,12 +272,18 @@ async def list_groups(
     counts: dict[str, int] = {}
     for g in groups:
         counts[g.enclave_id] = sum(1 for n in nodes if n.enclave_id == g.id)
+    threats_result = await db.execute(
+        select(ThreatEvent).where(ThreatEvent.tenant_id == user.tenant_id)
+    )
+    active_threats = sum(1 for _ in threats_result.scalars().all())
     return [
         GroupResponse(
             group_id=g.enclave_id,
+            description=g.description or "",
             scada_mode=bool(g.scada_mode),
             max_latency_us=g.max_latency_us,
             node_count=counts.get(g.enclave_id, 0),
+            active_threats=active_threats,
         )
         for g in groups
     ]
@@ -288,6 +303,7 @@ async def create_group(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="group_id is required",
         )
+    max_latency = body.max_allowed_latency_us if body.max_allowed_latency_us is not None else body.max_latency_us
     result = await db.execute(
         select(Enclave).where(
             Enclave.tenant_id == user.tenant_id,
@@ -296,14 +312,17 @@ async def create_group(
     )
     existing = result.scalar_one_or_none()
     if existing is not None:
-        existing.max_latency_us = body.max_latency_us
+        existing.max_latency_us = int(max_latency)
         existing.scada_mode = body.scada_mode
+        if body.description:
+            existing.description = body.description
         await db.flush()
         return GroupCreateResponse(status="CREATED", group_id=group_id)
     db.add(Enclave(
         enclave_id=group_id,
         name=group_id,
-        max_latency_us=body.max_latency_us,
+        description=body.description,
+        max_latency_us=int(max_latency),
         scada_mode=body.scada_mode,
         tenant_id=user.tenant_id,
     ))
