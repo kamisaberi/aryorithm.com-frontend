@@ -22,6 +22,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "blackbox-essential",
+    title: "Blackbox Essential (libblackbox.so)",
+    color: "#00E5FF",
+    desc: "Sub-microsecond eBPF/XDP defense — full documentation: setup, kernel engine, ring, TPM, API.",
+    links: [
+      { label: "Full Documentation (69 guides)", to: "/docs/blackbox-essential" },
+      { label: "eBPF/XDP Subsystem", to: "/docs/blackbox-essential/ebpf-xdp-subsystem" },
+      { label: "SPMC Ring Buffer", to: "/docs/blackbox-essential/spmc-ring-buffer" },
+      { label: "Hardware Identity & TPM", to: "/docs/blackbox-essential/hardware-identity-tpm" },
+      { label: "C++20 API Reference", to: "/docs/blackbox-essential/api-reference" },
+    ],
+  },
+  {
     id: "blackbox-core",
     title: "Blackbox Core (eBPF/XDP)",
     color: "#00E5FF",

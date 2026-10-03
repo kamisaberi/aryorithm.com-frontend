@@ -198,6 +198,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/partners": "Partner Program & Alliances",
   "/docs": "Documentation & Integration Guides",
   "/docs/xinfer-essential": "xInfer Essential — Full Documentation",
+  "/docs/blackbox-essential": "Blackbox Essential — Full Documentation",
   "/support": "Support & Help Center",
   "/help": "Help Center — All Articles",
   "/portal": "Customer Enclave — Authentication & Activation",
