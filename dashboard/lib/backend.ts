@@ -286,6 +286,34 @@ export interface AuditLog {
   operator: string;
   ts: string;
 }
+export interface SubPlan {
+  slug: string;
+  name: string;
+  price_month_cents: number | null;
+  price_display: string;
+  per_node: boolean;
+  target: string;
+  deployment: string;
+  node_capacity: string;
+  licensing: string;
+  support: string;
+  cta_label: string;
+  cta_href: string;
+  sort_order: number;
+}
+export interface PlanItem {
+  id: string;
+  category: string;
+  item_key: string;
+  item_label: string;
+  item_sub: string;
+  values: Record<string, string>;
+  sort_order: number;
+}
+export interface PlansMatrix {
+  plans: SubPlan[];
+  items: PlanItem[];
+}
 
 const get = <T>(endpoint: string, token: string | null) =>
   api.get<T>(endpoint, token);
@@ -436,6 +464,7 @@ export const backend = {
       t
     ),
   billing: (t: string | null) => get<Billing>("/settings/billing", t),
+  plans: (t: string | null) => get<PlansMatrix>("/plans", t),
   auditLogs: (t: string | null) =>
     get<AuditLog[]>("/settings/audit-logs?page=1&limit=50", t),
 };

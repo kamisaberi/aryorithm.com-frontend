@@ -33,6 +33,7 @@ export const NAV: NavGroup[] = [
       { name: "Regression Safety Gate", desc: "golden_attacks.yaml watchdog", to: "/technology/forge", section: "safety-gate" },
     ],
   },
+  { label: "Pricing", match: ["/pricing"], to: "/pricing" },
   {
     label: "Projects",
     match: ["/projects"],
@@ -78,7 +79,6 @@ export const NAV: NavGroup[] = [
       { name: "Defense Procurement", desc: "Encrypted intake & clearance desk", to: "/contact" },
     ],
   },
-  { label: "Pricing", match: ["/pricing"], to: "/pricing" },
 ];
 
 export const FOOTER_COLUMNS: FooterColumn[] = [
