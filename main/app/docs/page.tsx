@@ -125,6 +125,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "sentinel-matrix",
+    title: "Sentinel-Matrix (cyber-range)",
+    color: "#FFB800",
+    desc: "VMware digital twin mesh — full documentation: OmniFlow, PCAP arsenal, adversary, runbook.",
+    links: [
+      { label: "Full Documentation (91 guides)", to: "/docs/sentinel-matrix" },
+      { label: "OmniFlow Engine", to: "/docs/sentinel-matrix/omniflow-traffic-engine" },
+      { label: "Live Adversary Node", to: "/docs/sentinel-matrix/live-adversary-node" },
+      { label: "Makefile Runbook", to: "/docs/sentinel-matrix/operations-and-makefile" },
+      { label: "Chaos Engineering", to: "/docs/sentinel-matrix/chaos-and-resilience" },
+    ],
+  },
+  {
     id: "protocol-engineering",
     title: "Protocol Engineering",
     color: "#FFB800",

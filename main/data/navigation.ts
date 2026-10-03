@@ -193,6 +193,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/research/sentinel-lab": "Sentinel-Lab — Open Research & Benchmark Platform",
   "/docs/sentinel-lab": "Sentinel-Lab — Full Documentation",
   "/docs/sentinel-nexus": "Sentinel Nexus — Full Documentation",
+  "/docs/sentinel-matrix": "Sentinel-Matrix — Full Documentation",
   "/papers": "Research Papers & Publications",
   "/team": "Leadership, Architects & Careers",
   "/careers": "Careers & Open Roles",
