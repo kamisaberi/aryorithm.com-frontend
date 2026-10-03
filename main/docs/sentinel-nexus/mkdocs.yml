@@ -1,0 +1,116 @@
+site_name: Sentinel Nexus Docs
+site_description: Fleet command plane with sub-50ms collective defense and canary OTA.
+repo_url: https://github.com/kamisaberi/sentinel-nexus
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Getting Started:
+  - Getting Started:
+    - "Architecture at a Glance": getting-started/architecture-at-a-glance.md
+    - "Docker Deployment": getting-started/docker-deployment.md
+    - "Installation & Build": getting-started/installation-and-build.md
+    - "Overview": getting-started/overview.md
+    - "System Requirements": getting-started/system-requirements.md
+    - "systemd Deployment": getting-started/systemd-deployment.md
+    - "Ten-Minute Quickstart": getting-started/ten-minute-quickstart.md
+    - "Verifying Services": getting-started/verifying-services.md
+  - Architecture:
+    - "Air-Gapped Sovereignty": architecture/air-gapped-sovereignty.md
+    - "Command Plane Architecture": architecture/command-plane-architecture.md
+    - "Data Persistence Model": architecture/data-persistence-model.md
+    - "High-Availability Clustering": architecture/high-availability-clustering.md
+    - "In-Memory State Engine": architecture/in-memory-state-engine.md
+    - "Ports & Protocols Matrix": architecture/ports-and-protocols-matrix.md
+  - Collective Defense:
+    - "Collective Defense Overview": collective-defense/collective-defense-overview.md
+    - "Emergency IP Purge": collective-defense/emergency-ip-purge.md
+    - "Fleet Defense Rule Schema": collective-defense/fleet-defense-rule-schema.md
+    - "IoC Broadcaster Mechanics": collective-defense/ioc-broadcaster-mechanics.md
+    - "Originator Loop Suppression": collective-defense/originator-loop-suppression.md
+    - "Sub-50ms Fanout Timeline": collective-defense/sub-50ms-fanout-timeline.md
+  - Active Learning Pipeline:
+    - "Active Learning Architecture": active-learning-pipeline/active-learning-architecture.md
+    - "Closed-Loop Flywheel Testing": active-learning-pipeline/closed-loop-flywheel-testing.md
+    - "Dataset Curator Engine": active-learning-pipeline/dataset-curator-engine.md
+    - "Forge Trigger Automation": active-learning-pipeline/forge-trigger-automation.md
+    - "Uncertainty Sampling Rules": active-learning-pipeline/uncertainty-sampling-rules.md
+    - "Vector Ingest Queue": active-learning-pipeline/vector-ingest-queue.md
+  - Canary OTA Rollout:
+    - "Canary Orchestrator Engine": canary-ota-rollout/canary-orchestrator-engine.md
+    - "False-Positive Surge Protection": canary-ota-rollout/false-positive-surge-protection.md
+    - "Model Repository & Hashing": canary-ota-rollout/model-repository-and-hashing.md
+    - "RollbackGuard SLA Watchdog": canary-ota-rollout/rollback-guard-sla-watchdog.md
+    - "Staged Rollout Lifecycle": canary-ota-rollout/staged-rollout-lifecycle.md
+    - "Zero-Downtime Hot-Reload Flow": canary-ota-rollout/zero-downtime-hot-reload-flow.md
+  - Explainable AI (XAI):
+    - "Global Threat Cache Indexing": explainable-ai-xai/global-threat-cache-indexing.md
+    - "Rendering XAI in Web & TUI": explainable-ai-xai/rendering-xai-in-web-and-tui.md
+    - "Semantic Dictionary Mapping": explainable-ai-xai/semantic-dictionary-mapping.md
+    - "Top-3 Feature Attribution Schema": explainable-ai-xai/top-3-feature-attribution-schema.md
+    - "XAI Aggregator Overview": explainable-ai-xai/xai-aggregator-overview.md
+    - "XAI API Endpoints": explainable-ai-xai/xai-api-endpoints.md
+  - Hierarchical Asset Topology:
+    - "Cascading Health Engine": hierarchical-asset-topology/cascading-health-engine.md
+    - "Deterministic Sensor Identifiers": hierarchical-asset-topology/deterministic-sensor-identifiers.md
+    - "Fleet Sync Payload Schema": hierarchical-asset-topology/fleet-sync-payload-schema.md
+    - "Four-Tier Hierarchy Model": hierarchical-asset-topology/four-tier-hierarchy-model.md
+    - "Instant 0ms Graceful Disconnect": hierarchical-asset-topology/instant-0ms-graceful-disconnect.md
+    - "Liveness Heartbeat Tracking": hierarchical-asset-topology/liveness-heartbeat-tracking.md
+  - Web Command Center:
+    - "Active KPI Telemetry Cards": web-command-center/active-kpi-telemetry-cards.md
+    - "Collective Defense Injector UI": web-command-center/collective-defense-injector-ui.md
+    - "MITRE ATT&CK Heatmap": web-command-center/mitre-attack-heatmap.md
+    - "OTA Canary Management UI": web-command-center/ota-canary-management-ui.md
+    - "Radial Topology Canvas": web-command-center/radial-topology-canvas.md
+    - "Real-Time SSE Stream": web-command-center/real-time-sse-stream.md
+    - "Web Console Architecture": web-command-center/web-console-architecture.md
+  - Operations CLI:
+    - "Command: auth login": operations-cli-nexus-ctl/command-auth-login.md
+    - "Command: compliance reports": operations-cli-nexus-ctl/command-compliance-reports.md
+    - "Command: fleet list": operations-cli-nexus-ctl/command-fleet-list.md
+    - "Command: ota management": operations-cli-nexus-ctl/command-ota-management.md
+    - "Command: threat drop": operations-cli-nexus-ctl/command-threat-drop.md
+    - "nexus-ctl Overview": operations-cli-nexus-ctl/nexus-ctl-overview.md
+  - REST API Reference:
+    - "REST API Overview": rest-api-reference/api-overview.md
+    - "Compliance Endpoints": rest-api-reference/endpoints-compliance.md
+    - "Fleet Endpoints": rest-api-reference/endpoints-fleet.md
+    - "OTA & Model Endpoints": rest-api-reference/endpoints-ota-models.md
+    - "SSE Stream Endpoint": rest-api-reference/endpoints-sse-stream.md
+    - "Threat Endpoints": rest-api-reference/endpoints-threats.md
+  - Cloud SaaS Uplink:
+    - "Cloud Fleet Sync": cloud-saas-uplink/cloud-fleet-sync.md
+    - "Inbound Global Threat Feed": cloud-saas-uplink/inbound-global-threat-feed.md
+    - "JWT Authentication & Renewal": cloud-saas-uplink/jwt-authentication-and-renewal.md
+    - "Remote CISO Commands": cloud-saas-uplink/remote-ciso-commands.md
+    - "SaaS Connector Architecture": cloud-saas-uplink/saas-connector-architecture.md
+  - Compliance Engines:
+    - "CMMC 2.0 Audit Engine": compliance-engines/cmmc-2.0-audit-engine.md
+    - "IEC 62443 Audit Engine": compliance-engines/iec-62443-audit-engine.md
+    - "Latency SLA Percentile Proofs": compliance-engines/latency-sla-percentile-proofs.md
+    - "Tamper-Evident Audit Logging": compliance-engines/tamper-evident-audit-logging.md
+  - Tutorials:
+    - "Air-Gapped Sneakernet Sync": tutorials/air-gapped-sneakernet-sync.md
+    - "Zero-Day Incident in Seconds": tutorials/handling-zero-day-incident-in-seconds.md
+    - "Integrating the FastAPI Cloud Backend": tutorials/integrating-fastapi-cloud-backend.md
+    - "Scaling to 5,000 Appliances": tutorials/scaling-to-5000-appliances.md
+    - "Setting Up mTLS PKI": tutorials/setting-up-mtls-pki.md
+  - Troubleshooting:
+    - "Appliance Registration Rejections": troubleshooting/appliance-registration-rejections.md
+    - "Config File Parsing Errors": troubleshooting/config-file-parsing-errors.md
+    - "Technical FAQ": troubleshooting/faq.md
+    - "JWT Auth 401 Failures": troubleshooting/jwt-auth-401-failures.md
+    - "Port Binding & Socket Errors": troubleshooting/port-binding-and-socket-errors.md
+    - "SSE Stream Disconnects": troubleshooting/sse-stream-disconnects.md
+    - "Support Channels": troubleshooting/support.md

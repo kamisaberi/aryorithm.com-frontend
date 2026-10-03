@@ -87,6 +87,19 @@ const DOC_SECTIONS = [
     ],
   },
   {
+    id: "sentinel-nexus-docs",
+    title: "Sentinel Nexus Daemon Docs",
+    color: "#FFB800",
+    desc: "Fleet command plane manual — full documentation: defense bus, OTA, XAI, CLI.",
+    links: [
+      { label: "Full Documentation (99 guides)", to: "/docs/sentinel-nexus" },
+      { label: "Collective Defense Bus", to: "/docs/sentinel-nexus/collective-defense" },
+      { label: "Canary OTA & RollbackGuard", to: "/docs/sentinel-nexus/canary-ota-rollout" },
+      { label: "nexus-ctl CLI", to: "/docs/sentinel-nexus/operations-cli-nexus-ctl" },
+      { label: "REST API Reference", to: "/docs/sentinel-nexus/rest-api-reference" },
+    ],
+  },
+  {
     id: "sentinel-nexus",
     title: "Sentinel Nexus (Orchestration)",
     color: "#FFB800",
