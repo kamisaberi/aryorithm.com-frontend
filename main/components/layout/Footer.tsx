@@ -85,8 +85,13 @@ export default function Footer() {
           </div>
 
           <div className="mt-5 flex flex-col gap-2 border-t border-hairline pt-4 font-mono text-[10.5px] text-muted sm:flex-row sm:items-center sm:justify-between">
-            <span>© {year} Aryorithm Technologies. All rights reserved. Verify every binary before deployment.</span>
-            <span className="uppercase tracking-[0.14em]">Build g.419 · 15 Routes Online</span>
+            <span>© {year} Aryorithm Technologies B.V. All rights reserved. Deterministic Sub-Microsecond Active Cyber-Physical Defense.</span>
+            <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-4 gap-y-1 uppercase tracking-[0.14em]">
+              <Link href="/privacy" className="transition-colors hover:text-cyan">Privacy Policy</Link>
+              <Link href="/terms" className="transition-colors hover:text-cyan">Terms of Service</Link>
+              <Link href="/security" className="transition-colors hover:text-cyan">Security Disclosures</Link>
+              <Link href="/trust#sbom-repository" className="transition-colors hover:text-cyan">Air-Gap Certification</Link>
+            </nav>
           </div>
         </div>
       </div>

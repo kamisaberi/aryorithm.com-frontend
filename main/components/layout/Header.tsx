@@ -107,13 +107,13 @@ export default function Header() {
             href="/portal"
             className="rounded-md border border-hairline px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan"
           >
-            Customer Enclave Login
+            Portal
           </Link>
           <Link
             href="/contact"
             className="rounded-md bg-cyan px-4 py-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-void transition-all duration-200 hover:brightness-110"
           >
-            Request Defense POC
+            Schedule Pilot
           </Link>
         </div>
 

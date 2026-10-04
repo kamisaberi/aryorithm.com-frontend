@@ -38,14 +38,14 @@ export default function MobileDrawer({ onNavigate }: { onNavigate: () => void })
           onClick={onNavigate}
           className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted"
         >
-          Customer Enclave Login
+          Portal
         </Link>
         <Link
           href="/contact"
           onClick={onNavigate}
           className="block rounded-md bg-cyan px-4 py-2.5 text-center font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-void"
         >
-          Request Defense POC
+          Schedule Pilot
         </Link>
       </div>
     </nav>
