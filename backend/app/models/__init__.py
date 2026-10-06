@@ -12,6 +12,7 @@ from app.models.compliance import ComplianceRecord, AttestationLog, InsurancePro
 from app.models.range import DigitalTwin, AttackReplay, ResilienceScore, RangeInstance, ResilienceEvaluation, MDRIncident, MDRMessage, EmergencyDispatch
 from app.models.settings import APIKey, Webhook, BillingRecord, AuditLog
 from app.models.subscription import SubscriptionPlan, PlanEntitlement
+from app.models.license import License
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
 
 __all__ = [
@@ -25,6 +26,6 @@ __all__ = [
     "DigitalTwin", "AttackReplay", "ResilienceScore",
     "RangeInstance", "ResilienceEvaluation", "MDRIncident", "MDRMessage", "EmergencyDispatch",
     "APIKey", "Webhook", "BillingRecord", "AuditLog",
-    "SubscriptionPlan", "PlanEntitlement",
+    "SubscriptionPlan", "PlanEntitlement", "License",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",
 ]

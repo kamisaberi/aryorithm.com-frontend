@@ -97,6 +97,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Management",
     items: [
       { label: "Subscriptions", href: "/subscriptions", icon: "◆", badge: "42" },
+      { label: "Licenses", href: "/licenses", icon: "✦" },
     ],
   },
 ];

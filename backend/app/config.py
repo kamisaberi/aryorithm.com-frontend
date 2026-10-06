@@ -31,5 +31,13 @@ class Settings(BaseSettings):
     # Nexus edge-collector (X-API-Key) — dev default matches dashboard/Nexus simulator
     NEXUS_API_KEY: str = "ary_dev_secret_key_8000"
 
+    # Licensing (Ed25519 master keypair for offline .lic envelopes).
+    # NEVER commit the real private key — set via env or a secrets vault.
+    # Public key (base64, 32 bytes) may be committed; appliances verify with it.
+    ARYORITHM_MASTER_PRIVATE_KEY_B64: str = ""
+    ARYORITHM_MASTER_PUBLIC_KEY_B64: str = ""
+    # Dev fallback: raw 32-byte private key file (also git-ignored).
+    LICENSE_KEY_FILE: str = "tools/licensing/master_private.key"
+
 
 settings = Settings()

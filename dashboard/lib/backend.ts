@@ -573,6 +573,39 @@ export interface PlansMatrix {
   items: PlanItem[];
 }
 
+/* ---------- Licensing ---------- */
+export interface LicenseItem {
+  id: string;
+  license_id: string;
+  customer_name: string;
+  plan_slug: string;
+  license_kind: "free" | "commercial" | string;
+  hostname: string;
+  max_nodes: number;
+  issued_at: number;
+  expires_at: number;
+  status: "active" | "expired" | "revoked" | string;
+  revoked: boolean;
+  authorized_modules: string[];
+  authorized_plugins: string[];
+  created_at: string | null;
+}
+export interface LicenseDetail extends LicenseItem {
+  hardware_token: string;
+  locked_hardware_uuid: string;
+  days_valid: number;
+  signature_algorithm: string;
+  signature: string;
+  envelope: { claims: Record<string, unknown>; signature: string; signature_algorithm: string };
+  signature_valid: boolean;
+}
+export interface LicenseEnvelopeResult {
+  status: string;
+  plan_slug: string;
+  license_id: string;
+  license_envelope: LicenseDetail["envelope"];
+}
+
 const get = <T>(endpoint: string, token: string | null) =>
   api.get<T>(endpoint, token);
 
@@ -783,6 +816,53 @@ export const backend = {
     ),
   billing: (t: string | null) => get<Billing>("/settings/billing", t),
   plans: (t: string | null) => get<PlansMatrix>("/plans", t),
+
+  // Licensing — manager + generator (community + commercial)
+  licenses: (
+    t: string | null,
+    params?: { status?: string; kind?: string; plan?: string; scope?: string }
+  ) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.kind) q.set("kind", params.kind);
+    if (params?.plan) q.set("plan", params.plan);
+    if (params?.scope) q.set("scope", params.scope);
+    const qs = q.toString();
+    return get<LicenseItem[]>(`/licenses${qs ? `?${qs}` : ""}`, t);
+  },
+  licenseDetail: (ref: string, t: string | null) =>
+    get<LicenseDetail>(`/licenses/${encodeURIComponent(ref)}`, t),
+  subscribeLicense: (
+    body: { plan_slug: string; hardware_token: string; hostname?: string; customer_name?: string; days_valid?: number; max_nodes?: number },
+    t: string | null
+  ) => api.post<LicenseEnvelopeResult>("/licenses/subscribe", body, t),
+  revokeLicense: (ref: string, t: string | null) =>
+    api.post<LicenseItem>(`/licenses/${encodeURIComponent(ref)}/revoke`, {}, t),
+  verifyLicense: (ref: string, t: string | null) =>
+    get<{ license_id: string; signature_valid: boolean; status: string }>(
+      `/licenses/verify/${encodeURIComponent(ref)}`, t
+    ),
+  downloadLicense: async (hardwareToken: string, t: string | null): Promise<{ blob: Blob; filename: string }> => {
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (t) headers["Authorization"] = `Bearer ${t}`;
+    try {
+      const { getSelectedTenant } = await import("./tenant");
+      const selected = getSelectedTenant();
+      if (selected) headers["X-Tenant-ID"] = selected;
+    } catch {
+      /* no tenant context */
+    }
+    const res = await fetch(`${base}/licenses/portal-download`, {
+      method: "POST",
+      body: JSON.stringify({ hardware_token: hardwareToken }),
+      headers,
+    });
+    if (!res.ok) throw new Error(`Download failed with status ${res.status}`);
+    const cd = res.headers.get("content-disposition") || "";
+    const m = /filename=([^;]+)/.exec(cd);
+    return { blob: await res.blob(), filename: (m?.[1] || "license.lic").trim() };
+  },
   auditLogs: (t: string | null) =>
     get<AuditLog[]>("/settings/audit-logs?page=1&limit=50", t),
 };
