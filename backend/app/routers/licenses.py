@@ -81,6 +81,18 @@ def _to_detail(row: License) -> LicenseDetailOut:
     )
 
 
+def _envelope_response(status: str, row: License, lease_days: int) -> LicenseEnvelopeResponse:
+    stored = dict(row.envelope or {})
+    return LicenseEnvelopeResponse(
+        status=status,
+        plan_slug=row.plan_slug,
+        license_id=row.license_id,
+        lease_days=lease_days,
+        license_envelope=stored,
+        envelope=lic.to_cpp_envelope(stored),
+    )
+
+
 async def _tenant_name(db: AsyncSession, tenant_id: str) -> str:
     tenant = await db.get(Tenant, tenant_id)
     return tenant.name if tenant and tenant.name else "Unnamed Tenant"
@@ -93,8 +105,19 @@ async def _find_license(
     *,
     cross_tenant: bool = False,
 ) -> License | None:
+    """Resolve a license by row id, LIC-... id, or hardware token.
+
+    An unprovisioned appliance on boot knows its local hardware token but not
+    its license_id yet, so ``ARY-HW-...`` (and the stripped UUID form) are
+    accepted anywhere a ``license_ref`` path parameter is used.
+    """
+    hw_uuid = lic.normalize_hw_uuid(ref)
     stmt = select(License).where(
-        (License.id == ref) | (License.license_id == ref),
+        (License.id == ref)
+        | (License.license_id == ref)
+        | (License.hardware_token == ref)
+        | (License.locked_hardware_uuid == ref)
+        | (License.locked_hardware_uuid == hw_uuid),
     )
     if not cross_tenant:
         stmt = stmt.where(License.tenant_id == tenant_id)
@@ -232,12 +255,7 @@ async def subscribe_license(
         days_valid=days,
         max_nodes=nodes,
     )
-    return LicenseEnvelopeResponse(
-        status="SUBSCRIBED",
-        plan_slug=plan_slug,
-        license_id=row.license_id,
-        license_envelope=dict(row.envelope),
-    )
+    return _envelope_response("SUBSCRIBED", row, days)
 
 
 # ---------------------------------------------------------------------------
@@ -277,21 +295,11 @@ async def _activate_core(
             days_valid=days,
             max_nodes=nodes,
         )
-        return LicenseEnvelopeResponse(
-            status="ACTIVATED",
-            plan_slug=plan_slug,
-            license_id=row.license_id,
-            license_envelope=dict(row.envelope),
-        )
+        return _envelope_response("ACTIVATED", row, days)
     # Renewal — rolling 30-day lease for paid tiers, never-expire for community.
     days = 0 if row.plan_slug == "community" else 30
     row = await _renew_row(db, row, days_valid=days, hostname=(body.hostname or "").strip() or None)
-    return LicenseEnvelopeResponse(
-        status="ACTIVATED",
-        plan_slug=row.plan_slug,
-        license_id=row.license_id,
-        license_envelope=dict(row.envelope),
-    )
+    return _envelope_response("ACTIVATED", row, days)
 
 
 @router.post("/activate", response_model=LicenseEnvelopeResponse)
@@ -300,7 +308,12 @@ async def activate_license_online(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Called automatically by Sentinel on startup to fetch or renew its license."""
+    """Called automatically by Sentinel on startup to fetch or renew its license.
+
+    Request body: ``{"hardware_token": "ARY-HW-...", "hostname": "..."}``.
+    The inner ``envelope`` object of the response can be written straight to
+    ``/etc/sentinel/license.lic`` — no field mapping needed on the appliance.
+    """
     return await _activate_core(body, user, db)
 
 
@@ -337,7 +350,12 @@ async def download_airgapped_license(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Download a 1-year offline .lic file from the portal for USB transfer."""
+    """Download a 1-year offline .lic file from the portal for USB transfer.
+
+    The response body is the file itself: the extended envelope
+    (``claims`` + ``payload_b64``/``signature_b64``), so an appliance can
+    persist the body straight to ``/etc/sentinel/license.lic``.
+    """
     return await _portal_download_core(body, user, db)
 
 
@@ -402,7 +420,11 @@ async def verify_license(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-verify a stored envelope's Ed25519 signature."""
+    """Re-verify a stored envelope's Ed25519 signature.
+
+    ``license_ref`` accepts a row id, a ``LIC-...`` id, or the appliance
+    hardware token (``ARY-HW-...``) for unprovisioned boot lookup.
+    """
     cross = scope == "all" and _is_super_admin(user)
     row = await _find_license(db, user.tenant_id, license_ref, cross_tenant=cross)
     if row is None:
@@ -421,7 +443,11 @@ async def get_license(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Full license detail incl. the signed envelope (row id or LIC-... accepted)."""
+    """Full license detail incl. the signed envelope.
+
+    ``license_ref`` accepts a row id, a ``LIC-...`` id, or the appliance
+    hardware token (``ARY-HW-...``).
+    """
     cross = scope == "all" and _is_super_admin(user)
     row = await _find_license(db, user.tenant_id, license_ref, cross_tenant=cross)
     if row is None:

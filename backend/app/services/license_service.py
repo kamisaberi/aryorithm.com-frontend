@@ -226,14 +226,48 @@ def build_claims(
 
 
 def sign_claims(claims: dict) -> dict:
-    """Sign canonical claims JSON bytes and return the full envelope."""
+    """Sign canonical claims JSON bytes and return the full envelope.
+
+    The envelope carries both representations so every consumer is served:
+    - ``claims`` + ``signature`` — human-readable, used by the dashboard,
+      the DB rows and the portal;
+    - ``payload_b64`` + ``signature_b64`` — opaque C++-friendly pair. An
+      appliance writes the inner ``envelope`` object straight to
+      ``/etc/sentinel/license.lic`` and verifies
+      ``signature_b64`` over ``base64(canonical_claims_json)`` offline.
+    """
     private_key = _ed25519_private_key()
     canonical = json.dumps(claims, sort_keys=True, separators=(",", ":")).encode("utf-8")
     signature = base64.b64encode(private_key.sign(canonical)).decode("utf-8")
     return {
         "claims": claims,
+        "payload_b64": base64.b64encode(canonical).decode("utf-8"),
         "signature_algorithm": "ED25519",
         "signature": signature,
+        "signature_b64": signature,
+    }
+
+
+def to_cpp_envelope(envelope: dict) -> dict:
+    """Project any stored envelope to the C++ file shape.
+
+    ``{"payload_b64", "signature_b64", "signature_algorithm"}`` — the exact
+    object an appliance persists to ``/etc/sentinel/license.lic``.
+    Accepts both claims-based envelopes and already-projected ones.
+    """
+    if "payload_b64" in envelope and "signature_b64" in envelope:
+        return {
+            "payload_b64": envelope["payload_b64"],
+            "signature_b64": envelope["signature_b64"],
+            "signature_algorithm": envelope.get("signature_algorithm", "ED25519"),
+        }
+    claims = envelope.get("claims", {})
+    canonical = json.dumps(claims, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    sig = envelope.get("signature_b64") or envelope.get("signature", "")
+    return {
+        "payload_b64": base64.b64encode(canonical).decode("utf-8"),
+        "signature_b64": sig,
+        "signature_algorithm": envelope.get("signature_algorithm", "ED25519"),
     }
 
 
@@ -254,12 +288,21 @@ def generate_signed_envelope(
 
 
 def verify_envelope(envelope: dict) -> bool:
-    """Verify an envelope's Ed25519 signature. Returns True/False (no raise)."""
-    try:
-        from cryptography.exceptions import InvalidSignature
+    """Verify an envelope's Ed25519 signature. Returns True/False (no raise).
 
-        claims = envelope.get("claims", {})
-        signature = base64.b64decode(envelope.get("signature", ""))
+    Accepts both the claims shape (``claims`` + ``signature``) and the C++
+    file shape (``payload_b64`` + ``signature_b64``).
+    """
+    try:
+        if "claims" in envelope:
+            claims = envelope.get("claims", {})
+            raw_sig = envelope.get("signature_b64") or envelope.get("signature", "")
+        elif "payload_b64" in envelope:
+            claims = json.loads(base64.b64decode(envelope["payload_b64"]).decode("utf-8"))
+            raw_sig = envelope.get("signature_b64") or envelope.get("signature", "")
+        else:
+            return False
+        signature = base64.b64decode(raw_sig)
         canonical = json.dumps(claims, sort_keys=True, separators=(",", ":")).encode("utf-8")
         _ed25519_public_key().verify(signature, canonical)
         return True

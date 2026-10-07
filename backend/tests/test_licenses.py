@@ -130,6 +130,9 @@ async def test_subscribe_community_and_commercial(client):
     env = r.json()["license_envelope"]
     assert env["claims"]["expires_at"] == 0
     assert lic.verify_envelope(env) is True
+    assert r.json()["lease_days"] == 0
+    # stored envelope carries the C++ file pair as well
+    assert lic.verify_envelope(lic.to_cpp_envelope(env)) is True
     lic_id = r.json()["license_id"]
 
     r = await ac.post(
@@ -147,8 +150,13 @@ async def test_subscribe_community_and_commercial(client):
     r = await ac.get("/api/v1/licenses?kind=commercial", headers=_auth(token))
     assert len(r.json()) == 1 and r.json()[0]["license_kind"] == "commercial"
 
-    # detail lookup by LIC-... id
     r = await ac.get(f"/api/v1/licenses/{lic_id}", headers=_auth(token))
+    assert r.status_code == 200 and r.json()["signature_valid"] is True
+
+    # detail + verify also resolve by hardware token (unprovisioned boot lookup)
+    r = await ac.get("/api/v1/licenses/ARY-HW-abc123", headers=_auth(token))
+    assert r.status_code == 200 and r.json()["license_id"] == lic_id
+    r = await ac.get("/api/v1/licenses/verify/ARY-HW-abc123", headers=_auth(token))
     assert r.status_code == 200 and r.json()["signature_valid"] is True
 
 
@@ -187,12 +195,20 @@ async def test_activate_and_portal_download_and_legacy(client):
     # zero-touch activate bootstraps from tenant tier (PRO -> enterprise)
     r = await ac.post(
         "/api/v1/licenses/activate",
-        json={"hardware_token": "ARY-HW-node99"},
+        json={"hardware_token": "ARY-HW-node99", "hostname": "sentinel-substation-01"},
         headers=_auth(token),
     )
     assert r.status_code == 200 and r.json()["status"] == "ACTIVATED"
+    body = r.json()
+    assert body["lease_days"] == 30
+    cpp = body["envelope"]
+    assert cpp["signature_algorithm"] == "ED25519"
+    assert lic.verify_envelope(cpp) is True
+    # legacy claims shape still present for dashboard / portal consumers
+    assert body["license_envelope"]["claims"]["locked_hardware_uuid"] == "node99"
 
-    # portal download returns a .lic attachment
+    # portal download returns a .lic attachment whose body is directly
+    # persistable (cpp envelope) and verifies offline
     r = await ac.post(
         "/api/v1/licenses/portal-download",
         json={"hardware_token": "ARY-HW-node99"},
@@ -200,6 +216,7 @@ async def test_activate_and_portal_download_and_legacy(client):
     )
     assert r.status_code == 200
     assert "attachment" in r.headers["content-disposition"]
+    assert lic.verify_envelope(r.json()) is True
 
     # legacy singular aliases (deployed firmware compat)
     r = await ac.post(

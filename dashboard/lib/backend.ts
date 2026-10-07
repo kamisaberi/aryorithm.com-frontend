@@ -596,14 +596,22 @@ export interface LicenseDetail extends LicenseItem {
   days_valid: number;
   signature_algorithm: string;
   signature: string;
-  envelope: { claims: Record<string, unknown>; signature: string; signature_algorithm: string };
+  envelope: {
+    claims: Record<string, unknown>;
+    payload_b64?: string;
+    signature: string;
+    signature_b64?: string;
+    signature_algorithm: string;
+  };
   signature_valid: boolean;
 }
 export interface LicenseEnvelopeResult {
   status: string;
   plan_slug: string;
   license_id: string;
+  lease_days: number;
   license_envelope: LicenseDetail["envelope"];
+  envelope: { payload_b64: string; signature_b64: string; signature_algorithm: string };
 }
 
 const get = <T>(endpoint: string, token: string | null) =>

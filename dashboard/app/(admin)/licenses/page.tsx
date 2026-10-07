@@ -86,7 +86,7 @@ export default function LicensesPage() {
         { plan_slug: plan, hardware_token: hwToken.trim(), hostname: hostname.trim() || "sentinel-node" },
         token
       );
-      setFormOk(`Issued ${res.license_id} (${res.plan_slug}).`);
+      setFormOk(`Issued ${res.license_id} (${res.plan_slug}, ${res.lease_days === 0 ? "never expires" : `${res.lease_days}-day lease`}).`);
       setHwToken("");
       licenses.refresh();
     } catch (e) {
