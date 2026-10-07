@@ -50,7 +50,7 @@ export default function TeamPage() {
     for (const g of MEMBER_GROUPS) m[g.slug] = DIRECTORY.filter((d) => d.group === g.slug).length;
     return m;
   }, []);
-  const exec = DIRECTORY.filter((d) => ["maarten-van-den-berg", "kamran-saberifard"].includes(d.slug));
+  const exec = DIRECTORY.filter((d) => ["adel-bozorg-bashar", "kamran-saberifard"].includes(d.slug));
 
   return (
     <>
