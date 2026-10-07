@@ -210,6 +210,9 @@ export interface DirectoryMember {
   education: string;
   email: string;
   github?: string;
+  linkedin?: string;
+  orcid?: string;
+  facebook?: string;
   pgp?: boolean;
   badges: string[];
   bio: string[];
@@ -244,6 +247,8 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "Business Process Automation & Management",
     email: "adel.bozorgbashar@aryorithm.com",
     github: "https://github.com/adelbozorgbashar",
+    linkedin: "https://www.linkedin.com/in/mjbozorgbashar",
+    orcid: "https://orcid.org/0009-0007-2139-3973",
     badges: ["BPM automation", "Bizagi & UiPath", "Business growth"],
     bio: [
       "Mohammad Jafar (Adel) Bozorg Bashar is a business process automation specialist with over 10 years of experience architecting automated organizational workflows — with hands-on expertise in Bizagi BPMS, UiPath RPA, and n8n, and a recent focus on AI agents that accelerate process effectiveness.",
@@ -260,6 +265,9 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "B.S. Mathematics, Sistan and Baluchestan (2004)",
     email: "kamran.saberifard@aryorithm.com",
     github: "https://github.com/kamisaberi",
+    linkedin: "https://www.linkedin.com/in/kamisaberi",
+    orcid: "https://orcid.org/0009-0002-7822-6168",
+    facebook: "https://facebook.com/kamisaberi",
     badges: ["High-performance ML", "xTorch (C++)", "libblackbox.so", "libxinfer.so", "eBPF/XDP", "Computer vision"],
     bio: [
       "Kamran Saberifard is an independent researcher, principal AI scientist, and senior programmer with 24 years of experience architecting high-performance machine learning systems — including building the xTorch deep-learning library from the ground up in C++.",
@@ -352,6 +360,9 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "Data Analytics & Quantitative Research",
     email: "sobhan.nikpour@aryorithm.com",
     github: "https://github.com/SbhnNP",
+    linkedin: "https://www.linkedin.com/in/sobhan-nikpour",
+    orcid: "https://orcid.org/0009-0006-7863-9674",
+    facebook: "https://facebook.com/sobhan.nik.1",
     badges: ["On-chain analytics", "ETL pipelines", "Quantitative modeling"],
     bio: [
       "Sobhan Nikpour is a data analyst and quantitative researcher with over 5 years of experience in analytics and protocol research. He specializes in large-scale data analysis, ETL pipeline development, and quantitative modeling — highly proficient in Python and its libraries like NumPy and Pandas, SQL, and data visualization tools.",
@@ -368,6 +379,7 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "Data Analytics & Python Engineering",
     email: "paria.ranji@aryorithm.com",
     github: "https://github.com/parrnn",
+    orcid: "https://orcid.org/0009-0002-9345-3932",
     badges: ["SQL dashboards", "API integration", "Process automation"],
     bio: [
       "Paria Ranji is a data analyst and Python developer with expertise in Python, SQL, NumPy, Pandas, web scraping, API integration, and process automation — having designed analytical dashboards that extract and visualize complex data and built monitoring systems that enhance efficiency.",
@@ -384,6 +396,9 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "B.Sc. Computer Engineering (Azad); M.Sc. Cyber Security candidate (Macquarie)",
     email: "alireza.malekzadeh@aryorithm.com",
     github: "https://github.com/AlirezaMz10",
+    linkedin: "https://www.linkedin.com/in/alireza-malekzadeh-165850226",
+    orcid: "https://orcid.org/0009-0002-4943-7636",
+    facebook: "https://facebook.com/alireza.malekzadeh.825061",
     badges: ["Cyber security", "Machine learning", "Web scraping", "NumPy"],
     bio: [
       "Alireza Malekzadeh Lashkaryani brings six years of hands-on experience and a bachelor's in computer engineering, and is currently studying for a Master of Cyber Security — certified across Python, Java, HTML, CSS, and WordPress, with expertise spanning cyber security, data and web scraping, machine learning, data science, and database design.",
@@ -415,6 +430,7 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "Frontend Web Development",
     email: "abolfazl.kholousi@aryorithm.com",
     github: "https://github.com/Abol-khls",
+    linkedin: "https://www.linkedin.com/in/abol-kholosi",
     badges: ["Responsive interfaces", "Next.js", "Scalable frontends"],
     bio: [
       "Abolfazl Kholousi is a front-end developer passionate about building responsive and user-friendly web interfaces. He has participated in projects in this field and enjoys creating efficient, scalable solutions that blend design and functionality.",
@@ -446,6 +462,7 @@ export const DIRECTORY: DirectoryMember[] = [
     education: "Backend Web Development",
     email: "parsa.dokhtmohammadi@aryorithm.com",
     github: "https://github.com/ParsaDokhtMohammadi",
+    linkedin: "https://www.linkedin.com/in/parsa-dokhtmohammadi",
     badges: ["Next.js", "Express.js", "REST APIs", "Performance optimization"],
     bio: [
       "Parsa Dokht Mohammadi is a full-stack JavaScript developer specializing in Next.js for frontend development and Express.js for backend systems. Passionate about building responsive, user-friendly web applications, Parsa focuses on creating efficient, scalable solutions that bridge design and functionality.",

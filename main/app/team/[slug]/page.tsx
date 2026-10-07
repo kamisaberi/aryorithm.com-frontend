@@ -68,6 +68,21 @@ export default function MemberProfilePage({ params }: { params: { slug: string }
                     [ GitHub ]
                   </a>
                 )}
+                {m.linkedin && (
+                  <a href={m.linkedin} target="_blank" rel="noreferrer" className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] text-ink transition-colors hover:border-cyan/60 hover:text-cyan">
+                    [ LinkedIn ]
+                  </a>
+                )}
+                {m.orcid && (
+                  <a href={m.orcid} target="_blank" rel="noreferrer" className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] text-ink transition-colors hover:border-cyan/60 hover:text-cyan">
+                    [ ORCID ]
+                  </a>
+                )}
+                {m.facebook && (
+                  <a href={m.facebook} target="_blank" rel="noreferrer" className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] text-ink transition-colors hover:border-cyan/60 hover:text-cyan">
+                    [ Facebook ]
+                  </a>
+                )}
                 {m.pgp && (
                   <span className="rounded-md border border-kernel/50 px-4 py-2 font-mono text-[11px] text-kernel">
                     ◆ PGP Key Verified
