@@ -485,6 +485,51 @@ export const DIRECTORY: DirectoryMember[] = [
     ],
     metric: ["Content-KPI alignment", "data-driven"],
   },
+  {
+    slug: "adel-bozorg-bashar-strategy",
+    aliasOf: "adel-bozorg-bashar",
+    name: "Adel Bozorg Bashar",
+    title: "Corporate Strategy & Growth Lead",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "Business Process Automation & Management",
+    email: "adel.bozorgbashar@aryorithm.com",
+    badges: ["Corporate strategy", "Business growth", "Partnerships"],
+    bio: [
+      "Adel Bozorg Bashar sets corporate strategy and growth as CEO — see the full profile.",
+    ],
+    metric: ["Automation consulting", "20+ companies"],
+  },
+  {
+    slug: "sara-seraji-strategy",
+    aliasOf: "sara-seraji",
+    name: "Sara Seraji",
+    title: "Growth & Communications Lead",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "B.Sc. Software Engineering",
+    email: "sara.seraji@aryorithm.com",
+    badges: ["Growth", "Communications", "Teamwork"],
+    bio: [
+      "Sara Seraji leads marketing and growth as CMO — see the full profile.",
+    ],
+    metric: ["Management experience", "10 yrs"],
+  },
+  {
+    slug: "maedeh-pouresmaeil-strategy",
+    aliasOf: "maedeh-pouresmaeil",
+    name: "Maedeh Pouresmaeil",
+    title: "Financial Governance Lead",
+    group: "strategy",
+    tier: "Product, Compliance & Commercial Strategy",
+    education: "B.A. English Language (Azad University, Iran)",
+    email: "maedeh.pouresmaeil@aryorithm.com",
+    badges: ["Capital management", "Financial governance", "Forecasting"],
+    bio: [
+      "Maedeh Pouresmaeil runs financial governance as CFO — see the full profile.",
+    ],
+    metric: ["Finance leadership", "13+ yrs"],
+  },
 ];
 
 export interface Role {
