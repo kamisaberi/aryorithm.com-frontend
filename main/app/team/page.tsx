@@ -46,7 +46,9 @@ function MemberCard({ m }: { m: (typeof DIRECTORY)[number] }) {
 export default function TeamPage() {
   const [filter, setFilter] = useState("all");
   const counts = useMemo(() => {
-    const m: Record<string, number> = { all: DIRECTORY.length };
+    // "All" counts real people only — group aliases (e.g. the Kernel card
+    // pointing at the canonical profile) are counted in their own tab.
+    const m: Record<string, number> = { all: DIRECTORY.filter((d) => !d.aliasOf).length };
     for (const g of MEMBER_GROUPS) m[g.slug] = DIRECTORY.filter((d) => d.group === g.slug).length;
     return m;
   }, []);
@@ -125,7 +127,7 @@ export default function TeamPage() {
               {filter === "all" ? "Everyone." : MEMBER_GROUPS.find((g) => g.slug === filter)?.label ?? ""}
             </h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              {DIRECTORY.filter((d) => filter === "all" || d.group === filter).map((m) => (
+              {DIRECTORY.filter((d) => (filter === "all" ? !d.aliasOf : d.group === filter)).map((m) => (
                 <MemberCard key={m.slug} m={m} />
               ))}
             </div>
