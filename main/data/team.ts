@@ -214,6 +214,8 @@ export interface DirectoryMember {
   badges: string[];
   bio: string[];
   metric: [string, string];
+  /** When set, cards link to `/team/${aliasOf}` and no page is generated for `slug`. */
+  aliasOf?: string;
 }
 
 export const MEMBER_GROUPS = [
@@ -294,6 +296,22 @@ export const DIRECTORY: DirectoryMember[] = [
       "As CMO and co-founder, Sara leads marketing and growth — continuously deepening her programming and artificial intelligence skills and collaborating across engineering to carry Aryorithm's story to customers and partners.",
     ],
     metric: ["Management experience", "10 yrs"],
+  },
+  {
+    slug: "kamran-saberifard-kernel",
+    aliasOf: "kamran-saberifard",
+    name: "Kamran Saberifard",
+    title: "Kernel & Silicon Engineering Lead",
+    group: "kernel",
+    tier: "Core Systems & Deep-Tech Engineering",
+    education: "B.S. Mathematics, Sistan and Baluchestan (2004)",
+    email: "kamran.saberifard@aryorithm.com",
+    github: "https://github.com/kamisaberi",
+    badges: ["libblackbox.so", "libxinfer.so", "eBPF/XDP"],
+    bio: [
+      "Kamran Saberifard is currently the sole engineer behind the Kernel & Silicon track — see the full profile.",
+    ],
+    metric: ["Worst-case drop path", "0.84 µs"],
   },
   {
     slug: "amirhosein-parsapour",

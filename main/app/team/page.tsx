@@ -20,7 +20,7 @@ function MemberCard({ m }: { m: (typeof DIRECTORY)[number] }) {
   const color = GROUP_COLORS[m.group];
   return (
     <Link
-      href={`/team/${m.slug}`}
+      href={`/team/${m.aliasOf ?? m.slug}`}
       className="group rounded-md border border-hairline bg-panel p-5 transition-colors hover:border-cyan/50"
     >
       <div className="flex items-center gap-3">

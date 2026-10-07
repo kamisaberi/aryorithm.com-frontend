@@ -6,12 +6,12 @@ import ClosingCTA from "@/components/sections/ClosingCTA";
 import { DIRECTORY, GROUP_COLORS, MEMBER_GROUPS } from "@/data/team";
 
 export function generateStaticParams() {
-  return DIRECTORY.map((m) => ({ slug: m.slug }));
+  return DIRECTORY.filter((m) => !m.aliasOf).map((m) => ({ slug: m.slug }));
 }
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const m = DIRECTORY.find((x) => x.slug === params.slug);
-  if (!m) return { title: "Team Member | Aryorithm" };
+  if (!m || m.aliasOf) return { title: "Team Member | Aryorithm" };
   return {
     title: `${m.name} — ${m.title} | Aryorithm`,
     description: `${m.name}, ${m.title} at Aryorithm Technologies. ${m.bio[0].slice(0, 140)}…`,
@@ -29,12 +29,13 @@ function initials(name: string) {
 
 export default function MemberProfilePage({ params }: { params: { slug: string } }) {
   const m = DIRECTORY.find((x) => x.slug === params.slug);
-  if (!m) notFound();
+  if (!m || m.aliasOf) notFound();
   const color = GROUP_COLORS[m.group];
   const groupLabel = MEMBER_GROUPS.find((g) => g.slug === m.group)?.label ?? m.group;
-  const idx = DIRECTORY.findIndex((x) => x.slug === m.slug);
-  const prev = DIRECTORY[(idx - 1 + DIRECTORY.length) % DIRECTORY.length];
-  const next = DIRECTORY[(idx + 1) % DIRECTORY.length];
+  const canonical = DIRECTORY.filter((x) => !x.aliasOf);
+  const idx = canonical.findIndex((x) => x.slug === m.slug);
+  const prev = canonical[(idx - 1 + canonical.length) % canonical.length];
+  const next = canonical[(idx + 1) % canonical.length];
 
   return (
     <>
