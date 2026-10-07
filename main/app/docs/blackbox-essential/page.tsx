@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/blackbox-docs";
 export const metadata: Metadata = {
   title: "Blackbox Essential Documentation | Aryorithm",
   description:
-    "Complete documentation for blackbox-essential (libblackbox.so): setup, architecture, eBPF/XDP, SPMC ring, TPM attestation, AF_XDP, ModelConfig, API reference, tutorials, benchmarks, compliance, troubleshooting.",
+    "blackbox-essential docs: setup, eBPF/XDP engine, SPMC ring, TPM attestation, AF_XDP, API reference, tutorials, and troubleshooting.",
 };
 
 export default function BlackboxDocsIndexPage() {

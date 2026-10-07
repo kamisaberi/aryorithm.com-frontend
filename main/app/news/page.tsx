@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Company updates, threat advisories, product releases, and technical announcements from Aryorithm Technologies.",
 };
 
-const CATEGORIES = [...new Set(NEWS_ITEMS.map((n) => n.category))];
+const CATEGORIES = Array.from(new Set(NEWS_ITEMS.map((n) => n.category)));
 
 export default function NewsPage() {
   return (

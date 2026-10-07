@@ -7,7 +7,7 @@ import CodeViewer from "@/components/ui/CodeViewer";
 import XinferSections from "@/components/simulations/XinferSections";
 
 export const metadata: Metadata = {
-  title: "xInfer Essential (libxinfer.so) — Zero-Copy AI Runtime | Aryorithm",
+  title: "xInfer Essential — Zero-Copy AI Runtime | Aryorithm",
   description:
     "xinfer-essential (libxinfer.so): open-core C++20 zero-copy neural inference across 15 silicon targets. 11.8µs latency, 1.25M EPS, zero managed dependencies.",
 };

@@ -8,7 +8,7 @@ import NexusTerminal from "@/components/simulations/NexusTerminal";
 import TopologyCanvas from "@/components/simulations/TopologyCanvas";
 
 export const metadata: Metadata = {
-  title: "Sentinel Nexus — Fleet Command Plane & Collective Defense | Aryorithm",
+  title: "Sentinel Nexus — Fleet Command Plane | Aryorithm",
   description:
     "Sentinel Nexus: C++20 fleet command plane coordinating 5,000 edge appliances with sub-50ms collective immunity, canary OTA, XAI aggregation and 4-tier topology.",
 };

@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/xinfer-docs";
 export const metadata: Metadata = {
   title: "xInfer Essential Documentation | Aryorithm",
   description:
-    "Complete documentation for xinfer-essential (libxinfer.so): getting started, architecture, 15 silicon backends, memory management, plugins, ModelHub, API reference, tutorials, benchmarks, troubleshooting.",
+    "xinfer-essential docs: setup, 15 silicon backends, memory model, plugins, API reference, and benchmarks.",
 };
 
 export default function XinferDocsIndexPage() {

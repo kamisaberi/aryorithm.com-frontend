@@ -19,12 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const item = getNewsBySlug(slug);
   if (!item) return {};
   return {
-    title: `${item.title} | Aryorithm News`,
+    title: `${item.title} | Aryorithm`,
     description: item.excerpt,
   };
 }
 
-const CATEGORIES = [...new Set(NEWS_ITEMS.map((n) => n.category))];
+const CATEGORIES = Array.from(new Set(NEWS_ITEMS.map((n) => n.category)));
 
 export default async function NewsPostPage({ params }: Props) {
   const { slug } = await params;

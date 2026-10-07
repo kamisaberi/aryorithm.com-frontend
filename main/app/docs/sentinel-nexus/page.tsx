@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/sentinel-nexus-docs";
 export const metadata: Metadata = {
   title: "Sentinel Nexus Documentation | Aryorithm",
   description:
-    "Complete documentation for sentinel-nexus: setup, collective defense, active learning, canary OTA, XAI, topology, console, CLI, REST, SaaS, compliance, tutorials, troubleshooting.",
+    "sentinel-nexus docs: setup, collective defense, canary OTA, XAI, topology, CLI, REST API, and compliance.",
 };
 
 export default function NexusDocsIndexPage() {

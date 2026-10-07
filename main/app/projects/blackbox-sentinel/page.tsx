@@ -6,7 +6,7 @@ import Accordion from "@/components/ui/Accordion";
 import CodeViewer from "@/components/ui/CodeViewer";
 
 export const metadata: Metadata = {
-  title: "Blackbox Sentinel — Autonomous Cyber-Physical XDR Appliance | Aryorithm",
+  title: "Blackbox Sentinel — Cyber-Physical XDR | Aryorithm",
   description:
     "Blackbox Sentinel: turnkey cyber-physical active defense with 26 native C++20 subsystems, 30 industrial dissectors, 0.84µs kernel drops and zero cloud egress.",
 };

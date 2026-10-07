@@ -6,9 +6,9 @@ import Accordion from "@/components/ui/Accordion";
 import CodeViewer from "@/components/ui/CodeViewer";
 
 export const metadata: Metadata = {
-  title: "Sentinel-Matrix — Autonomous Cyber-Physical Range | Aryorithm",
+  title: "Sentinel-Matrix — Cyber-Physical Range | Aryorithm",
   description:
-    "sentinel-matrix: encapsulated VMware cyber-range on 10.240.0.0/24 with 7-channel OmniFlow traffic, real malware PCAP replay, live red-team adversary and closed-loop AI retraining.",
+    "sentinel-matrix: VMware cyber-range on 10.240.0.0/24 with 7-channel OmniFlow traffic, malware PCAP replay, and live red-team adversary.",
 };
 
 const GITHUB_URL = "https://github.com/kamisaberi/sentinel-matrix";

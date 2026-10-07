@@ -10,7 +10,7 @@ import { DIVIDE_ROWS, ECO_TIERS } from "@/data/home";
 import EcoTiers from "@/components/simulations/EcoTiers";
 
 export const metadata: Metadata = {
-  title: "Aryorithm Technologies — Deterministic Sub-Millisecond Active Defense",
+  title: "Aryorithm — Active Defense for Sovereign Infrastructure",
   description:
     "Autonomous cyber-physical active defense: 0.84µs eBPF/XDP kernel mitigation, libxinfer across 15 silicon backends, air-gapped collective immunity.",
 };

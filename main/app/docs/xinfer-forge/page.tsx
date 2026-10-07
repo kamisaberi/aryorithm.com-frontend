@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/xinfer-forge-docs";
 export const metadata: Metadata = {
   title: "xInfer Forge Documentation | Aryorithm",
   description:
-    "Complete documentation for xinfer-forge (forge-cli): setup, MAE self-supervision, golden safety gate, ONNX export, Nexus staging, CLI reference, benchmarks, compliance, troubleshooting.",
+    "xinfer-forge docs: MAE self-supervision, golden safety gate, ONNX export, Nexus staging, and CLI reference.",
 };
 
 export default function ForgeDocsIndexPage() {

@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/sentinel-matrix-docs";
 export const metadata: Metadata = {
   title: "Sentinel-Matrix Documentation | Aryorithm",
   description:
-    "Complete documentation for sentinel-matrix: VMware mesh, OmniFlow traffic, PCAP replay, red-team adversary, observability, AI flywheel, chaos, runbook, tutorials, troubleshooting.",
+    "sentinel-matrix docs: VMware mesh, OmniFlow traffic, PCAP replay, red-team adversary, chaos engineering, and runbook.",
 };
 
 export default function MatrixDocsIndexPage() {

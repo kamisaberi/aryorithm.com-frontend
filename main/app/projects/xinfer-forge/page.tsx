@@ -8,9 +8,9 @@ import ForgePipeline from "@/components/simulations/ForgePipeline";
 import { InfoNceVisualizer, MaeVisualizer, SafetyGate } from "@/components/simulations/ForgeSims";
 
 export const metadata: Metadata = {
-  title: "xInfer Forge — Continuous On-Device Neural Adaptation | Aryorithm",
+  title: "xInfer Forge — On-Device Learning | Aryorithm",
   description:
-    "xinfer-forge (forge-cli): edge-native continuous active learning with MAE + InfoNCE self-supervision, immunized by an immutable golden-attack regression gate. Zero cloud egress.",
+    "xinfer-forge: edge-native continuous active learning with MAE + InfoNCE self-supervision and an immutable golden-attack safety gate.",
 };
 
 const GITHUB_URL = "https://github.com/kamisaberi/xinfer-forge";

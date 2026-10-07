@@ -6,9 +6,9 @@ import Accordion from "@/components/ui/Accordion";
 import CodeViewer from "@/components/ui/CodeViewer";
 
 export const metadata: Metadata = {
-  title: "Sentinel-Stack — 1-Click 6-Tier Ecosystem Installer | Aryorithm",
+  title: "Sentinel-Stack — 6-Tier Installer | Aryorithm",
   description:
-    "sentinel-stack: master meta-orchestrator that resolves dependencies, compiles six C++20/eBPF tiers in topological order, deploys systemd daemons and verifies 6/6 smoke tests.",
+    "sentinel-stack: meta-orchestrator that resolves dependencies, compiles six C++20/eBPF tiers in order, and verifies 6/6 smoke tests.",
 };
 
 const GITHUB_URL = "https://github.com/kamisaberi/sentinel-stack";

@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/blackbox-sentinel-docs";
 export const metadata: Metadata = {
   title: "Blackbox Sentinel Documentation | Aryorithm",
   description:
-    "Complete documentation for blackbox-sentinel: setup, 26 subsystems, 30 protocol plugins, Nexus uplink, web console, licensing, configuration, tutorials, compliance, troubleshooting.",
+    "blackbox-sentinel docs: setup, 26 subsystems, 30 protocol plugins, Nexus uplink, web console, licensing, and troubleshooting.",
 };
 
 export default function SentinelDocsIndexPage() {

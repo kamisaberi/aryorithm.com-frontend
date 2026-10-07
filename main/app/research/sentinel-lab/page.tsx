@@ -6,7 +6,7 @@ import { StatStrip } from "@/components/ui/StatusBadge";
 import { HarnessRunner, PreprintBlock, SlabExplorer } from "@/components/simulations/LabSims";
 
 export const metadata: Metadata = {
-  title: "Sentinel-Lab — Open Research & Benchmark Platform | Aryorithm",
+  title: "Sentinel-Lab — Open Research Platform | Aryorithm",
   description: "Peer-reviewed academic foundation: reproducible evaluation across Intel OpenVINO and NVIDIA TensorRT. Apache-2.0, $0.",
 };
 

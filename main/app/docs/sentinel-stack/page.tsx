@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/sentinel-stack-docs";
 export const metadata: Metadata = {
   title: "Sentinel-Stack Documentation | Aryorithm",
   description:
-    "Complete documentation for sentinel-stack: 1-click install, 6-phase pipeline, dependency engine, DAG builds, systemd daemons, smoke tests, matrix bridge, runbook, troubleshooting.",
+    "sentinel-stack docs: 1-click install, 6-phase pipeline, DAG builds, systemd daemons, smoke tests, and runbook.",
 };
 
 export default function StackDocsIndexPage() {

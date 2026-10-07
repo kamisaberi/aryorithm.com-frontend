@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
@@ -27,9 +28,35 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aryorithm Technologies — Deterministic Sub-Millisecond Active Defense for Sovereign Infrastructure",
+  metadataBase: new URL("https://aryorithm.com"),
+  title: "Aryorithm — Active Defense for Sovereign Infrastructure",
   description:
     "Aryorithm Technologies delivers autonomous cyber-physical active defense: 0.84µs eBPF/XDP kernel mitigation, libxinfer across 15 silicon backends, and air-gapped collective immunity via Sentinel Nexus.",
+  openGraph: {
+    title: "Aryorithm — Active Defense for Sovereign Infrastructure",
+    description:
+      "Autonomous cyber-physical active defense: 0.84µs eBPF/XDP kernel mitigation, libxinfer across 15 silicon backends, and air-gapped collective immunity via Sentinel Nexus.",
+    url: "/",
+    siteName: "Aryorithm Technologies",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Aryorithm — Active Defense for Sovereign Infrastructure",
+    description:
+      "Autonomous cyber-physical active defense: 0.84µs eBPF/XDP kernel mitigation, libxinfer across 15 silicon backends, and air-gapped collective immunity.",
+  },
+};
+
+const ORG_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Aryorithm Technologies",
+  url: "https://aryorithm.com",
+  description:
+    "Deterministic sub-millisecond active defense for sovereign infrastructure: cyber-physical security, autonomous edge AI, and heterogeneous silicon runtime engineering.",
+  email: "defense-poc@aryorithm.com",
 };
 
 export const viewport = {
@@ -40,7 +67,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`scroll-smooth ${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-void font-sans text-ink antialiased selection:bg-cyan/25">
-        <PageLoader />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
+        />
+        <Suspense fallback={null}>
+          <PageLoader />
+        </Suspense>
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

@@ -8,7 +8,7 @@ import { FastPathDiagram, IdentityEngine, RingVisual } from "@/components/simula
 import { RING_SNIPPET } from "@/data/blackbox";
 
 export const metadata: Metadata = {
-  title: "Blackbox Essential (libblackbox.so) — In-Kernel Active Defense | Aryorithm",
+  title: "Blackbox Essential — In-Kernel Active Defense | Aryorithm",
   description:
     "blackbox-essential (libblackbox.so): eBPF/XDP wire-speed mitigation in 0.84µs, lock-free SPMC ring at 1.25M EPS, TPM 2.0 silicon root of trust.",
 };

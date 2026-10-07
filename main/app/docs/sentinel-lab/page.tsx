@@ -7,7 +7,7 @@ import { allDocs, sectionLabel } from "@/lib/sentinel-lab-docs";
 export const metadata: Metadata = {
   title: "Sentinel-Lab Documentation | Aryorithm",
   description:
-    "Complete documentation for sentinel-lab: setup, SLAB protocol, dual-silicon testbed, preprint, 10-minute harness, benchmarks, thesis guides, tutorials, troubleshooting.",
+    "sentinel-lab docs: setup, SLAB protocol, dual-silicon testbed, 10-minute harness, benchmarks, and thesis guides.",
 };
 
 export default function LabDocsIndexPage() {
