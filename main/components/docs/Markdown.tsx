@@ -1,6 +1,33 @@
 import React from "react";
+import CodeBlock from "./CodeBlock";
 
-function inline(text: string, keyPrefix: string): React.ReactNode[] {
+/** Resolve a markdown href to a site route.
+ *
+ *  - external / mailto / pure-fragment links pass through untouched;
+ *  - a trailing `.md` is stripped (routes are extensionless);
+ *  - relative links resolve against the source file's directory route,
+ *    so `./guide.md` works no matter which URL depth renders the page.
+ */
+function resolveHref(href: string, basePath: string): string {
+  if (/^(https?:|mailto:|tel:|#)/.test(href)) return href;
+  const cut = href.search(/[#?]/);
+  const frag = cut >= 0 ? href.slice(cut) : "";
+  let p = cut >= 0 ? href.slice(0, cut) : href;
+  if (p.endsWith(".md")) p = p.slice(0, -3);
+  if (!p.startsWith("/")) {
+    const base = basePath.replace(/\/+$/, "");
+    p = `${base}/${p}`;
+  }
+  const stack: string[] = [];
+  for (const seg of p.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") stack.pop();
+    else stack.push(seg);
+  }
+  return `/${stack.join("/")}${frag}`;
+}
+
+function inline(text: string, keyPrefix: string, basePath: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
   let last = 0;
@@ -14,14 +41,20 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
     } else if (tok.startsWith("`")) {
       parts.push(<code key={`${keyPrefix}-${i++}`} className="rounded bg-void px-1 py-0.5 font-mono text-[12px] text-kernel">{tok.slice(1, -1)}</code>);
     } else {
-      const label = tok.slice(1, tok.indexOf("]"));
-      const href = tok.slice(tok.indexOf("(") + 1, -1);
-      const external = /^https?:\/\//.test(href);
-      parts.push(
-        <a key={`${keyPrefix}-${i++}`} href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className="text-cyan hover:underline">
-          {label}
-        </a>
-      );
+      // Link token: split on "](" so labels may contain parentheses.
+      const sep = tok.indexOf("](");
+      if (sep < 0) {
+        parts.push(tok);
+      } else {
+        const label = tok.slice(1, sep);
+        const href = resolveHref(tok.slice(sep + 2, -1), basePath);
+        const external = /^https?:\/\//.test(href);
+        parts.push(
+          <a key={`${keyPrefix}-${i++}`} href={href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})} className="text-cyan hover:underline">
+            {label}
+          </a>
+        );
+      }
     }
     last = m.index + tok.length;
   }
@@ -29,7 +62,7 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
   return parts;
 }
 
-function Table({ rows }: { rows: string[][] }) {
+function Table({ rows, basePath }: { rows: string[][]; basePath: string }) {
   const [head, ...body] = rows;
   return (
     <div className="overflow-x-auto rounded-md border border-hairline">
@@ -43,7 +76,7 @@ function Table({ rows }: { rows: string[][] }) {
           {body.map((r, i) => (
             <tr key={i} className="border-b border-hairline/60 last:border-0">
               {r.map((c, j) => (
-                <td key={j} className={`px-4 py-2.5 ${j === 0 ? "font-mono text-[11.5px] text-ink" : "text-muted"}`}>{inline(c, `t${i}-${j}`)}</td>
+                <td key={j} className={`px-4 py-2.5 ${j === 0 ? "font-mono text-[11.5px] text-ink" : "text-muted"}`}>{inline(c, `t${i}-${j}`, basePath)}</td>
               ))}
             </tr>
           ))}
@@ -62,7 +95,7 @@ function isSep(line: string): boolean {
   return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c));
 }
 
-export default function Markdown({ source }: { source: string }) {
+export default function Markdown({ source, basePath = "" }: { source: string; basePath?: string }) {
   const lines = source.split("\n");
   const out: React.ReactNode[] = [];
   let i = 0;
@@ -73,14 +106,13 @@ export default function Markdown({ source }: { source: string }) {
 
   const flushFence = () => {
     const code = fenceBuf.join("\n");
+    const lang = fenceLang;
     out.push(
       <div key={key++} className="overflow-hidden rounded-md border border-hairline bg-panel">
-        {fenceLang && (
-          <div className="border-b border-hairline bg-void/70 px-4 py-2 font-mono text-[10.5px] text-muted">{fenceLang}</div>
+        {lang && (
+          <div className="border-b border-hairline bg-void/70 px-4 py-2 font-mono text-[10.5px] text-muted">{lang}</div>
         )}
-        <pre className="overflow-x-auto bg-void p-4 font-mono text-[11.5px] leading-[1.75] text-ink">
-          <code>{code}</code>
-        </pre>
+        <CodeBlock code={code} lang={lang} />
       </div>
     );
     fenceBuf = [];
@@ -115,7 +147,7 @@ export default function Markdown({ source }: { source: string }) {
             ? "mt-2 font-display text-[19px] font-bold text-ink"
             : "mt-1 font-display text-[15px] font-bold text-ink";
       const Tag = level === 1 ? "h1" : level === 2 ? "h2" : "h3";
-      out.push(<Tag key={key++} className={cls}>{inline(text, `h${key}`)}</Tag>);
+      out.push(<Tag key={key++} className={cls}>{inline(text, `h${key}`, basePath)}</Tag>);
       i++;
       continue;
     }
@@ -129,7 +161,7 @@ export default function Markdown({ source }: { source: string }) {
       out.push(
         <div key={key++} className={`rounded-md border px-4 py-3 text-[12.5px] leading-relaxed ${draft ? "border-telemetry/40 bg-telemetry/[0.06] text-muted" : "border-hairline bg-panel text-muted"}`}>
           {quote.map((q, qi) => (
-            <p key={qi}>{inline(q, `q${key}-${qi}`)}</p>
+            <p key={qi}>{inline(q, `q${key}-${qi}`, basePath)}</p>
           ))}
         </div>
       );
@@ -142,7 +174,7 @@ export default function Markdown({ source }: { source: string }) {
         rows.push(splitRow(lines[i]));
         i++;
       }
-      out.push(<Table key={key++} rows={rows} />);
+      out.push(<Table key={key++} rows={rows} basePath={basePath} />);
       continue;
     }
     if (/^\s*[-*]\s+/.test(line)) {
@@ -156,7 +188,7 @@ export default function Markdown({ source }: { source: string }) {
           {items.map((it, ii) => (
             <li key={ii} className="flex gap-2 text-[13px] leading-[1.8] text-muted">
               <span className="text-cyan">·</span>
-              <span>{inline(it, `b${key}-${ii}`)}</span>
+              <span>{inline(it, `b${key}-${ii}`, basePath)}</span>
             </li>
           ))}
         </ul>
@@ -172,7 +204,7 @@ export default function Markdown({ source }: { source: string }) {
       out.push(
         <ol key={key++} className="list-decimal space-y-1.5 pl-6">
           {items.map((it, ii) => (
-            <li key={ii} className="text-[13px] leading-[1.8] text-muted">{inline(it, `n${key}-${ii}`)}</li>
+            <li key={ii} className="text-[13px] leading-[1.8] text-muted">{inline(it, `n${key}-${ii}`, basePath)}</li>
           ))}
         </ol>
       );
@@ -188,7 +220,7 @@ export default function Markdown({ source }: { source: string }) {
     out.push(
       <p key={key++} className="text-[13.5px] leading-[1.85] text-muted">
         {para.map((p, pi) => (
-          <React.Fragment key={pi}>{inline(p, `p${key}-${pi}`)}</React.Fragment>
+          <React.Fragment key={pi}>{inline(p, `p${key}-${pi}`, basePath)}</React.Fragment>
         ))}
       </p>
     );

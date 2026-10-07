@@ -25,6 +25,8 @@ export function generateMetadata({ params }: { params: { slug: string[] } }): Me
 export default function XinferDocPage({ params }: { params: { slug: string[] } }) {
   const doc = readDoc(params.slug);
   if (!doc) notFound();
+  const docDir = doc.file.split("/").slice(0, -1).join("/");
+  const docBase = `/docs/xinfer-essential${docDir ? `/${docDir}` : ""}`;
 
   const docs = allDocs().filter((d) => d.slug.length > 0);
   const idx = docs.findIndex((d) => d.slug.join("/") === params.slug.join("/"));
@@ -58,7 +60,7 @@ export default function XinferDocPage({ params }: { params: { slug: string[] } }
       <section id="doc-body" className="mx-auto max-w-[1400px] px-5 py-10 lg:px-8">
         <div className="flex flex-col gap-8 lg:flex-row">
           <article className="min-w-0 flex-1 rounded-md border border-hairline bg-panel p-6 sm:p-8">
-            <Markdown source={doc.body} />
+            <Markdown source={doc.body} basePath={docBase} />
             <div className="mt-8 flex flex-wrap justify-between gap-3 border-t border-hairline pt-5">
               <div className="min-w-0 flex-1">
                 {prev && (

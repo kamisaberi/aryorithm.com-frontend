@@ -36,7 +36,7 @@ export interface DocsApi {
   root: string;
   sections: DocsSection[];
   allDocs: () => DocEntry[];
-  readDoc: (slug: string[]) => { title: string; body: string } | null;
+  readDoc: (slug: string[]) => { title: string; body: string; file: string } | null;
   sectionLabel: (slug: string) => string;
 }
 
@@ -75,14 +75,18 @@ export function createDocsApi(rootDir: string, sections: DocsSection[]): DocsApi
     return entries;
   }
 
-  function readDoc(slug: string[]): { title: string; body: string } | null {
+  function readDoc(slug: string[]): { title: string; body: string; file: string } | null {
+    // Tolerate bookmarked /docs/…/*.md URLs — routes are extensionless.
+    if (slug.length > 0 && slug[slug.length - 1].endsWith(".md")) {
+      slug = [...slug.slice(0, -1), slug[slug.length - 1].slice(0, -3)];
+    }
     if (slug.length === 0) {
       const full = path.join(root, "index.md");
       try {
         const raw = fs.readFileSync(full, "utf8");
         const titleMatch = raw.match(/^#\s+(.+)$/m);
         const title = titleMatch ? titleMatch[1].trim() : "Documentation Home";
-        return { title, body: raw.replace(/^#\s+.+$/m, "").trim() };
+        return { title, body: raw.replace(/^#\s+.+$/m, "").trim(), file: "index.md" };
       } catch {
         return null;
       }
@@ -99,7 +103,7 @@ export function createDocsApi(rootDir: string, sections: DocsSection[]): DocsApi
         const raw = fs.readFileSync(full, "utf8");
         const titleMatch = raw.match(/^#\s+(.+)$/m);
         const title = titleMatch ? titleMatch[1].trim() : slug[slug.length - 1];
-        return { title, body: raw.replace(/^#\s+.+$/m, "").trim() };
+        return { title, body: raw.replace(/^#\s+.+$/m, "").trim(), file: rel };
       } catch {
         continue;
       }
