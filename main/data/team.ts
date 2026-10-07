@@ -376,6 +376,22 @@ export const DIRECTORY: DirectoryMember[] = [
     metric: ["Monitoring systems", "real-time"],
   },
   {
+    slug: "alireza-malekzadeh-lashkaryani",
+    name: "Alireza Malekzadeh Lashkaryani",
+    title: "Security Data Scientist",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "B.Sc. Computer Engineering (Azad); M.Sc. Cyber Security candidate (Macquarie)",
+    email: "alireza.malekzadeh@aryorithm.com",
+    github: "https://github.com/AlirezaMz10",
+    badges: ["Cyber security", "Machine learning", "Web scraping", "NumPy"],
+    bio: [
+      "Alireza Malekzadeh Lashkaryani brings six years of hands-on experience and a bachelor's in computer engineering, and is currently studying for a Master of Cyber Security — certified across Python, Java, HTML, CSS, and WordPress, with expertise spanning cyber security, data and web scraping, machine learning, data science, and database design.",
+      "At Aryorithm, Alireza applies that range to threat-data science: scraping and structuring intelligence sources, modeling with machine learning and NumPy, and designing the data stores behind detection analytics — valuing collaboration, leadership, and continuous learning.",
+    ],
+    metric: ["Hands-on experience", "6 yrs"],
+  },
+  {
     slug: "farzin-behboudi",
     name: "Farzin Behboudi",
     title: "Full-Stack Developer (Web Applications)",
