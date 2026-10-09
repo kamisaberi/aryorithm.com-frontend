@@ -13,6 +13,7 @@ from app.models.range import DigitalTwin, AttackReplay, ResilienceScore, RangeIn
 from app.models.settings import APIKey, Webhook, BillingRecord, AuditLog
 from app.models.subscription import SubscriptionPlan, PlanEntitlement
 from app.models.license import License
+from app.models.hub import HubAuthor, HubPlugin, HubPluginVersion, HubStar, HubApiToken
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     "RangeInstance", "ResilienceEvaluation", "MDRIncident", "MDRMessage", "EmergencyDispatch",
     "APIKey", "Webhook", "BillingRecord", "AuditLog",
     "SubscriptionPlan", "PlanEntitlement", "License",
+    "HubAuthor", "HubPlugin", "HubPluginVersion", "HubStar", "HubApiToken",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",
 ]

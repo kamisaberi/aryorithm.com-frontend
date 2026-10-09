@@ -39,5 +39,10 @@ class Settings(BaseSettings):
     # Dev fallback: raw 32-byte private key file (also git-ignored).
     LICENSE_KEY_FILE: str = "tools/licensing/master_private.key"
 
+    # Aryorithm Hub (feature store / plugin registry) artifact vault.
+    HUB_PACKAGE_DIR: str = "storage/packages"
+    HUB_MAX_UPLOAD_BYTES: int = 104857600
+    HUB_PUBLIC_BASE: str = "https://hub.aryorithm.com"
+
 
 settings = Settings()

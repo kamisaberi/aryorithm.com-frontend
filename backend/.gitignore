@@ -23,3 +23,5 @@ build/
 # Licensing master keys — NEVER commit
 tools/licensing/*.key
 *.lic
+# Hub artifact vault — published .splugin binaries live here at runtime
+storage/packages/
