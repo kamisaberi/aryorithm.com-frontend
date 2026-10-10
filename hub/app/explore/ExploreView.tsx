@@ -183,6 +183,13 @@ export default function ExploreView() {
               ✕
             </button>
           )}
+          {loading && (
+            <span
+              className="spin-fast inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-hairline border-t-cyan"
+              role="status"
+              aria-label="Searching"
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -260,11 +267,23 @@ export default function ExploreView() {
         {/* Results stream */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-muted">
-              Showing{" "}
-              <span className="tabular font-mono text-[13px] text-ink">{data.total}</span>{" "}
-              Verified Extensions
-              {!live && <span className="ml-2 font-mono text-[10.5px] text-telemetry">(cached)</span>}
+            <p className="flex items-center gap-2.5 text-[13px] text-muted">
+              {loading && (
+                <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-cyan">
+                  <span
+                    className="spin-fast inline-block h-3 w-3 rounded-full border-2 border-hairline border-t-cyan"
+                    role="status"
+                    aria-label="Filtering extensions"
+                  />
+                  Filtering…
+                </span>
+              )}
+              <span>
+                Showing{" "}
+                <span className="tabular font-mono text-[13px] text-ink">{data.total}</span>{" "}
+                Verified Extensions
+                {!live && <span className="ml-2 font-mono text-[10.5px] text-telemetry">(cached)</span>}
+              </span>
             </p>
             {data.total_pages > 1 && (
               <div className="flex items-center gap-2 font-mono text-[11px] text-muted">

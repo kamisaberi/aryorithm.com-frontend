@@ -162,6 +162,15 @@ body {
   animation: caret-blink 1s step-end infinite;
 }
 
+@keyframes spin-fast {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin-fast {
+  animation: spin-fast 0.8s linear infinite;
+}
+
 /* --- Terminal --------------------------------------------- */
 .terminal-body {
   background:
