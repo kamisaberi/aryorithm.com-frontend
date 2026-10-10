@@ -1,0 +1,10 @@
+# dependencies
+node_modules/
+# production
+.next/
+out/
+# env (local overrides stay out of git; .env.example documents the shape)
+.env*.local
+# misc
+.DS_Store
+*.log
