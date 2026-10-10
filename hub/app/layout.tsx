@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import PageLoader from "@/components/layout/PageLoader";
+import RouteLoader from "@/components/layout/RouteLoader";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -70,9 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
         />
-        <Suspense fallback={null}>
-          <PageLoader />
-        </Suspense>
+        <RouteLoader />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

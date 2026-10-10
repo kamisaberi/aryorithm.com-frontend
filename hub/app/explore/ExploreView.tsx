@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import CopyButton from "@/components/ui/CopyButton";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
@@ -29,7 +29,6 @@ function chipLabel(key: keyof ActiveFilters, value: string): string {
 
 /** Split-view faceted catalog (§2.2). */
 export default function ExploreView() {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -51,6 +50,9 @@ export default function ExploreView() {
   const [live, setLive] = useState(false);
 
   // Mirror state into the URL so filters are shareable and chips clear cleanly.
+  // Native replaceState — NOT router.replace: router navigations would fire
+  // the global fullscreen PageLoader on every keystroke, while only the
+  // results section should show loading (skeletons + Filtering… indicator).
   useEffect(() => {
     const q = new URLSearchParams();
     if (query.trim()) q.set("q", query.trim());
@@ -60,8 +62,8 @@ export default function ExploreView() {
     if (sort !== "popular") q.set("sort", sort);
     if (page !== 1) q.set("page", String(page));
     const qs = q.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-  }, [query, filters, sort, page, pathname, router]);
+    window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+  }, [query, filters, sort, page, pathname]);
 
   useEffect(() => {
     let cancelled = false;
