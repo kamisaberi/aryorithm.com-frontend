@@ -5,9 +5,6 @@
 # *.log
 # .DS_Store
 
-
-
-
 main/node_modules/
 main/.next/
 main/out/

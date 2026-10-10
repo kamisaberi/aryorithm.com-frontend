@@ -24,4 +24,4 @@ build/
 tools/licensing/*.key
 *.lic
 # Hub artifact vault — published .splugin binaries live here at runtime
-storage/packages/
+# storage/packages/
