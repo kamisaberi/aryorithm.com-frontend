@@ -110,6 +110,7 @@ app.include_router(hub_router.plugins_router, prefix="/api/v1")
 app.include_router(hub_router.registry_router, prefix="/api/v1")
 app.include_router(hub_router.sync_router, prefix="/api/v1")
 app.include_router(hub_router.telemetry_router, prefix="/api/v1")
+app.include_router(hub_router.packages_router, prefix="/api/v1")
 
 
 @app.get("/v1/models", include_in_schema=False)

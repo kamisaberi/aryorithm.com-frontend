@@ -3,9 +3,9 @@ import Link from "next/link";
 import HeroSearch from "@/components/hub/HeroSearch";
 import Terminal from "@/components/ui/Terminal";
 import Badge from "@/components/ui/Badge";
-import PluginCard from "@/components/hub/PluginCard";
-import { hub, type PluginItem } from "@/lib/hub";
-import { FALLBACK_ITEMS } from "@/data/fallback";
+import PackageCard from "@/components/hub/PackageCard";
+import { hub, type SentinelPackage } from "@/lib/hub";
+import { FALLBACK_PACKAGES } from "@/data/packages";
 import { SECTORS } from "@/data/sectors";
 
 export const metadata: Metadata = {
@@ -16,35 +16,37 @@ export const metadata: Metadata = {
 
 export const revalidate = 300;
 
-async function getSpotlight(): Promise<{ items: PluginItem[]; live: boolean }> {
+async function getSpotlight(): Promise<{ items: SentinelPackage[]; live: boolean }> {
   try {
-    const items = await hub.featured();
+    const items = await hub.sentinelPackages();
     if (items.length > 0) return { items: items.slice(0, 4), live: true };
   } catch {
     /* fall through to offline fallback */
   }
-  return { items: FALLBACK_ITEMS.slice(0, 4), live: false };
+  return { items: FALLBACK_PACKAGES.slice(0, 4), live: false };
 }
 
 const METRICS: [string, string][] = [
-  ["Active Verified Extensions", "80+ Packages"],
-  ["Supported Silicon Targets", "15 Hardware Architectures"],
-  ["Certified Air-Gapped Modules", "100% Zero-Egress"],
-  ["Mean Fast-Path Latency", "< 0.84 µs In-Kernel SLA"],
+  ["Verified Packages", "8"],
+  ["Execution Tiers", "3 — Native / Wasm / Lua"],
+  ["Catalog Verified", "100% Ed25519 Signed"],
+  ["Fastest Latency SLA", "< 120 ns In-Kernel"],
 ];
 
 export default async function LandingPage() {
   const { items: spotlight, live } = await getSpotlight();
+  const first = spotlight[0];
+  const second = spotlight[1] ?? spotlight[0];
 
   return (
     <>
       {/* A. Hero */}
       <section className="relative overflow-hidden pt-16">
         <div className="grid-backdrop pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
-        <div className="radial-fade pointer-events-none absolute inset-0" aria-hidden="true" />
+        <div className="radial-fade pointer-events-none absolute inset-0 opacity-60" aria-hidden="true" />
         <div className="relative mx-auto max-w-[1400px] px-5 pb-14 pt-14 lg:px-8 lg:pt-20">
           <span className="inline-block rounded-md border border-kernel/30 bg-kernel/10 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.13em] text-kernel">
-            &lt; 0.84µs In-Kernel Fast Path
+            &lt; 120ns In-Kernel Fast Path
           </span>
           <h1 className="mt-5 max-w-4xl font-display text-[34px] font-bold leading-[1.08] tracking-[-0.02em] text-ink sm:text-[46px] lg:text-[54px]">
             The Open Extension Mesh for <span className="text-cyan text-glow">Cyber-Physical Edge Defense.</span>
@@ -60,8 +62,8 @@ export default async function LandingPage() {
             <Terminal
               title="hub — 1-click install"
               tabs={[
-                { id: "edge", label: "Edge CLI", command: "sentinel plugin install aryorithm/s7comm-dissector" },
-                { id: "fleet", label: "Fleet Bus", command: "nexus-ctl plugin deploy aryorithm/s7comm-dissector --fleet-wide" },
+                { id: "pkg-a", label: "Package A", command: first?.install_command ?? "" },
+                { id: "pkg-b", label: "Package B", command: second?.install_command ?? "" },
               ]}
             />
           </div>
@@ -85,7 +87,7 @@ export default async function LandingPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">
-              {"// Spotlight Curated Extensions"}
+              {"// Spotlight Verified Packages"}
             </p>
             <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">
               Mission-critical, verified, ready to deploy.
@@ -103,7 +105,7 @@ export default async function LandingPage() {
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {spotlight.map((item) => (
-            <PluginCard key={item.slug} item={item} />
+            <PackageCard key={item.slug} item={item} />
           ))}
         </div>
       </section>

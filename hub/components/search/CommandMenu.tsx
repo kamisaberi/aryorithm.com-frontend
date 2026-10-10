@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { hub, SILICON_TARGETS, type PluginItem } from "@/lib/hub";
-import { prettySilicon } from "@/lib/format";
+import { hub, type SentinelPackage } from "@/lib/hub";
 import { SDK_DOCS } from "@/data/sdkDocs";
 
 interface CommandMenuProps {
@@ -21,7 +20,7 @@ interface Row {
 /** Global spotlight menu — Cmd+K / Ctrl+K (§1.2). */
 export default function CommandMenu({ open, onClose }: CommandMenuProps) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<PluginItem[]>([]);
+  const [items, setItems] = useState<SentinelPackage[]>([]);
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -44,8 +43,8 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
     }
     const id = setTimeout(async () => {
       try {
-        const res = await hub.plugins({ q, limit: 8 });
-        setItems(res.items);
+        const res = await hub.sentinelPackages({ search: q });
+        setItems(res.slice(0, 8));
         setIndex(0);
       } catch {
         setItems([]);
@@ -59,39 +58,30 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
     const groups: { group: string; rows: Row[] }[] = [];
     if (items.length > 0) {
       groups.push({
-        group: "Top Extensions",
+        group: "Top Packages",
         rows: items.map((p) => ({
-          key: `ext-${p.slug}`,
-          label: p.title,
-          hint: `${p.category} · ${p.metrics.install_count} installs${p.author.verified ? " · ✓" : ""}`,
-          href: `/plugins/${p.slug}`,
+          key: `pkg-${p.slug}`,
+          label: p.name,
+          hint: `${p.tier_display} · ${p.latency_display}${p.verified ? " · ✓" : ""}`,
+          href: `/packages/${p.slug}`,
         })),
       });
-      const dissectors = items.filter((p) =>
-        ["industrial-ot", "energy-utilities", "healthcare-iot", "aviation-defense"].includes(p.category)
+      const protocols = Array.from(new Set(items.map((p) => p.target_protocol))).filter((proto) =>
+        proto.toLowerCase().includes(q)
       );
-      if (dissectors.length > 0) {
+      if (protocols.length > 0) {
         groups.push({
-          group: "Protocol Dissectors",
-          rows: dissectors.map((p) => ({
-            key: `proto-${p.slug}`,
-            label: p.title,
-            hint: (p.ports || []).map((x) => `Port ${x}`).join(" · ") || p.category,
-            href: `/plugins/${p.slug}`,
+          group: "Protocols",
+          rows: protocols.map((proto) => ({
+            key: `proto-${proto}`,
+            label: proto,
+            hint: "Filter catalog by protocol",
+            href: `/explore?search=${encodeURIComponent(proto)}`,
           })),
         });
       }
     }
     if (q) {
-      const silicon = SILICON_TARGETS.filter(
-        (s) => s.toLowerCase().includes(q) || prettySilicon(s).toLowerCase().includes(q)
-      ).map((s) => ({
-        key: `sil-${s}`,
-        label: prettySilicon(s),
-        hint: "Filter catalog by silicon",
-        href: `/explore?silicon=${encodeURIComponent(s)}`,
-      }));
-      if (silicon.length > 0) groups.push({ group: "Silicon Targets", rows: silicon });
       const docs = SDK_DOCS.filter(
         (d) => d.title.toLowerCase().includes(q) || d.id.includes(q.replace(/\s+/g, "-"))
       ).map((d) => ({
@@ -155,7 +145,7 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search extensions, protocols, MITRE IDs..."
+            placeholder="Search packages, protocols, sectors..."
             className="w-full bg-transparent text-[14px] text-ink placeholder:text-muted/60 focus:outline-none"
           />
           <kbd className="shrink-0 rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-muted">
@@ -166,7 +156,7 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
           {flat.length === 0 ? (
             <p className="px-3 py-6 text-center text-[13px] text-muted">
               {query.trim()
-                ? "No matches — try a protocol, runtime, or silicon target."
+                ? "No matches — try a protocol, sector, or tier."
                 : "Type to search the extension mesh."}
             </p>
           ) : (

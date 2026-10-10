@@ -1,5 +1,7 @@
 """Pydantic schemas for the Aryorithm Hub (feature store) API."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -223,3 +225,35 @@ class InstallTelemetryIn(BaseModel):
 class StarOut(BaseModel):
     starred: bool
     total_stars: int
+
+
+class SentinelPackageOut(BaseModel):
+    """Verified sentinel package record — mirrors the TypeScript
+    ``SentinelPackageRecord`` interface in HUB_PACKAGES.md field-for-field."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    slug: str
+    name: str
+    version: str
+    tier: str
+    tier_display: str
+    language: str
+    author: str
+    verified: bool
+    sector: str
+    target_protocol: str
+    default_port: int
+    latency_sla_ns: int
+    latency_display: str
+    mitigation_action: str
+    compliance_tags: list[str] = []
+    short_description: str
+    technical_details: str
+    package_file_name: str
+    package_file_size_bytes: int
+    signature_algorithm: str
+    install_command: str
+    created_at: datetime
+    updated_at: datetime

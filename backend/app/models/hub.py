@@ -138,3 +138,44 @@ class HubApiToken(Base):
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class SentinelPackage(Base):
+    """Verified sentinel extension package (`.spkg`) — the official catalog.
+
+    One row per package (version embedded, unlike the versioned plugin
+    registry). Seeded with the 8 verified starter packages; see
+    ``app/services/sentinel_packages.py``. Field-for-field with the
+    ``SentinelPackageRecord`` interface in ``HUB_PACKAGES.md``.
+    """
+
+    __tablename__ = "sentinel_packages"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    tier: Mapped[str] = mapped_column(String(16), nullable=False, index=True)  # native | wasm | lua
+    tier_display: Mapped[str] = mapped_column(String(64), nullable=False)
+    language: Mapped[str] = mapped_column(String(32), nullable=False)
+    author: Mapped[str] = mapped_column(String(128), nullable=False)
+    verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    sector: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    target_protocol: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    default_port: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    latency_sla_ns: Mapped[int] = mapped_column(Integer, nullable=False)
+    latency_display: Mapped[str] = mapped_column(String(32), nullable=False)
+    mitigation_action: Mapped[str] = mapped_column(String(32), nullable=False, default="KERNEL_DROP")
+    compliance_tags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    short_description: Mapped[str] = mapped_column(Text, nullable=False)
+    technical_details: Mapped[str] = mapped_column(Text, nullable=False)
+    package_file_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    package_file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    signature_algorithm: Mapped[str] = mapped_column(String(32), nullable=False, default="Ed25519")
+    install_command: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )

@@ -7,45 +7,25 @@ import Badge from "@/components/ui/Badge";
 import CopyButton from "@/components/ui/CopyButton";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import FilterRail, { type ActiveFilters } from "@/components/hub/FilterRail";
-import PluginCard from "@/components/hub/PluginCard";
-import { hub, SORTS, type Facets, type PaginatedPlugins, type PluginItem } from "@/lib/hub";
-import { compact, latency, prettyCategory, prettyRuntime, prettySilicon, prettyTier } from "@/lib/format";
-import { FALLBACK_FACETS, FALLBACK_ITEMS } from "@/data/fallback";
+import PackageCard from "@/components/hub/PackageCard";
+import { hub, type SentinelPackage } from "@/lib/hub";
+import { prettyPackageTier, FALLBACK_PACKAGES } from "@/data/packages";
+import { bytes } from "@/lib/format";
 
-const FALLBACK_PAGE: PaginatedPlugins = {
-  total: FALLBACK_ITEMS.length,
-  page: 1,
-  limit: 20,
-  total_pages: 1,
-  items: FALLBACK_ITEMS,
-};
-
-function chipLabel(key: keyof ActiveFilters, value: string): string {
-  if (key === "category") return prettyCategory(value);
-  if (key === "runtime") return prettyRuntime(value);
-  if (key === "silicon") return prettySilicon(value);
-  return prettyTier(value);
-}
-
-/** Split-view faceted catalog (§2.2). */
+/** Split-view verified-packages catalog (§2.2, sentinel-packages model). */
 export default function ExploreView() {
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const [query, setQuery] = useState(params.get("q") ?? "");
+  const [query, setQuery] = useState(params.get("q") ?? params.get("search") ?? "");
   const [filters, setFilters] = useState<ActiveFilters>({
-    category: params.get("category") ?? "all",
-    runtime: params.get("runtime") ?? "all",
-    silicon: params.get("silicon") ?? "all",
+    sector: params.get("sector") ?? "all",
     tier: params.get("tier") ?? "all",
   });
-  const [sort, setSort] = useState(params.get("sort") ?? "popular");
-  const [page, setPage] = useState(Number(params.get("page") ?? 1) || 1);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const [data, setData] = useState<PaginatedPlugins>(FALLBACK_PAGE);
-  const [facets, setFacets] = useState<Facets | null>(null);
+  const [data, setData] = useState<SentinelPackage[]>(FALLBACK_PACKAGES);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
 
@@ -59,41 +39,19 @@ export default function ExploreView() {
     (Object.keys(filters) as (keyof ActiveFilters)[]).forEach((k) => {
       if (filters[k] !== "all") q.set(k, filters[k]);
     });
-    if (sort !== "popular") q.set("sort", sort);
-    if (page !== 1) q.set("page", String(page));
     const qs = q.toString();
     window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
-  }, [query, filters, sort, page, pathname]);
-
-  useEffect(() => {
-    let cancelled = false;
-    hub
-      .facets()
-      .then((f) => {
-        if (!cancelled) setFacets(f);
-      })
-      .catch(() => {
-        if (!cancelled) setFacets(FALLBACK_FACETS);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [query, filters, pathname]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     const id = setTimeout(async () => {
       try {
-        const res = await hub.plugins({
-          q: query.trim() || undefined,
-          category: filters.category,
-          runtime: filters.runtime,
-          silicon: filters.silicon,
-          tier: filters.tier,
-          sort,
-          page,
-          limit: 12,
+        const res = await hub.sentinelPackages({
+          search: query.trim() || undefined,
+          sector: filters.sector !== "all" ? filters.sector : undefined,
+          tier: filters.tier !== "all" ? filters.tier : undefined,
         });
         if (!cancelled) {
           setData(res);
@@ -101,7 +59,7 @@ export default function ExploreView() {
         }
       } catch {
         if (!cancelled) {
-          setData(FALLBACK_PAGE);
+          setData(FALLBACK_PACKAGES);
           setLive(false);
         }
       } finally {
@@ -112,23 +70,22 @@ export default function ExploreView() {
       cancelled = true;
       clearTimeout(id);
     };
-  }, [query, filters, sort, page]);
+  }, [query, filters]);
 
   const applyFilters = useCallback((next: ActiveFilters) => {
     setFilters(next);
-    setPage(1);
   }, []);
 
   const chips = useMemo(() => {
     const out: { key: string; label: string; clear: () => void }[] = [];
     if (query.trim()) {
-      out.push({ key: "q", label: `"${query.trim()}"`, clear: () => { setQuery(""); setPage(1); } });
+      out.push({ key: "q", label: `"${query.trim()}"`, clear: () => setQuery("") });
     }
     (Object.keys(filters) as (keyof ActiveFilters)[]).forEach((k) => {
       if (filters[k] !== "all") {
         out.push({
           key: k,
-          label: chipLabel(k, filters[k]),
+          label: k === "tier" ? prettyPackageTier(filters[k]) : filters[k],
           clear: () => applyFilters({ ...filters, [k]: "all" }),
         });
       }
@@ -138,25 +95,14 @@ export default function ExploreView() {
 
   const clearAll = () => {
     setQuery("");
-    setFilters({ category: "all", runtime: "all", silicon: "all", tier: "all" });
-    setSort("popular");
-    setPage(1);
+    setFilters({ sector: "all", tier: "all" });
   };
 
-  const activeFilterCount =
-    chips.length + (sort !== "popular" ? 1 : 0);
-
-  const rail = (
-    <FilterRail
-      facets={facets ?? FALLBACK_FACETS}
-      active={filters}
-      onChange={applyFilters}
-    />
-  );
+  const rail = <FilterRail active={filters} onChange={applyFilters} />;
 
   return (
     <div className="mx-auto max-w-[1400px] px-5 pb-16 pt-24 lg:px-8">
-      {/* Search + sort bar */}
+      {/* Search + view bar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="flex flex-1 items-center gap-3 rounded-md border border-hairline bg-panel px-4 py-3 transition-colors focus-within:border-cyan/60">
           <span className="font-mono text-[15px] text-cyan" aria-hidden="true">
@@ -164,21 +110,15 @@ export default function ExploreView() {
           </span>
           <input
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search extensions, protocols, CVEs, authors..."
-            aria-label="Search extensions"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search packages, protocols, sectors..."
+            aria-label="Search packages"
             className="w-full bg-transparent text-[14px] text-ink placeholder:text-muted/60 focus:outline-none"
           />
           {query && (
             <button
               type="button"
-              onClick={() => {
-                setQuery("");
-                setPage(1);
-              }}
+              onClick={() => setQuery("")}
               aria-label="Clear search"
               className="font-mono text-[13px] text-muted hover:text-cyan"
             >
@@ -199,7 +139,7 @@ export default function ExploreView() {
             onClick={() => setDrawerOpen(true)}
             className="rounded-md border border-hairline px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-muted lg:hidden"
           >
-            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            Filters{chips.length > 0 ? ` (${chips.length})` : ""}
           </button>
           <div className="flex rounded-md border border-hairline p-0.5" role="group" aria-label="View">
             {(["grid", "list"] as const).map((v) => (
@@ -216,23 +156,6 @@ export default function ExploreView() {
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-2 font-mono text-[11px] text-muted">
-            Sort:
-            <select
-              value={sort}
-              onChange={(e) => {
-                setSort(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-hairline bg-panel px-2.5 py-2 text-[12px] text-ink focus:border-cyan/60 focus:outline-none"
-            >
-              {SORTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
       </div>
 
@@ -275,54 +198,31 @@ export default function ExploreView() {
                   <span
                     className="spin-fast inline-block h-3 w-3 rounded-full border-2 border-hairline border-t-cyan"
                     role="status"
-                    aria-label="Filtering extensions"
+                    aria-label="Filtering packages"
                   />
                   Filtering…
                 </span>
               )}
               <span>
                 Showing{" "}
-                <span className="tabular font-mono text-[13px] text-ink">{data.total}</span>{" "}
-                Verified Extensions
+                <span className="tabular font-mono text-[13px] text-ink">{data.length}</span>{" "}
+                Verified Packages
                 {!live && <span className="ml-2 font-mono text-[10.5px] text-telemetry">(cached)</span>}
               </span>
             </p>
-            {data.total_pages > 1 && (
-              <div className="flex items-center gap-2 font-mono text-[11px] text-muted">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded border border-hairline px-2.5 py-1 disabled:opacity-40 hover:border-cyan/50 hover:text-cyan"
-                >
-                  ←
-                </button>
-                <span className="tabular">
-                  {page} / {data.total_pages}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= data.total_pages}
-                  onClick={() => setPage((p) => Math.min(data.total_pages, p + 1))}
-                  className="rounded border border-hairline px-2.5 py-1 disabled:opacity-40 hover:border-cyan/50 hover:text-cyan"
-                >
-                  →
-                </button>
-              </div>
-            )}
           </div>
 
           {loading ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <SkeletonGrid count={6} />
             </div>
-          ) : data.items.length === 0 ? (
+          ) : data.length === 0 ? (
             <div className="mt-4 rounded-md border border-hairline bg-panel px-6 py-14 text-center">
               <p className="font-mono text-[28px] text-muted" aria-hidden="true">
                 ⌕
               </p>
               <p className="mt-3 font-display text-[17px] font-bold text-ink">
-                No extensions match the selected combination of filters.
+                No packages match the selected combination of filters.
               </p>
               <button
                 type="button"
@@ -334,34 +234,27 @@ export default function ExploreView() {
             </div>
           ) : view === "grid" ? (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {data.items.map((item) => (
-                <PluginCard key={item.slug} item={item} />
+              {data.map((item) => (
+                <PackageCard key={item.slug} item={item} />
               ))}
             </div>
           ) : (
             <div className="mt-4 divide-y divide-hairline/70 overflow-hidden rounded-md border border-hairline bg-panel">
-              {data.items.map((item) => (
+              {data.map((item) => (
                 <div key={item.slug} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-3">
                   <Link
-                    href={`/plugins/${item.slug}`}
+                    href={`/packages/${item.slug}`}
                     className="min-w-[200px] flex-1 font-display text-[13.5px] font-bold text-ink hover:text-cyan"
                   >
-                    {item.title}
+                    {item.name}
                   </Link>
-                  <span className="font-mono text-[10.5px] text-muted">
-                    {prettyRuntime(item.runtime)}
-                  </span>
-                  <span className="font-mono text-[10.5px] text-muted">
-                    {latency(item.metrics.fast_path_latency_us)}
-                  </span>
-                  <span className="tabular font-mono text-[11px] text-ink">
-                    {compact(item.metrics.install_count)} DLs
-                  </span>
-                  <Badge variant="muted">★ {item.metrics.stars}</Badge>
-                  <CopyButton
-                    text={`sentinel plugin install ${item.slug}:${item.active_version?.version ?? "latest"}`}
-                    label="Install"
-                  />
+                  <span className="font-mono text-[10.5px] text-muted">{item.tier_display}</span>
+                  <span className="tabular font-mono text-[11px] text-kernel">{item.latency_display}</span>
+                  <span className="font-mono text-[11px] text-ink">{bytes(item.package_file_size_bytes)}</span>
+                  <Badge variant={item.verified ? "kernel" : "muted"}>
+                    {item.verified ? "✓ Verified" : "Unverified"}
+                  </Badge>
+                  <CopyButton text={item.install_command} label="Install" />
                 </div>
               ))}
             </div>
@@ -381,7 +274,7 @@ export default function ExploreView() {
           >
             <div className="mb-3 flex items-center justify-between">
               <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
-                Filters{activeFilterCount > 0 ? ` (${activeFilterCount} Active)` : ""}
+                Filters{chips.length > 0 ? ` (${chips.length} Active)` : ""}
               </p>
               <button
                 type="button"

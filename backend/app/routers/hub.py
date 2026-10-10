@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_admin, get_current_user
-from app.models.hub import HubApiToken, HubAuthor, HubPlugin, HubPluginVersion, HubStar
+from app.models.hub import HubApiToken, HubAuthor, HubPlugin, HubPluginVersion, HubStar, SentinelPackage
 from app.models.user import User
 from app.schemas.hub import (
     AirgapBundleRequest,
@@ -45,6 +45,7 @@ from app.schemas.hub import (
     PublishOut,
     ReadmeOut,
     SecurityOut,
+    SentinelPackageOut,
     StarOut,
     TokenCreateOut,
     TokenCreateRequest,
@@ -65,6 +66,7 @@ plugins_router = APIRouter(prefix="/plugins", tags=["Hub — Catalog"])
 registry_router = APIRouter(prefix="/registry", tags=["Hub — Registry"])
 sync_router = APIRouter(prefix="/sync", tags=["Hub — Sync"])
 telemetry_router = APIRouter(prefix="/telemetry", tags=["Hub — Telemetry"])
+packages_router = APIRouter(prefix="/hub/packages", tags=["Hub — Sentinel Packages"])
 
 _CAP_JUSTIFICATIONS = {
     "CAP_NET_ADMIN": "Required to attach eBPF/XDP driver hooks for wire-speed drop.",
@@ -1017,3 +1019,84 @@ async def record_install(
     plugin.silicon_counts = counts
     await db.flush()
     return {"status": "accepted"}
+
+
+# ---------------------------------------------------------------------------
+# sentinel packages — verified `.spkg` catalog (public, no auth)
+# ---------------------------------------------------------------------------
+async def _get_package_or_404(db: AsyncSession, slug: str) -> SentinelPackage:
+    from app.services import sentinel_packages as spkg
+
+    await spkg.ensure_seed(db)
+    row = (await db.execute(select(SentinelPackage).where(SentinelPackage.slug == slug))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Package '{slug}' not found")
+    return row
+
+
+@packages_router.get("", response_model=list[SentinelPackageOut])
+@packages_router.get("/", response_model=list[SentinelPackageOut], include_in_schema=False)
+async def list_packages(
+    sector: str | None = Query(default=None, description="Case-insensitive substring match on sector"),
+    tier: str | None = Query(default=None, description="Exact match: native | wasm | lua"),
+    search: str | None = Query(default=None, description="Match across name, slug, short description, protocol"),
+    db: AsyncSession = Depends(get_db),
+):
+    """List verified sentinel packages with optional filters (public)."""
+    from sqlalchemy import or_
+
+    from app.services import sentinel_packages as spkg
+
+    await spkg.ensure_seed(db)
+    if tier is not None and tier not in spkg.PACKAGE_TIERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown tier '{tier}'. Use one of: {', '.join(spkg.PACKAGE_TIERS)}.",
+        )
+    stmt = select(SentinelPackage).order_by(SentinelPackage.slug)
+    if tier is not None:
+        stmt = stmt.where(SentinelPackage.tier == tier)
+    if sector is not None and sector.strip():
+        stmt = stmt.where(SentinelPackage.sector.ilike(f"%{sector.strip()}%"))
+    if search is not None and search.strip():
+        needle = f"%{search.strip()}%"
+        stmt = stmt.where(or_(
+            SentinelPackage.name.ilike(needle),
+            SentinelPackage.slug.ilike(needle),
+            SentinelPackage.short_description.ilike(needle),
+            SentinelPackage.target_protocol.ilike(needle),
+            SentinelPackage.sector.ilike(needle),
+        ))
+    rows = (await db.execute(stmt)).scalars().all()
+    return [SentinelPackageOut.model_validate(r) for r in rows]
+
+
+@packages_router.get("/{slug}", response_model=SentinelPackageOut)
+async def get_package(slug: str, db: AsyncSession = Depends(get_db)):
+    """Full technical details + compliance tags for one package (public)."""
+    row = await _get_package_or_404(db, slug)
+    return SentinelPackageOut.model_validate(row)
+
+
+@packages_router.get("/{slug}/download")
+async def download_package(slug: str, db: AsyncSession = Depends(get_db)):
+    """Stream the `.spkg` file binary (public).
+
+    Seed packages serve deterministic reproducible bytes (header +
+    zero padding to ``package_file_size_bytes``) so filename, size and
+    checksum stay self-consistent until real binaries are published
+    out-of-band.
+    """
+    from app.services import sentinel_packages as spkg
+
+    row = await _get_package_or_404(db, slug)
+    blob = spkg.build_spkg_bytes(row)
+    digest = spkg.spkg_sha256(row)
+    return StreamingResponse(
+        iter([blob]),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{row.package_file_name}"',
+            "X-Checksum-SHA256": digest,
+        },
+    )

@@ -126,6 +126,42 @@ export interface UpdateAvailable {
   download_url: string;
 }
 
+/* ---------- Sentinel packages (verified `.spkg` catalog) ---------- */
+export interface SentinelPackage {
+  id: string;
+  slug: string;
+  name: string;
+  version: string;
+  tier: string;
+  tier_display: string;
+  language: string;
+  author: string;
+  verified: boolean;
+  sector: string;
+  target_protocol: string;
+  default_port: number;
+  latency_sla_ns: number;
+  latency_display: string;
+  mitigation_action: string;
+  compliance_tags: string[];
+  short_description: string;
+  technical_details: string;
+  package_file_name: string;
+  package_file_size_bytes: number;
+  signature_algorithm: string;
+  install_command: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const PACKAGE_TIERS = ["native", "wasm", "lua"] as const;
+
+export interface PackageQuery {
+  sector?: string;
+  tier?: string;
+  search?: string;
+}
+
 /* ---------- Filter vocabularies (mirror backend) ---------- */
 export const CATEGORIES = [
   "industrial-ot",
@@ -210,4 +246,14 @@ export const hub = {
     api.download("/sync/airgap-bundle", body),
   recordInstall: (body: { slug: string; version?: string; silicon_target?: string }) =>
     api.post<{ status: string }>("/telemetry/install", body),
+  sentinelPackages: (params?: PackageQuery) => {
+    const q = new URLSearchParams();
+    if (params?.sector) q.set("sector", params.sector);
+    if (params?.tier) q.set("tier", params.tier);
+    if (params?.search) q.set("search", params.search);
+    const qs = q.toString();
+    return api.get<SentinelPackage[]>(`/hub/packages${qs ? `?${qs}` : ""}`);
+  },
+  sentinelPackage: (slug: string) =>
+    api.get<SentinelPackage>(`/hub/packages/${encodeURIComponent(slug)}`),
 };

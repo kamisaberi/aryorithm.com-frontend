@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const PILLS = [
-  { label: "All Categories", href: "/explore" },
-  { label: "Industrial OT", href: "/explore?category=industrial-ot" },
-  { label: "Neural Weights", href: "/explore?category=ai-models" },
-  { label: "Wasm Rules", href: "/explore?runtime=WASM_SANDBOX" },
+  { label: "All Packages", href: "/explore" },
+  { label: "Native C++20", href: "/explore?tier=native" },
+  { label: "Wasm", href: "/explore?tier=wasm" },
+  { label: "Lua", href: "/explore?tier=lua" },
 ];
 
 /** Hero search bar + category drop-pills (§2.1A). */
@@ -30,8 +30,8 @@ export default function HeroSearch() {
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Search extensions, protocols, MITRE IDs..."
-          aria-label="Search extensions"
+          placeholder="Search packages, protocols, sectors..."
+          aria-label="Search packages"
           className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/60 focus:outline-none"
         />
         <button

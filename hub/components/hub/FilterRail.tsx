@@ -1,18 +1,13 @@
 "use client";
 
-import type { Facets } from "@/lib/hub";
-import { prettyCategory, prettyRuntime, prettySilicon, prettyTier } from "@/lib/format";
-import { CATEGORIES, RUNTIMES, SILICON_TARGETS, VERIFICATION_TIERS } from "@/lib/hub";
+import { PACKAGE_SECTOR_OPTIONS, PACKAGE_TIER_OPTIONS, prettyPackageTier } from "@/data/packages";
 
 export interface ActiveFilters {
-  category: string;
-  runtime: string;
-  silicon: string;
+  sector: string;
   tier: string;
 }
 
 interface FilterRailProps {
-  facets: Facets | null;
   active: ActiveFilters;
   onChange: (next: ActiveFilters) => void;
 }
@@ -21,14 +16,12 @@ function Group({
   title,
   options,
   active,
-  counts,
   pretty,
   onPick,
 }: {
   title: string;
   options: readonly string[];
   active: string;
-  counts: Record<string, number> | undefined;
   pretty: (v: string) => string;
   onPick: (v: string) => void;
 }) {
@@ -48,9 +41,6 @@ function Group({
                   className="h-3.5 w-3.5 shrink-0 accent-[#00E5FF]"
                 />
                 <span className={on ? "text-cyan" : "text-muted"}>{pretty(opt)}</span>
-                <span className="ml-auto font-mono text-[10.5px] text-muted/70">
-                  {counts?.[opt] ?? 0}
-                </span>
               </label>
             </li>
           );
@@ -60,8 +50,10 @@ function Group({
   );
 }
 
-/** Sticky left-hand faceted filter rail (§2.2A). Single-select per group. */
-export default function FilterRail({ facets, active, onChange }: FilterRailProps) {
+const identity = (v: string) => v;
+
+/** Sticky left-hand filter rail — sector + execution tier. Single-select per group. */
+export default function FilterRail({ active, onChange }: FilterRailProps) {
   const set = (key: keyof ActiveFilters) => (v: string) => onChange({ ...active, [key]: v });
   return (
     <div className="overflow-hidden rounded-md border border-hairline bg-panel">
@@ -69,35 +61,17 @@ export default function FilterRail({ facets, active, onChange }: FilterRailProps
         Sidebar Filters
       </div>
       <Group
-        title="Operational Domain"
-        options={CATEGORIES}
-        active={active.category}
-        counts={facets?.categories}
-        pretty={prettyCategory}
-        onPick={set("category")}
+        title="Operational Sector"
+        options={PACKAGE_SECTOR_OPTIONS}
+        active={active.sector}
+        pretty={identity}
+        onPick={set("sector")}
       />
       <Group
-        title="Runtime Environment"
-        options={RUNTIMES}
-        active={active.runtime}
-        counts={facets?.runtimes}
-        pretty={prettyRuntime}
-        onPick={set("runtime")}
-      />
-      <Group
-        title="Silicon Acceleration"
-        options={SILICON_TARGETS}
-        active={active.silicon}
-        counts={facets?.silicon_targets}
-        pretty={prettySilicon}
-        onPick={set("silicon")}
-      />
-      <Group
-        title="Verification Status"
-        options={VERIFICATION_TIERS}
+        title="Execution Tier"
+        options={PACKAGE_TIER_OPTIONS.map((t) => t.value)}
         active={active.tier}
-        counts={facets?.verification_tiers}
-        pretty={prettyTier}
+        pretty={prettyPackageTier}
         onPick={set("tier")}
       />
     </div>
