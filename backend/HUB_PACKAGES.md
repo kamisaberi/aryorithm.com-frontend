@@ -40,11 +40,39 @@ startup — no migration needed). Column-for-column with the spec SQL, except
 | `package_file_size_bytes` | `Integer` | not null |
 | `signature_algorithm` | `String(32)` | not null, default `Ed25519` |
 | `install_command` | `Text` | not null |
+| `artifact_path` | `String(512)` | backend-internal, default `""` — vault-relative `.spkg` location (NOT in the API record) |
 | `created_at` / `updated_at` | `DateTime(timezone=True)` | defaults `utcnow` / `onupdate` |
 
 Seeding: `ensure_seed()` runs on every packages endpoint (same lazy pattern
 as the plugin registry) and inserts any of the 8 seed slugs that are missing.
 It never updates or deletes — operator edits to seeded rows survive restarts.
+On first run against a pre-existing table it also migrates additively
+(`ALTER TABLE … ADD COLUMN artifact_path …`, data untouched).
+
+## 1b. `.spkg` file storage (`storage/packages/`)
+
+No `.spkg` binaries ship in git. Files materialize on disk under
+`<HUB_PACKAGE_DIR>/sentinel/<slug>/<package_file_name>`
+(`HUB_PACKAGE_DIR` defaults to `backend/storage/packages/`, git-ignored):
+
+```text
+storage/packages/
+└── sentinel/
+    ├── modbus-actuator-guard/modbus_actuator_guard.spkg   (23,552 B)
+    ├── s7comm-safety-interlock/s7comm_safety_interlock.spkg (18,432 B)
+    ├── ... (one dir per slug)
+```
+
+- `ensure_seed()` writes any missing seed files and backfills each row's
+  `artifact_path` (vault-relative, e.g.
+  `sentinel/modbus-actuator-guard/modbus_actuator_guard.spkg`).
+- `GET …/download` serves **disk bytes first**; if the file is absent it
+  regenerates the deterministic bytes and writes them through, updating the
+  row. Unwritable vaults never fail the request — synthesis is the fallback.
+- To deploy a **real** binary: overwrite the file at its recorded
+  `artifact_path` (or place it there before first request). Downloads then
+  serve it verbatim with a matching `X-Checksum-SHA256`. Never edit the
+  size/checksum situation by hand — the header always reflects served bytes.
 
 Seeded slugs: `modbus-actuator-guard`, `s7comm-safety-interlock`,
 `log4j-jndi-fastdrop`, `iec104-grid-shield`, `http-rapid-reset-shield`,
@@ -121,9 +149,11 @@ curl -OJ http://localhost:8000/api/v1/hub/packages/mavlink-uav-guardian/download
 ```
 
 `.spkg` bytes are deterministic stand-ins (`SPKG1:<id>:<version>\n` +
-zero padding to `package_file_size_bytes`) until real binaries are published
-out-of-band — same philosophy as the registry's `seed_artifact()`. Size,
-filename, and checksum header are therefore always self-consistent.
+zero padding to `package_file_size_bytes`) until real binaries are deployed
+to `<HUB_PACKAGE_DIR>/sentinel/<slug>/` — same philosophy as the registry's
+`seed_artifact()`. Size, filename, and checksum header are therefore always
+self-consistent. `GET …/download` serves the vault file when present,
+regenerating + write-through otherwise; the row's `artifact_path` tracks it.
 
 ---
 

@@ -173,6 +173,11 @@ class SentinelPackage(Base):
     package_file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     signature_algorithm: Mapped[str] = mapped_column(String(32), nullable=False, default="Ed25519")
     install_command: Mapped[str] = mapped_column(Text, nullable=False)
+    # On-disk `.spkg` location, relative to the vault root (``HUB_PACKAGE_DIR``),
+    # e.g. ``sentinel/modbus-actuator-guard/modbus_actuator_guard.spkg``.
+    # Backend-internal bookkeeping — NOT part of the API record. Empty means
+    # "not materialized yet"; the download endpoint synthesizes + backfills.
+    artifact_path: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

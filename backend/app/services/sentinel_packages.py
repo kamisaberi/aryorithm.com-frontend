@@ -4,10 +4,18 @@ The 8 records below are the official starter catalog (see HUB_PACKAGES.md).
 `ensure_seed()` inserts any missing slugs — it never deletes or overwrites,
 so operator edits survive restarts. Same lazy-seed pattern as the plugin
 registry and the plans matrix.
+
+`.spkg` files live on disk under ``<HUB_PACKAGE_DIR>/sentinel/<slug>/<file>``
+(``HUB_PACKAGE_DIR`` defaults to ``storage/packages``) and are materialized
+from the deterministic builder below; the DB stores their vault-relative
+path in ``artifact_path`` while downloads stream the file bytes.
 """
 
 import hashlib
 from datetime import datetime, timezone
+from pathlib import Path
+
+from app.config import settings
 
 PACKAGES_SEED: list[dict] = [
     {
@@ -234,6 +242,8 @@ async def ensure_seed(db) -> None:
 
     from app.models.hub import SentinelPackage
 
+    await _ensure_columns(db)
+
     existing = {
         row[0]
         for row in (await db.execute(select(SentinelPackage.slug))).all()
@@ -268,6 +278,96 @@ async def ensure_seed(db) -> None:
             updated_at=_parse_ts(spec["updated_at"]),
         ))
     await db.flush()
+
+    # Materialize `.spkg` files for seeded rows that lack them, and backfill
+    # their vault-relative paths. Runs on every call but is a no-op once
+    # files exist; unwritable vaults are skipped, never fatal.
+    from sqlalchemy import select as _select
+
+    from app.models.hub import SentinelPackage as _SentinelPackage
+
+    rows = (await db.execute(_select(_SentinelPackage))).scalars().all()
+    for row in rows:
+        if row.artifact_path and (package_dir() / row.artifact_path).is_file():
+            continue
+        try:
+            path = materialize(row)
+        except OSError:
+            continue
+        row.artifact_path = str(path.relative_to(package_dir()))
+    await db.flush()
+
+
+def package_dir() -> Path:
+    """Vault root for sentinel `.spkg` files: ``<HUB_PACKAGE_DIR>/sentinel``."""
+    return Path(settings.HUB_PACKAGE_DIR) / "sentinel"
+
+
+def artifact_relpath(slug: str, file_name: str) -> Path:
+    """Vault-relative storage path for one package file."""
+    return Path(slug) / file_name
+
+
+async def _ensure_columns(db) -> None:
+    """Additively migrate pre-existing `sentinel_packages` tables.
+
+    Older DBs (created before `artifact_path` existed) gain the column with
+    an empty default; data rows are untouched. Idempotent. Scoped to the
+    session's own engine, so tests stay isolated from the dev database.
+    """
+
+    def _migrate(sync_conn) -> None:
+        from sqlalchemy import inspect as _inspect
+        from sqlalchemy import text as _text
+
+        cols = {c["name"] for c in _inspect(sync_conn).get_columns("sentinel_packages")}
+        if "artifact_path" not in cols:
+            sync_conn.execute(_text("ALTER TABLE sentinel_packages ADD COLUMN artifact_path VARCHAR(512) DEFAULT ''"))
+
+    bind = db.bind
+    if hasattr(bind, "begin"):
+        async with bind.begin() as conn:
+            await conn.run_sync(_migrate)
+    else:  # already an AsyncConnection
+        await bind.run_sync(_migrate)
+
+
+def materialize(row) -> Path:
+    """Write a row's `.spkg` bytes to the vault; return the absolute path.
+
+    Overwrites unconditionally so the file always matches the builder output
+    for the current row values. Raises OSError if the vault is unwritable.
+    """
+    dest = package_dir() / artifact_relpath(row.slug, row.package_file_name)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(build_spkg_bytes(row))
+    return dest
+
+
+async def resolve_artifact_bytes(db, row) -> tuple[bytes, str]:
+    """Return ``(bytes, sha256_hex)`` for a download, disk-first.
+
+    Prefers the vault file when ``artifact_path`` points at a readable file;
+    otherwise synthesizes the deterministic bytes and writes them through to
+    the vault (best-effort), updating the row. Never raises on I/O trouble —
+    the synthesized bytes are always a valid fallback.
+    """
+    if row.artifact_path:
+        candidate = package_dir() / row.artifact_path
+        try:
+            if candidate.is_file():
+                blob = candidate.read_bytes()
+                return blob, hashlib.sha256(blob).hexdigest()
+        except OSError:
+            pass
+    blob = build_spkg_bytes(row)
+    try:
+        dest = materialize(row)
+        row.artifact_path = str(dest.relative_to(package_dir()))
+        await db.flush()
+    except OSError:
+        pass
+    return blob, hashlib.sha256(blob).hexdigest()
 
 
 def build_spkg_bytes(record) -> bytes:

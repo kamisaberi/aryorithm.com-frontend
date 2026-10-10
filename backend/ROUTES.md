@@ -267,7 +267,7 @@ Already covered before this pass: `tests/test_licenses.py` (subscribe/activate/p
 |---|---|---|---|
 | `GET /api/v1/hub/packages` | none (public) | `?sector=&tier=&search=` (all optional) | `200` JSON array of full records ordered by slug; `tier` must be `native\|wasm\|lua` else `400` |
 | `GET /api/v1/hub/packages/{slug}` | none (public) | — | `200` full record; `404` unknown slug |
-| `GET /api/v1/hub/packages/{slug}/download` | none (public) | — | `200 application/octet-stream` + `Content-Disposition: attachment; filename="<file>.spkg"` + `X-Checksum-SHA256`; deterministic seed bytes padded to `package_file_size_bytes`; `404` unknown slug |
+| `GET /api/v1/hub/packages/{slug}/download` | none (public) | — | `200 application/octet-stream` + `Content-Disposition: attachment; filename="<file>.spkg"` + `X-Checksum-SHA256`; serves `<HUB_PACKAGE_DIR>/sentinel/<slug>/<file>` from disk (seed-materialized; regenerated if missing); `404` unknown slug |
 
 Tests: `tests/test_hub_packages.py` (8-record seed + field fidelity, filters, 404s, download headers/size/checksum). Full guide: `HUB_PACKAGES.md` (schema, TS interface, routes, hub display mapping).
 

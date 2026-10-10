@@ -1,6 +1,7 @@
 """Sentinel packages tests (isolated in-memory SQLite, public endpoints)."""
 
 import hashlib
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -30,7 +31,9 @@ EXPECTED_SLUGS = {
 
 
 @pytest_asyncio.fixture
-async def client():
+async def client(tmp_path, monkeypatch):
+    from app.config import settings
+
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -39,6 +42,8 @@ async def client():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    # Redirect the vault so seed materialization never touches the repo.
+    monkeypatch.setattr(settings, "HUB_PACKAGE_DIR", str(tmp_path / "packages"))
 
     async def override_get_db():
         async with factory() as session:
@@ -154,3 +159,72 @@ async def test_spkg_bytes_match_record_size(client):
         assert len(rows) == 8
         for row in rows:
             assert len(spkg.build_spkg_bytes(row)) == row.package_file_size_bytes
+
+
+@needs_db
+async def test_seed_materializes_files_and_db_paths(client, tmp_path):
+    from app.config import settings as _settings
+
+    ac, factory = client
+    await ac.get("/api/v1/hub/packages")  # trigger seed
+    vault = Path(_settings.HUB_PACKAGE_DIR) / "sentinel"
+    async with factory() as db:
+        rows = (await db.execute(select(SentinelPackage))).scalars().all()
+        assert len(rows) == 8
+        for row in rows:
+            # DB points at the vault-relative file...
+            assert row.artifact_path == f"{row.slug}/{row.package_file_name}"
+            # ...which exists on disk with the recorded size.
+            disk = vault / row.artifact_path
+            assert disk.is_file(), disk
+            assert disk.stat().st_size == row.package_file_size_bytes
+    # All files live under the (test-redirected) vault, never the repo.
+    assert vault.parent == tmp_path / "packages"
+    assert len(list(vault.rglob("*.spkg"))) == 8
+
+
+@needs_db
+async def test_download_serves_disk_bytes(client, tmp_path):
+    import hashlib as _hashlib
+
+    from app.config import settings as _settings
+
+    ac, _ = client
+    await ac.get("/api/v1/hub/packages")  # trigger seed
+    target = Path(_settings.HUB_PACKAGE_DIR) / "sentinel" / "log4j-jndi-fastdrop" / "log4j_jndi_fastdrop.spkg"
+    assert target.is_file()
+    # Tamper with the stored file: download must serve disk bytes, not synthesis.
+    target.write_bytes(b"CUSTOM-BYTES")
+    r = await ac.get("/api/v1/hub/packages/log4j-jndi-fastdrop/download")
+    assert r.status_code == 200
+    assert r.content == b"CUSTOM-BYTES"
+    assert r.headers["x-checksum-sha256"] == _hashlib.sha256(b"CUSTOM-BYTES").hexdigest()
+
+    # Deleted file is regenerated on next download (write-through).
+    target.unlink()
+    r = await ac.get("/api/v1/hub/packages/log4j-jndi-fastdrop/download")
+    assert r.status_code == 200
+    assert len(r.content) == 19456
+    assert target.is_file()
+
+
+@needs_db
+async def test_migration_adds_artifact_path_to_old_table(client):
+    """Pre-existing DBs (table without `artifact_path`) gain the column."""
+    from sqlalchemy import text as _text
+
+    ac, factory = client
+    async with factory() as db:
+        # Simulate a DB created before artifact_path existed.
+        await db.execute(_text("ALTER TABLE sentinel_packages DROP COLUMN artifact_path"))
+        await db.commit()
+    r = await ac.get("/api/v1/hub/packages")
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 8
+    async with factory() as db:
+        from sqlalchemy import inspect as _inspect
+
+        async with db.bind.begin() as conn:
+            cols = {c["name"] for c in await conn.run_sync(
+                lambda sc: _inspect(sc).get_columns("sentinel_packages"))}
+        assert "artifact_path" in cols

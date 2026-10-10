@@ -1082,16 +1082,15 @@ async def get_package(slug: str, db: AsyncSession = Depends(get_db)):
 async def download_package(slug: str, db: AsyncSession = Depends(get_db)):
     """Stream the `.spkg` file binary (public).
 
-    Seed packages serve deterministic reproducible bytes (header +
-    zero padding to ``package_file_size_bytes``) so filename, size and
-    checksum stay self-consistent until real binaries are published
-    out-of-band.
+    Files live under ``<HUB_PACKAGE_DIR>/sentinel/<slug>/<file>`` and are
+    materialized at seed time; if a file is missing it is regenerated
+    deterministically (header + zero padding to ``package_file_size_bytes``)
+    so filename, size and checksum stay self-consistent.
     """
     from app.services import sentinel_packages as spkg
 
     row = await _get_package_or_404(db, slug)
-    blob = spkg.build_spkg_bytes(row)
-    digest = spkg.spkg_sha256(row)
+    blob, digest = await spkg.resolve_artifact_bytes(db, row)
     return StreamingResponse(
         iter([blob]),
         media_type="application/octet-stream",
