@@ -34,5 +34,6 @@ backend/.DS_Store
 !dashboard/.env
 !main/.env
 !backend/.env
+!backend/storage/packages/*
 
 temp.md
