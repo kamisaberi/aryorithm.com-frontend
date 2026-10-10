@@ -407,6 +407,21 @@ export const DIRECTORY: DirectoryMember[] = [
     metric: ["Hands-on experience", "6 yrs"],
   },
   {
+    slug: "mahboubeh-badieie",
+    name: "Mahboubeh Badieie",
+    title: "Data Analyst",
+    group: "systems",
+    tier: "Platform & Software Development",
+    education: "Data Analytics & Data Engineering",
+    email: "mahboubeh.badieie@aryorithm.com",
+    badges: ["SQL", "Dashboards", "Python & Pandas"],
+    bio: [
+      "Mahboubeh Badieie is a data analyst turning raw fleet telemetry into clear, decision-ready insight — building queries, dashboards, and recurring reports that track detection quality, appliance health, and rollout progress.",
+      "At Aryorithm, Mahboubeh partners with the data science team to validate model outputs against ground truth, monitor drift in production metrics, and keep every stakeholder looking at the same trusted numbers.",
+    ],
+    metric: ["Focus", "telemetry analytics"],
+  },
+  {
     slug: "farzin-behboudi",
     name: "Farzin Behboudi",
     title: "Full-Stack Developer (Web Applications)",
