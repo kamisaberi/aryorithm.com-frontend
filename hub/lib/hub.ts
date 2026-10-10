@@ -257,3 +257,84 @@ export const hub = {
   sentinelPackage: (slug: string) =>
     api.get<SentinelPackage>(`/hub/packages/${encodeURIComponent(slug)}`),
 };
+
+/* ---------- Cloud Model Vault ---------- */
+export interface VaultArtifact {
+  format: string;
+  precision: string;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  signature_ed25519: string;
+  target_hardware: string;
+  download_count: number;
+  download_url: string;
+}
+
+export interface VaultVersion {
+  version: string;
+  rollout_stage: string;
+  golden_safety_verified: boolean;
+  golden_recall_score: number | null;
+  base_accuracy: number | null;
+  p99_latency_ns: number;
+  training_dataset_summary: string;
+  release_notes: string;
+  artifacts: VaultArtifact[];
+}
+
+export interface VaultModel {
+  id: string;
+  slug: string;
+  name: string;
+  tier: string;
+  domain: string;
+  architecture: string;
+  author: string;
+  short_description: string;
+  technical_description: string;
+  input_tensor_shape: string;
+  output_tensor_shape: string;
+  versions: VaultVersion[];
+}
+
+export interface VaultCatalogItem {
+  id: string;
+  slug: string;
+  name: string;
+  domain: string;
+  latest_version: string | null;
+  available_formats: string[];
+  p99_latency_ns: number | null;
+  golden_safety_verified: boolean;
+}
+
+export interface VaultCatalog {
+  total: number;
+  models: VaultCatalogItem[];
+}
+
+export const VAULT_DOMAINS = ["NETWORK_DETECTION", "SCADA_PHYSICAL", "ENCRYPTED_TRAFFIC"] as const;
+export const VAULT_FORMATS = ["ONNX", "SAFETENSORS", "OPENVINO_IR", "TENSORRT_ENGINE", "RKNN", "HAILO_HEF"] as const;
+export const VAULT_TIERS = ["FOUNDATION", "COMMUNITY", "ENTERPRISE_CUSTOM"] as const;
+export const VAULT_STAGES = [
+  "DEVELOPMENT",
+  "SHADOW_MODE",
+  "CANARY_5_PERCENT",
+  "FLEET_PRODUCTION",
+  "DEPRECATED",
+] as const;
+
+/** Typed client over the Cloud Model Vault API. Throws ApiError on failure. */
+export const vault = {
+  catalog: (params?: { domain?: string; format?: string; tier?: string; stage?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.domain) q.set("domain", params.domain);
+    if (params?.format) q.set("format", params.format);
+    if (params?.tier) q.set("tier", params.tier);
+    if (params?.stage) q.set("stage", params.stage);
+    const qs = q.toString();
+    return api.get<VaultCatalog>(`/model-vault${qs ? `?${qs}` : ""}`);
+  },
+  detail: (slug: string) => api.get<VaultModel>(`/model-vault/${encodeURIComponent(slug)}`),
+};

@@ -1,0 +1,25 @@
+{
+  "model_id": "aryo-netflow-mae-v2",
+  "version": "v2.1.0",
+  "rollout_stage": "FLEET_PRODUCTION",
+  "golden_safety_verified": true,
+  "golden_recall_score": 1.0,
+  "base_accuracy": 0.9984,
+  "p99_latency_ns": 75000,
+  "training_dataset_summary": "CIC-IDS-2017 + UNSW-NB15 + Substation Baselines",
+  "release_notes": "Added INT8 quantization optimization for Intel OpenVINO NPU.",
+  "artifacts": [
+    {
+      "format": "ONNX",
+      "file_name": "netflow_mae_v2_int8.onnx",
+      "file_size_bytes": 142540,
+      "sha256": "8c42dbeba5df0770a4ee1590630ec00b708e526adf4570df7775639e6ee0c0a2"
+    },
+    {
+      "format": "SAFETENSORS",
+      "file_name": "netflow_mae_v2_weights.safetensors",
+      "file_size_bytes": 524288,
+      "sha256": "419ea056cd4de55e31767c1491a1df1032380dc8b76ba6ce1b17655e669707ff"
+    }
+  ]
+}

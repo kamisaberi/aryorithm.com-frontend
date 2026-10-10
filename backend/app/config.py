@@ -44,5 +44,10 @@ class Settings(BaseSettings):
     HUB_MAX_UPLOAD_BYTES: int = 104857600
     HUB_PUBLIC_BASE: str = "https://hub.aryorithm.com"
 
+    # Cloud Model Vault (AI model registry) artifact vault. Layout mirrors
+    # the S3 URI scheme: models/{slug}/{version}/{format_dir}/{file}.
+    MODEL_VAULT_DIR: str = "storage/model-vault"
+    MODEL_VAULT_MAX_UPLOAD_BYTES: int = 536870912
+
 
 settings = Settings()

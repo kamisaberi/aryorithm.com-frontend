@@ -271,6 +271,21 @@ Already covered before this pass: `tests/test_licenses.py` (subscribe/activate/p
 
 Tests: `tests/test_hub_packages.py` (8-record seed + field fidelity, filters, 404s, download headers/size/checksum). Full guide: `HUB_PACKAGES.md` (schema, TS interface, routes, hub display mapping).
 
+### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/model-vault` | none (public) | `?domain=&format=&tier=&stage=` (all optional; unknown values → `400`) | `200 {total, models[]}` with `latest_version` (highest stage, then version desc), `available_formats`, `p99_latency_ns`, `golden_safety_verified`; seeds 3 models on first call |
+| `GET /api/v1/model-vault/{slug}` | none (public) | — | `200` full manifest + tensor shapes + version tree with per-artifact `download_url`; `404` unknown slug |
+| `GET /api/v1/model-vault/{slug}/versions/{version}/download` | none (public) | `?format=&precision=&hardware=` (all optional; exact match wins, else first artifact) | `200 application/octet-stream` + `Content-Disposition` + `X-Aryorithm-SHA256` + `X-Aryorithm-Signature-Ed25519` + `X-Airgap-Hash`; increments `download_count`; `403` if version not golden-verified; `404` unknown version/no match/missing file |
+| `POST /api/v1/model-vault/{slug}/versions/{version}/upload-artifact` | admin | multipart `file` + `format`, `precision=FP32`, `target_hardware=UNIVERSAL`, `signature_ed25519` | `201 {status:"STAGED", version, format, sha256, file_size_bytes}`; rejects pickle extensions (`.pt/.pth/.pkl/.pickle`) and format/extension mismatches with `422`; verifies Ed25519 against the Authority Root (`422` bad sig); `409` on duplicate coordinates (WORM); auto-creates the version in `DEVELOPMENT`; refreshes `metadata.json` |
+| `POST /api/v1/model-vault/{slug}/versions/{version}/verify-safety` | admin | `{safety_gate_run_id!, golden_recall 0–1!, tested_attacks_count!, false_positive_rate 0–1!, verifier_signature}` | `200 {version, golden_safety_verified:true, golden_recall_score}`; `400` unless recall is exactly 100% ("Golden Safety Gate Failed…"); `404` unknown version |
+| `POST /api/v1/model-vault/{slug}/versions/{version}/promote` | admin | `{target_stage: DEVELOPMENT\|SHADOW_MODE\|CANARY_5_PERCENT\|FLEET_PRODUCTION\|DEPRECATED}` | `200 {version, rollout_stage}`; `FLEET_PRODUCTION` requires a passing gate (`400` otherwise); `404` unknown version |
+
+Tests: `tests/test_model_vault.py` (seed + filters, detail tree, download headers/bytes/count/gating, upload happy-path + WORM + rejections + auth matrix, safety gate + promote lifecycle, `metadata.json` on disk).
+
+Hub UI: `/models` catalog + `/models/[slug]` detail with version tree, per-artifact downloads, and an Add-to-Device modal (artifact picker, checksum-verify snippet, edge placement paths). TS contract: `VaultModel` / `VaultVersion` / `VaultArtifact` in `hub/lib/hub.ts`.
+
 ---
 
 ## 15. Test quirks worth knowing

@@ -1,0 +1,19 @@
+{
+  "model_id": "aryo-scada-kinematic-v1",
+  "version": "v1.0.0",
+  "rollout_stage": "FLEET_PRODUCTION",
+  "golden_safety_verified": true,
+  "golden_recall_score": 1.0,
+  "base_accuracy": 0.9991,
+  "p99_latency_ns": 110000,
+  "training_dataset_summary": "Tennessee Eastman Process + SWaT Water Testbed",
+  "release_notes": "Initial release validated against Industroyer and Triton physical traces.",
+  "artifacts": [
+    {
+      "format": "ONNX",
+      "file_name": "scada_kinematic_v1_fp16.onnx",
+      "file_size_bytes": 284160,
+      "sha256": "e625af70ace46af890836a77420088ff6055fedc0bf94bbebebe848d2a8651a5"
+    }
+  ]
+}

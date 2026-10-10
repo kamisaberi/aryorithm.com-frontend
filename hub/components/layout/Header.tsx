@@ -7,6 +7,7 @@ import CommandMenu from "@/components/search/CommandMenu";
 
 const NAV = [
   { label: "Explore", href: "/explore" },
+  { label: "Models", href: "/models" },
   { label: "Runtimes & Targets", href: "/explore" },
   { label: "Documentation & SDK", href: "/docs" },
   { label: "Publish", href: "/publish" },

@@ -1,0 +1,19 @@
+{
+  "model_id": "aryo-ja4-c2-transformer-v1",
+  "version": "v1.0.0",
+  "rollout_stage": "FLEET_PRODUCTION",
+  "golden_safety_verified": true,
+  "golden_recall_score": 1.0,
+  "base_accuracy": 0.9972,
+  "p99_latency_ns": 95000,
+  "training_dataset_summary": "Malware Traffic Analysis + Real Cobalt Strike PCAPs",
+  "release_notes": "Validated against JA4/JA4S fingerprinted traffic.",
+  "artifacts": [
+    {
+      "format": "ONNX",
+      "file_name": "ja4_transformer_v1.onnx",
+      "file_size_bytes": 395120,
+      "sha256": "8dd516ea38fe5e6f2d5e80d1760ec5d306cfadd928c69324406f5c2844a96429"
+    }
+  ]
+}
