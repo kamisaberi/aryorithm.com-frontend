@@ -37,7 +37,8 @@ Uses SQLite by default (`aryorithm.db` in project root). The database file is cr
 To use a different database, update `DATABASE_URL` in `.env`:
 - SQLite: `sqlite+aiosqlite:///./aryorithm.db`
 - PostgreSQL: `postgresql+asyncpg://user:pass@localhost:5432/aryorithm`
-- MySQL: `mysql+aiomysql://user:pass@localhost:3306/aryorithm`
+- MySQL 8+: `mysql+aiomysql://user:pass@localhost:3306/aryorithm?charset=utf8mb4`
+  (see `CPANEL_MYSQL.md` for server setup, cPanel import, and data transfer)
 
 ## Project Structure
 

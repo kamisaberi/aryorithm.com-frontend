@@ -8,6 +8,10 @@ from app.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
+    # Drop dead server-side connections (cPanel/MySQL kills idle ones).
+    # Harmless on SQLite.
+    pool_pre_ping=True,
+    pool_recycle=3600,
 )
 
 AsyncSessionLocal = async_sessionmaker(

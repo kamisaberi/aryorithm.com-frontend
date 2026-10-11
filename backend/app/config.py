@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-to-a-long-random-secret-with-at-least-32-chars"
 
-    # Database (SQLite)
+    # Database: SQLite by default; MySQL 8+ on servers/cPanel.
+    #   SQLite: sqlite+aiosqlite:///./aryorithm.db
+    #   MySQL:  mysql+aiomysql://USER:PASSWORD@HOST:3306/DBNAME?charset=utf8mb4
     DATABASE_URL: str = "sqlite+aiosqlite:///./aryorithm.db"
 
     # CORS

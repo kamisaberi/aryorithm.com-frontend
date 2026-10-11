@@ -1,9 +1,17 @@
-"""Shared fixtures for backend API tests (isolated in-memory SQLite).
+"""Shared fixtures for backend API tests (isolated database per test).
 
-Each test gets a fresh database; the app's ``get_db`` dependency is
-overridden per-test and restored afterwards. Mirrors the pattern from
-test_licenses.py so all suites behave identically.
+Default engine is in-memory SQLite. Set TEST_DATABASE_URL to run the whole
+suite against a real server instead, e.g.::
+
+    TEST_DATABASE_URL="mysql+aiomysql://root@127.0.0.1:3307/aryorithm_test?charset=utf8mb4" \\
+        .venv/bin/python -m pytest tests/ -q
+
+Each test still gets a fresh schema (drop_all + create_all per test), and
+the app's ``get_db`` dependency is overridden per-test and restored
+afterwards.
 """
+
+import os
 
 import pytest
 import pytest_asyncio
@@ -19,14 +27,22 @@ from app.models.user import Tenant, TenantTier, User, UserRole
 from app.utils.security import create_access_token, hash_password
 
 
-@pytest_asyncio.fixture
-async def client():
-    engine = create_async_engine(
+def _test_engine():
+    url = os.environ.get("TEST_DATABASE_URL")
+    if url:
+        return create_async_engine(url, pool_pre_ping=True)
+    return create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+
+@pytest_asyncio.fixture
+async def client():
+    engine = _test_engine()
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
