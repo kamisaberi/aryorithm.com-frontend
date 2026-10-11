@@ -1,0 +1,117 @@
+[
+    {
+        "id": "aryo-netflow-mae-v2",
+        "slug": "netflow-mae-v2",
+        "name": "NetFlow Tabular Masked Autoencoder v2",
+        "tier": "FOUNDATION",
+        "domain": "NETWORK_DETECTION",
+        "architecture": "Tabular-MAE-32D",
+        "author": "Aryorithm AI Research Lab",
+        "short_description": "32-dimensional tabular NetFlow/IPFIX anomaly detector trained with self-supervised stochastic masking.",
+        "technical_description": "Trained on over 42 million real industrial and enterprise NetFlow vectors using 30% random feature masking and InfoNCE contrastive representation learning. High reconstruction residuals directly trigger Microsecond Residual Decomposition (MRD XAI) in < 80 nanoseconds.",
+        "input_tensor_shape": "[1, 32] (Float32 NetFlow Feature Vector)",
+        "output_tensor_shape": "[1, 32] (Reconstructed Residual Vector)",
+        "version": {
+            "version": "v2.1.0",
+            "rollout_stage": "FLEET_PRODUCTION",
+            "golden_safety_verified": true,
+            "golden_recall_score": 1.0000,
+            "base_accuracy": 0.9984,
+            "p99_latency_ns": 75000,
+            "training_dataset_summary": "CIC-IDS-2017 + UNSW-NB15 + Substation Baselines",
+            "release_notes": "Added INT8 quantization optimization for Intel OpenVINO NPU."
+        },
+        "artifacts": [
+            {
+                "format": "ONNX",
+                "precision": "INT8",
+                "file_name": "netflow_mae_v2_int8.onnx",
+                "file_size_bytes": 142540,
+                "s3_storage_key": "models/netflow-mae-v2/v2.1.0/onnx/netflow_mae_v2_int8.onnx",
+                "sha256_checksum": "9f83a21...sample_hash",
+                "signature_ed25519": "d7a48b...sample_sig",
+                "target_hardware": "UNIVERSAL"
+            },
+            {
+                "format": "SAFETENSORS",
+                "precision": "FP32",
+                "file_name": "netflow_mae_v2_weights.safetensors",
+                "file_size_bytes": 524288,
+                "s3_storage_key": "models/netflow-mae-v2/v2.1.0/safetensors/netflow_mae_v2_weights.safetensors",
+                "sha256_checksum": "4c11b8...sample_hash",
+                "signature_ed25519": "8e32f1...sample_sig",
+                "target_hardware": "UNIVERSAL"
+            }
+        ]
+    },
+    {
+        "id": "aryo-scada-kinematic-v1",
+        "slug": "scada-kinematic-v1",
+        "name": "SCADA Physical Actuator Trajectory Scorer",
+        "tier": "FOUNDATION",
+        "domain": "SCADA_PHYSICAL",
+        "architecture": "Temporal-CNN-1D",
+        "author": "Aryorithm AI Research Lab",
+        "short_description": "Physical actuator kinematics tracker detecting Stuxnet-like micro-drift and frequency resonance.",
+        "technical_description": "Evaluates physical sensor feedback against commanded PLC states across Modbus, DNP3, and S7Comm. Detects subtle valve drift, pump speed anomalies, and fluid pressure manipulation before mechanical damage occurs.",
+        "input_tensor_shape": "[1, 16, 64] (16 physical sensors across 64-step rolling window)",
+        "output_tensor_shape": "[1, 1] (Physical Drift Anomaly Score [0.0 - 1.0])",
+        "version": {
+            "version": "v1.0.0",
+            "rollout_stage": "FLEET_PRODUCTION",
+            "golden_safety_verified": true,
+            "golden_recall_score": 1.0000,
+            "base_accuracy": 0.9991,
+            "p99_latency_ns": 110000,
+            "training_dataset_summary": "Tennessee Eastman Process + SWaT Water Testbed",
+            "release_notes": "Initial release validated against Industroyer and Triton physical traces."
+        },
+        "artifacts": [
+            {
+                "format": "ONNX",
+                "precision": "FP16",
+                "file_name": "scada_kinematic_v1_fp16.onnx",
+                "file_size_bytes": 284160,
+                "s3_storage_key": "models/scada-kinematic-v1/v1.0.0/onnx/scada_kinematic_v1_fp16.onnx",
+                "sha256_checksum": "7e22c9...sample_hash",
+                "signature_ed25519": "5b41a3...sample_sig",
+                "target_hardware": "UNIVERSAL"
+            }
+        ]
+    },
+    {
+        "id": "aryo-ja4-c2-transformer-v1",
+        "slug": "ja4-c2-transformer-v1",
+        "name": "TLS JA4 C2 Beaconing Sequence Transformer",
+        "tier": "FOUNDATION",
+        "domain": "ENCRYPTED_TRAFFIC",
+        "architecture": "Mini-Transformer-4L",
+        "author": "Aryorithm AI Research Lab",
+        "short_description": "Identifies Cobalt Strike, Mythic, and Sliver C2 beaconing over encrypted TLS without payload decryption.",
+        "technical_description": "Inspects TLS ClientHello extensions, cipher suite ordering, and inter-arrival packet jitter. Employs a 4-layer transformer backbone to identify malware beaconing patterns while preserving end-to-end payload encryption.",
+        "input_tensor_shape": "[1, 32, 16] (Sequence of 32 TLS handshakes)",
+        "output_tensor_shape": "[1, 4] (Classification: Clean, CobaltStrike, Sliver, CustomC2)",
+        "version": {
+            "version": "v1.0.0",
+            "rollout_stage": "FLEET_PRODUCTION",
+            "golden_safety_verified": true,
+            "golden_recall_score": 1.0000,
+            "base_accuracy": 0.9972,
+            "p99_latency_ns": 95000,
+            "training_dataset_summary": "Malware Traffic Analysis + Real Cobalt Strike PCAPs",
+            "release_notes": "Validated against JA4/JA4S fingerprinted traffic."
+        },
+        "artifacts": [
+            {
+                "format": "ONNX",
+                "precision": "FP16",
+                "file_name": "ja4_transformer_v1.onnx",
+                "file_size_bytes": 395120,
+                "s3_storage_key": "models/ja4-c2-transformer-v1/v1.0.0/onnx/ja4_transformer_v1.onnx",
+                "sha256_checksum": "2b99a1...sample_hash",
+                "signature_ed25519": "1f88c4...sample_sig",
+                "target_hardware": "UNIVERSAL"
+            }
+        ]
+    }
+]
