@@ -36,3 +36,6 @@ backend/.DS_Store
 temp.md
 
 main/*.zip
+backend/*.zip
+hub/*.zip
+dashboard/*.zip
