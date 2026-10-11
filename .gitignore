@@ -34,3 +34,5 @@ backend/.DS_Store
 !backend/storage/packages/*
 
 temp.md
+
+main/*.zip
