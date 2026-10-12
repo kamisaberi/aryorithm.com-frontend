@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aryorithm — Installer</title>
+<style>
+  :root {
+    --bg: #0b0f17; --panel: #121826; --panel2: #0e1420; --line: #232c40;
+    --text: #e8edf5; --muted: #8b95ab; --accent: #4f7cff; --accent2: #22c55e;
+    --danger: #ef4444; --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: radial-gradient(1000px 500px at 20% -10%, #16213a 0%, var(--bg) 55%) fixed, var(--bg);
+    color: var(--text); min-height: 100vh; display: flex; justify-content: center; padding: 32px 16px; }
+  .wrap { width: 100%; max-width: 860px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #4f7cff, #22d3ee);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
+  h1 { font-size: 22px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .banner { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 12px 14px;
+    font-size: 13px; margin-bottom: 14px; display: none; }
+  .banner.show { display: block; }
+  .banner.ok { border-color: #14532d; background: #0a1f14; }
+  .banner.err { border-color: #5b1a1a; background: #200d0d; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .card p.desc { color: var(--muted); font-size: 12.5px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input, select { width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 9px; padding: 10px 11px; font-size: 13.5px; outline: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .full { grid-column: 1 / -1; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  button { border: 0; border-radius: 9px; padding: 10px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  .btn-green { background: var(--accent2); color: #06210f; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+  @media (max-width: 640px) { .checks { grid-template-columns: 1fr; } }
+  .check { display: flex; gap: 9px; align-items: flex-start; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 9px; padding: 10px; font-size: 13px; }
+  .check input { width: auto; margin-top: 3px; }
+  .check small { display: block; color: var(--muted); font-size: 11.5px; }
+  #log { white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+    background: #070b12; border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-height: 90px; color: #c9d4e6; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  code { background: #070b12; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); font-size: 12px; }
+  .steps { display: flex; gap: 8px; margin-bottom: 14px; }
+  .step { flex: 1; text-align: center; font-size: 11.5px; color: var(--muted); padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
+  .step b { display: block; font-size: 13px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">A</div>
+    <div>
+      <h1>Aryorithm Backend — Installer</h1>
+      <div class="sub">Configure the database, create the admin account and seed initial data. No shell needed.</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><b>1</b>Database</div>
+    <div class="step"><b>2</b>Application</div>
+    <div class="step"><b>3</b>Admin account</div>
+    <div class="step"><b>4</b>Install</div>
+  </div>
+
+  <div id="statusBanner" class="banner"></div>
+
+  <div class="card">
+    <h2>1 · Database</h2>
+    <p class="desc">cPanel: create the database + user first (MySQL Databases → Add User To Database), then paste them here. SQLite needs no credentials — good for local dev only.</p>
+    <div class="grid">
+      <div>
+        <label>Driver</label>
+        <select id="db_driver">
+          <option value="mysql" selected>MySQL / MariaDB (recommended)</option>
+          <option value="sqlite">SQLite (local file)</option>
+        </select>
+      </div>
+      <div>
+        <label>Database name</label>
+        <input id="db_name" placeholder="e.g. kami_aryorithm  (sqlite: aryorithm.db)" value="" />
+      </div>
+      <div>
+        <label>Host</label>
+        <input id="db_host" value="localhost" />
+      </div>
+      <div>
+        <label>Port</label>
+        <input id="db_port" value="3306" inputmode="numeric" />
+      </div>
+      <div>
+        <label>DB user</label>
+        <input id="db_user" placeholder="e.g. kami_appuser" autocomplete="username" />
+      </div>
+      <div>
+        <label>DB password</label>
+        <input id="db_password" type="password" placeholder="DB user password" autocomplete="current-password" />
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn-ghost" id="btnTest" type="button">Test connection</button>
+      <span class="sub" id="testResult" style="align-self:center"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Application</h2>
+    <p class="desc">Written to <code>.env</code> next to <code>passenger_wsgi.py</code>. Restart the app afterwards so it reloads.</p>
+    <div class="grid">
+      <div>
+        <label>App name</label>
+        <input id="app_name" value="Aryorithm Backend" />
+      </div>
+      <div>
+        <label>Environment</label>
+        <select id="app_env">
+          <option value="production" selected>production</option>
+          <option value="development">development</option>
+        </select>
+      </div>
+      <div class="full">
+        <label>SECRET_KEY (leave empty to auto-generate)</label>
+        <div style="display:flex;gap:8px">
+          <input id="secret_key" type="password" placeholder="≥ 32 chars — generated automatically if empty" style="flex:1" />
+          <button class="btn-ghost" id="btnSecret" type="button">Generate</button>
+        </div>
+      </div>
+      <div class="full">
+        <label>Extra CORS origins (comma-separated, optional)</label>
+        <input id="cors_origins" placeholder="https://app.example.com, https://portal.example.com" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Admin account</h2>
+    <p class="desc">First super-admin. Use it to log in at <code>POST /api/v1/auth/login</code>.</p>
+    <div class="grid">
+      <div>
+        <label>Organization name</label>
+        <input id="tenant_name" value="Default Organization" />
+      </div>
+      <div>
+        <label>Admin name</label>
+        <input id="admin_name" value="Administrator" />
+      </div>
+      <div>
+        <label>Admin email</label>
+        <input id="admin_email" type="email" placeholder="admin@example.com" autocomplete="username" />
+      </div>
+      <div>
+        <label>Admin password (min 8 chars)</label>
+        <input id="admin_password" type="password" placeholder="Strong password" autocomplete="new-password" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>4 · Seed data &amp; install</h2>
+    <p class="desc">Catalogs are idempotent — safe to keep checked on re-install.</p>
+    <div class="checks">
+      <label class="check"><input type="checkbox" id="seed_plans" checked /><span>Subscription plans<small>4 plans + 92 entitlement rows</small></span></label>
+      <label class="check"><input type="checkbox" id="seed_models" checked /><span>Threat-model inventory<small>2 baseline + 3 web ONNX rows</small></span></label>
+      <label class="check"><input type="checkbox" id="seed_sentinel" checked /><span>Sentinel packages<small>8 verified packages + .spkg files</small></span></label>
+      <label class="check"><input type="checkbox" id="seed_model_vault" checked /><span>Model vault<small>3 foundation models + artifacts</small></span></label>
+      <label class="check"><input type="checkbox" id="seed_demo" /><span>Demo enclaves<small>3 default zones (no fake telemetry)</small></span></label>
+      <label class="check"><input type="checkbox" id="force" /><span>Force re-install<small>Only if install.lock already exists</small></span></label>
+    </div>
+    <div class="row">
+      <button class="btn-primary" id="btnInstall" type="button">Run installer</button>
+      <button class="btn-ghost" id="btnFill" type="button">Show password fields</button>
+    </div>
+    <div style="margin-top:12px"><div id="log">Ready. Tip: run “Test connection” first.</div></div>
+    <div class="hint" id="nextSteps"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const log = (msg) => { $("log").textContent = msg; };
+const api = async (path, body) => {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || ("HTTP " + r.status));
+  return data;
+};
+const dbPayload = () => ({
+  db_driver: $("db_driver").value,
+  db_host: $("db_host").value.trim() || "localhost",
+  db_port: parseInt($("db_port").value || "3306", 10),
+  db_name: $("db_name").value.trim(),
+  db_user: $("db_user").value.trim(),
+  db_password: $("db_password").value,
+});
+
+async function refreshStatus() {
+  try {
+    const r = await fetch("/api/v1/install/status");
+    const s = await r.json();
+    const b = $("statusBanner");
+    if (s.installed) {
+      b.className = "banner show ok";
+      b.textContent = "Already installed" + (s.admin_email ? (" — admin: " + s.admin_email) : "") +
+        " (" + (s.user_count ?? "?") + " users). /install/run is locked. Delete install.lock on the server to re-run.";
+    } else if (s.lock_exists) {
+      b.className = "banner show err";
+      b.textContent = "install.lock exists but no users found — check DATABASE_URL / DB contents, or re-run with Force.";
+    } else {
+      b.className = "banner show";
+      b.textContent = s.has_env ? "No install.lock yet — fresh install. Fill the form and run."
+        : "No .env / install.lock yet — fresh install. Fill the form and run.";
+    }
+  } catch (e) { /* backend unreachable — form still usable */ }
+}
+
+$("db_driver").addEventListener("change", (e) => {
+  const sqlite = e.target.value === "sqlite";
+  $("db_host").disabled = sqlite; $("db_port").disabled = sqlite;
+  $("db_user").disabled = sqlite; $("db_password").disabled = sqlite;
+  if (sqlite && !$("db_name").value) $("db_name").value = "aryorithm.db";
+});
+
+$("btnSecret").addEventListener("click", async () => {
+  try { const d = await (await fetch("/api/v1/install/generate-secret")).json();
+    $("secret_key").value = d.secret_key; log("New SECRET_KEY generated — it will be saved on install.");
+  } catch (e) {
+    const arr = new Uint8Array(48); crypto.getRandomValues(arr);
+    $("secret_key").value = btoa(String.fromCharCode(...arr)).replace(/[^A-Za-z0-9_-]/g, "x");
+    log("New SECRET_KEY generated locally (backend unreachable).");
+  }
+});
+
+$("btnFill").addEventListener("click", () => {
+  ["db_password", "secret_key", "admin_password"].forEach((id) => {
+    $(id).type = $(id).type === "password" ? "text" : "password";
+  });
+});
+
+$("btnTest").addEventListener("click", async () => {
+  $("btnTest").disabled = true; $("testResult").textContent = "testing…";
+  try {
+    const d = await api("/api/v1/install/test-connection", dbPayload());
+    $("testResult").textContent = "OK" + (d.server_version ? (" — " + d.server_version.split("\n")[0]) : "");
+    log("Connection successful.\n" + (d.database_url_masked || ""));
+  } catch (e) { $("testResult").textContent = "failed"; log("Connection FAILED:\n" + e.message); }
+  finally { $("btnTest").disabled = false; }
+});
+
+$("btnInstall").addEventListener("click", async () => {
+  if (!$("db_name").value.trim() && $("db_driver").value === "mysql") { log("ERROR: database name is required."); return; }
+  if ($("db_driver").value === "mysql" && !$("db_user").value.trim()) { log("ERROR: DB user is required."); return; }
+  if (!$("admin_email").value.trim() || $("admin_password").value.length < 8) {
+    log("ERROR: admin email + password (min 8 chars) are required."); return;
+  }
+  $("btnInstall").disabled = true; log("Installing… creating tables + seeding (may take ~30s on first run).");
+  $("nextSteps").innerHTML = "";
+  try {
+    const d = await api("/api/v1/install/run", Object.assign(dbPayload(), {
+      app_name: $("app_name").value.trim() || "Aryorithm Backend",
+      app_env: $("app_env").value,
+      secret_key: $("secret_key").value,
+      cors_origins: $("cors_origins").value.trim(),
+      tenant_name: $("tenant_name").value.trim() || "Default Organization",
+      admin_name: $("admin_name").value.trim() || "Administrator",
+      admin_email: $("admin_email").value.trim(),
+      admin_password: $("admin_password").value,
+      seed_plans: $("seed_plans").checked, seed_models: $("seed_models").checked,
+      seed_sentinel: $("seed_sentinel").checked, seed_model_vault: $("seed_model_vault").checked,
+      seed_demo: $("seed_demo").checked, force: $("force").checked,
+    }));
+    log("SUCCESS — " + d.message + "\nadmin: " + d.admin_email + "\nusers: " + d.user_count +
+      "\nseeded: " + JSON.stringify(d.seeded) + "\nDB: " + (d.database_url_masked || ""));
+    $("nextSteps").innerHTML = "<b>Next steps</b><br/>" + (d.next_steps || []).map(
+      (s) => "• " + s.replace(/</g, "&lt;")).join("<br/>");
+    refreshStatus();
+  } catch (e) { log("INSTALL FAILED:\n" + e.message); }
+  finally { $("btnInstall").disabled = false; }
+});
+
+refreshStatus();
+</script>
+</body>
+</html>

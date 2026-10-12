@@ -288,7 +288,23 @@ Hub UI: `/models` catalog + `/models/[slug]` detail with version tree, per-artif
 
 ---
 
-## 15. Test quirks worth knowing
+## 15. Installer (first-run wizard) — `app/routers/install.py`
+
+No-shell setup for fresh deploys / cPanel. Page: `GET /install` (static,
+no build). All APIs are public but one-shot — locked by `install.lock`:
+
+| Method & Path | Request | Notes |
+|---|---|---|
+| `GET /api/v1/install/status` | — | `{installed, lock_exists, has_env, user_count, db_error, admin_email}` |
+| `GET /api/v1/install/generate-secret` | — | fresh `SECRET_KEY` (also auto-generated on install) |
+| `POST /api/v1/install/test-connection` | `{db_driver: mysql\|sqlite, db_host, db_port, db_name, db_user, db_password}` | `200 {ok, database_url_masked, server_version}`; `400` unreachable, `422` missing name/user |
+| `POST /api/v1/install/run` | same DB fields + `{app_name, app_env, secret_key?, cors_origins?, tenant_name, admin_name, admin_email, admin_password≥8, seed_plans, seed_models, seed_sentinel, seed_model_vault, seed_demo, force?}` | writes `.env` (chmod 600), `create_all` on the **target** DB, seeds super-admin + catalogs, writes `install.lock`; `403` when locked without `force` |
+
+After install **restart** the backend so the new `DATABASE_URL` loads
+(`passenger_wsgi.py` is `touch`ed best-effort on cPanel). Tests:
+`tests/test_install.py` (paths monkeypatched to tmp — never touches the real `.env`).
+
+## 16. Test quirks worth knowing
 
 - `Telemetry`/`stream` SSE routes can't be read over `ASGITransport` (it buffers infinite bodies); tests invoke the route functions directly.
 - Several endpoints run DDL (`create_all`) against the **real** `aryorithm.db` engine even under test override — harmless (empty tables), restore with `git checkout -- aryorithm.db` if it shows modified.

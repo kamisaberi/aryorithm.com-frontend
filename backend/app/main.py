@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import engine, Base
+from fastapi.responses import FileResponse
 from app.request_logging import (
     RequestDumpMiddleware,
     log_error_dump,
@@ -19,7 +20,7 @@ from app.request_logging import (
 
 # Import ORM models so Base.metadata.create_all() creates all tables.
 import app.models  # noqa: F401
-from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants, models as models_router, modelvault as modelvault_router, ota as ota_router, plans as plans_router, cps as cps_router, identity as identity_router, soc as soc_router, support as support_router, licenses as licenses_router, hub as hub_router
+from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants, models as models_router, modelvault as modelvault_router, ota as ota_router, plans as plans_router, cps as cps_router, identity as identity_router, soc as soc_router, support as support_router, licenses as licenses_router, hub as hub_router, install as install_router
 
 
 @asynccontextmanager
@@ -86,6 +87,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 # Include all routers
+app.include_router(install_router.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(fleet.router, prefix="/api/v1")
 app.include_router(threats.router, prefix="/api/v1")
@@ -135,6 +137,17 @@ async def openai_compat_models_slash():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+
+@app.get("/install", include_in_schema=False)
+async def installer_page():
+    """First-run installer wizard (static page, no build needed)."""
+    import pathlib
+
+    page = pathlib.Path(__file__).resolve().parent / "static" / "install.html"
+    if page.is_file():
+        return FileResponse(page, media_type="text/html")
+    return {"detail": "installer page missing"}
 
 
 @app.get("/", tags=["System"])

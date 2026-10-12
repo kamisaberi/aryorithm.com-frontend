@@ -34,6 +34,11 @@ docker-compose up -d
 
 Uses SQLite by default (`aryorithm.db` in project root). The database file is created automatically on startup.
 
+Fresh server / cPanel with no shell? Open the installer wizard instead —
+`GET /install` in a browser — fill DB name/user/password + admin account,
+and it writes `.env`, creates tables and seeds initial data (see `ROUTES.md`
+§15). No manual file editing needed.
+
 To use a different database, update `DATABASE_URL` in `.env`:
 - SQLite: `sqlite+aiosqlite:///./aryorithm.db`
 - PostgreSQL: `postgresql+asyncpg://user:pass@localhost:5432/aryorithm`
