@@ -18,3 +18,4 @@ python-dotenv==1.2.3
 cryptography==45.0.3
 pyyaml==6.0.3
 aiomysql==0.3.2
+a2wsgi==1.10.10
