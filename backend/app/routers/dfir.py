@@ -107,31 +107,29 @@ async def dissect_firmware(
 
     from sqlalchemy import select as _select
 
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
     from app.models.dfir import FirmwareReport as _FirmwareReport
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    def _migrate(sync_conn) -> None:
+        from sqlalchemy import inspect as _inspect, text as _text
 
-        def _add_cols(sync_conn) -> None:
-            from sqlalchemy import inspect as _inspect, text as _text
+        _Base.metadata.create_all(sync_conn)
+        try:
+            cols = {c["name"] for c in _inspect(sync_conn).get_columns("firmware_reports")}
+        except Exception:
+            return
+        for _name, _ddl in {
+            "filename": "VARCHAR(255)",
+            "sha256": "VARCHAR(128)",
+            "cpu_arch": "VARCHAR(64)",
+            "filesystem": "VARCHAR(64)",
+            "security_score": "VARCHAR(32)",
+        }.items():
+            if _name not in cols:
+                sync_conn.execute(_text(f"ALTER TABLE firmware_reports ADD COLUMN {_name} {_ddl}"))
 
-            try:
-                cols = {c["name"] for c in _inspect(sync_conn).get_columns("firmware_reports")}
-            except Exception:
-                return
-            for _name, _ddl in {
-                "filename": "VARCHAR(255)",
-                "sha256": "VARCHAR(128)",
-                "cpu_arch": "VARCHAR(64)",
-                "filesystem": "VARCHAR(64)",
-                "security_score": "VARCHAR(32)",
-            }.items():
-                if _name not in cols:
-                    sync_conn.execute(_text(f"ALTER TABLE firmware_reports ADD COLUMN {_name} {_ddl}"))
-
-        await _conn.run_sync(_add_cols)
+    await _run_ddl(_migrate, db.bind)
     raw = await file.read()
     digest = _hashlib.sha256(raw).hexdigest()
     blob = raw[:65536]

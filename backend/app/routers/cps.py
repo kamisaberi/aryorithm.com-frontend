@@ -33,11 +33,10 @@ async def list_medical_scanners(
     db: AsyncSession = Depends(get_db),
 ):
     """Radiology scanner inventory; live status from Level-3 MEDICAL_PACS sensors."""
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
     scanners = list(
         (await db.execute(
             select(MedicalScanner).where(MedicalScanner.tenant_id == user.tenant_id)

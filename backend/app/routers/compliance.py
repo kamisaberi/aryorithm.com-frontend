@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import engine, get_db
+from app.database import get_db, run_schema_ddl
 from app.dependencies import get_current_user
 from app.models.compliance import ComplianceFramework, ComplianceRecord, InsuranceProof
 from app.models.fleet import Node
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/compliance", tags=["Compliance GRC"])
 SLA_LIMIT_US = 1000.0
 
 
-async def _ensure_compliance_schema() -> None:
+async def _ensure_compliance_schema(bind=None) -> None:
     def _migrate(sync_conn) -> None:
         import app.models  # noqa: F401 (register tables for create_all)
         from sqlalchemy import inspect as _inspect, text as _text
@@ -49,8 +49,7 @@ async def _ensure_compliance_schema() -> None:
         if "status" not in cols:
             sync_conn.execute(_text("ALTER TABLE compliance_records ADD COLUMN status VARCHAR(32)"))
 
-    async with engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await run_schema_ddl(_migrate, bind)
 
 
 def _aware(dt: datetime) -> datetime:
@@ -106,7 +105,7 @@ async def _upsert_record(
 @router.get("/nis2", response_model=NIS2Response)
 async def get_nis2(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """EU NIS2 & DORA status aggregated from live fleet telemetry (Service 10)."""
-    await _ensure_compliance_schema()
+    await _ensure_compliance_schema(db.bind)
     lat, online, total = await _fleet_latencies(db, user.tenant_id)
     peak = max(lat) if lat else 0.0
     mean = (sum(lat) / len(lat)) if lat else 0.0
@@ -219,7 +218,7 @@ async def get_iec62443(user: User = Depends(get_current_user), db: AsyncSession 
 @router.get("/cmmc", response_model=CMMCResponse)
 async def get_cmmc(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """CMMC 2.0 Level 2 / NIST SP 800-171 portal (Service 11)."""
-    await _ensure_compliance_schema()
+    await _ensure_compliance_schema(db.bind)
     lat, online, total = await _fleet_latencies(db, user.tenant_id)
     peak = max(lat) if lat else 0.0
     controls = [
@@ -341,7 +340,7 @@ async def get_insurance_proof(user: User = Depends(get_current_user), db: AsyncS
     """Cryptographic risk verifier for underwriters (Service 12)."""
     import random
 
-    await _ensure_compliance_schema()
+    await _ensure_compliance_schema(db.bind)
     lat, online, total = await _fleet_latencies(db, user.tenant_id)
     ordered = sorted(lat)
     p50 = ordered[len(ordered) // 2] if ordered else 0.84

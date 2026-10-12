@@ -33,11 +33,10 @@ async def trigger_dispatch(
     db: AsyncSession = Depends(get_db),
 ):
     """Page on-call kernel + SCADA leads (15-minute SLA window)."""
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
     if not body.affected_enclave.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -72,11 +71,10 @@ async def sla_history(
     db: AsyncSession = Depends(get_db),
 ):
     """Historical dispatches with SLA compliance flags."""
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
     rows = list(
         (await db.execute(
             select(EmergencyDispatch)

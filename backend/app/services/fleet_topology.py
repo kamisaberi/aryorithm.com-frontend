@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from sqlalchemy import inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import Base, engine
+from app.database import Base, run_schema_ddl
 import app.models  # noqa: F401 (register all tables for create_all)
 from app.models.fleet import NexusInstance, Node, NodeStatus, Sensor
 from app.models.user import Tenant, TenantTier, User
@@ -60,11 +60,12 @@ def _sec_ago(dt: datetime | None, now: datetime) -> float | None:
     return max(0.0, (now - dt).total_seconds())
 
 
-async def ensure_topology_schema() -> None:
+async def ensure_topology_schema(bind=None) -> None:
     """Create new tables + backfill Node columns on existing databases.
 
     Runs create_all itself (not just lifespan) so ASGI tests and scripts
-    that skip startup still get nexus_instances/sensors tables.
+    that skip startup still get nexus_instances/sensors tables. Pass the
+    request session's bind (``db.bind``) — see run_schema_ddl.
     """
 
     def _migrate(sync_conn) -> None:
@@ -85,8 +86,7 @@ async def ensure_topology_schema() -> None:
             if name not in enclave_cols:
                 sync_conn.execute(text(f"ALTER TABLE enclaves ADD COLUMN {name} {ddl}"))
 
-    async with engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await run_schema_ddl(_migrate, bind)
 
 
 async def resolve_tenant(
@@ -130,7 +130,7 @@ async def sync_topology(
     caller: User | None,
 ) -> dict:
     """Upsert nexus -> nodes -> sensors from one /fleet/sync payload."""
-    await ensure_topology_schema()
+    await ensure_topology_schema(db.bind)
     now = _utcnow()
     slug = header_tenant or body.tenant_id
     tenant = await resolve_tenant(db, caller, slug)
@@ -310,7 +310,7 @@ def _sensor_effective(
 
 async def get_topology(db: AsyncSession, tenant_id: str) -> dict:
     """Read the last synced tree with computed effective statuses."""
-    await ensure_topology_schema()
+    await ensure_topology_schema(db.bind)
     now = _utcnow()
 
     result = await db.execute(

@@ -307,7 +307,13 @@ After install **restart** the backend so the new `DATABASE_URL` loads
 ## 16. Test quirks worth knowing
 
 - `Telemetry`/`stream` SSE routes can't be read over `ASGITransport` (it buffers infinite bodies); tests invoke the route functions directly.
-- Several endpoints run DDL (`create_all`) against the **real** `aryorithm.db` engine even under test override — harmless (empty tables), restore with `git checkout -- aryorithm.db` if it shows modified.
+- Schema bootstrapping (`create_all` + add-column migrations) always runs on
+  the **request session's bind** (`db.bind` via `run_schema_ddl`) — never the
+  process-global engine. Under test override that is the isolated test engine,
+  so the suite leaves the dev database untouched (verified: canonical row
+  count unchanged after a full run). The global engine is only used by
+  lifespan startup/shutdown (single loop) and the installer's own throwaway
+  engines per request.
 - The compiler test only deletes `storage/artifacts/COMP-*` dirs it created (snapshot-diffed); committed sample artifacts are never touched.
 - `GET /models*` 422s without `X-Tenant-ID` — always send the header.
 - Admin-only routes return `403` for analyst roles; unauthenticated returns `401` with a `WWW-Authenticate: Bearer` header.

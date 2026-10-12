@@ -131,11 +131,10 @@ async def get_scada_monitor(
     Summary counters plus the recent physical actuation log, optionally
     filtered by protocol (e.g. ?protocol=MODBUS_TCP).
     """
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
     query = select(ScadaEvent).where(ScadaEvent.tenant_id == user.tenant_id)
     if protocol:
         query = query.where(ScadaEvent.protocol == protocol.strip().upper())
@@ -186,11 +185,10 @@ async def list_ransomware_hashes(
     """High-entropy IOC clearinghouse (Service 9): global + tenant rows."""
     from sqlalchemy import or_
 
-    from app.database import engine as _engine
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
     result = await db.execute(
         select(RansomwareHash)
         .where(

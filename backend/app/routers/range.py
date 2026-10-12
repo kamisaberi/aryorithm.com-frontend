@@ -74,7 +74,7 @@ def _aware(dt: datetime) -> datetime:
     return dt
 
 
-async def _ensure_range_schema() -> None:
+async def _ensure_range_schema(bind=None) -> None:
     def _migrate(sync_conn) -> None:
         import app.models  # noqa: F401 (register tables for create_all)
         from sqlalchemy import inspect as _inspect
@@ -84,10 +84,9 @@ async def _ensure_range_schema() -> None:
         Base.metadata.create_all(sync_conn)
         _ = _inspect(sync_conn)
 
-    from app.database import engine as _engine
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await _run_ddl(_migrate, bind)
 
 
 @router.get("/twins", response_model=list[DigitalTwinResponse])
@@ -173,7 +172,7 @@ async def list_instances(
     db: AsyncSession = Depends(get_db),
 ):
     """Active twin sandbox instances (TERMINATED excluded)."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     rows = list(
         (await db.execute(
             select(RangeInstance)
@@ -198,7 +197,7 @@ async def provision_instance(
     db: AsyncSession = Depends(get_db),
 ):
     """Provision a digital twin sandbox (202 Accepted, INITIALIZING)."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     if body.blueprint_id not in {b["blueprint_id"] for b in BLUEPRINTS}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -234,7 +233,7 @@ async def pause_instance(
     db: AsyncSession = Depends(get_db),
 ):
     """Pause a running sandbox (billing meter stops)."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     row = (
         await db.execute(
             select(RangeInstance).where(
@@ -260,7 +259,7 @@ async def resume_instance(
     db: AsyncSession = Depends(get_db),
 ):
     """Resume a paused sandbox."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     row = (
         await db.execute(
             select(RangeInstance).where(
@@ -285,7 +284,7 @@ async def resilience_history(
     db: AsyncSession = Depends(get_db),
 ):
     """Recent resilience scores for the 90-day trend chart."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     rows = list(
         (await db.execute(
             select(ResilienceEvaluation)
@@ -307,7 +306,7 @@ async def terminate_instance(
     db: AsyncSession = Depends(get_db),
 ):
     """Terminate a sandbox (row kept as TERMINATED history)."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     row = (
         await db.execute(
             select(RangeInstance).where(
@@ -343,7 +342,7 @@ async def get_resilience_bench(
     db: AsyncSession = Depends(get_db),
 ):
     """Resilience benchmark with rating tier + legacy keys (Service 26)."""
-    await _ensure_range_schema()
+    await _ensure_range_schema(db.bind)
     rows = list(
         (await db.execute(select(Node).where(Node.tenant_id == user.tenant_id))).scalars().all()
     )

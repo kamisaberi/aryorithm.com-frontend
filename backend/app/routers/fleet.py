@@ -123,7 +123,7 @@ async def list_nodes(
     Liveness rule (Service 1): a heartbeat older than 15s overrides the
     status to OFFLINE regardless of the last reported value.
     """
-    await ensure_topology_schema()
+    await ensure_topology_schema(db.bind)
     data = await get_topology(db, user.tenant_id)
     out: list[NodeResponse] = []
     for nx in data["nexus"]:
@@ -175,7 +175,7 @@ async def list_nodes(
 @router.get("/nodes/{node_id}", response_model=NodeDetailResponse)
 async def get_node(node_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Single node telemetry, live sensors & ring buffer inspector."""
-    await ensure_topology_schema()
+    await ensure_topology_schema(db.bind)
     data = await get_topology(db, user.tenant_id)
     for nx in data["nexus"]:
         for n in nx["nodes"]:
@@ -220,7 +220,7 @@ async def decommission_node(
     db: AsyncSession = Depends(get_db),
 ):
     """Decommission / unregister edge appliance (purges node + sensors)."""
-    await ensure_topology_schema()
+    await ensure_topology_schema(db.bind)
     result = await db.execute(
         select(Node).where(
             Node.tenant_id == user.tenant_id,
@@ -246,10 +246,10 @@ async def decommission_node(
     return NodeActionResponse(status="DECOMMISSIONED", node_id=node_id)
 
 
-async def _ensure_enclave_column() -> None:
+async def _ensure_enclave_column(bind=None) -> None:
     from app.services.fleet_topology import ensure_topology_schema
 
-    await ensure_topology_schema()
+    await ensure_topology_schema(bind)
 
 
 @router.get("/groups", response_model=list[GroupResponse])
@@ -258,7 +258,7 @@ async def list_groups(
     db: AsyncSession = Depends(get_db),
 ):
     """List logical site enclaves / groups (OT, Medical, DMZ)."""
-    await _ensure_enclave_column()
+    await _ensure_enclave_column(db.bind)
     result = await db.execute(select(Enclave).where(Enclave.tenant_id == user.tenant_id))
     groups = list(result.scalars().all())
     if not groups:
@@ -296,7 +296,7 @@ async def create_group(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new physical or logical enclave zone."""
-    await _ensure_enclave_column()
+    await _ensure_enclave_column(db.bind)
     group_id = body.group_id.strip()
     if not group_id:
         raise HTTPException(

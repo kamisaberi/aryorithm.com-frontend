@@ -5,7 +5,6 @@ from pathlib import Path
 from sqlalchemy import inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import engine
 from app.models.ai import Model, ModelStage
 
 # Local mirror dir for ONNX binaries served by GET /api/v1/models/{filename}.
@@ -90,12 +89,16 @@ DEFAULT_MODELS: list[dict] = [
 ]
 
 
-async def ensure_filename_column() -> None:
+async def ensure_filename_column(bind=None) -> None:
     """Lightweight SQLite migration: ADD COLUMN models.filename if missing.
 
     Base.metadata.create_all() does not add columns to existing tables,
     and aryorithm.db already ships a `models` table without `filename`.
+    Pass the request session's bind (``db.bind``) so DDL never runs on the
+    process-global engine from a foreign event loop (see run_schema_ddl).
     """
+    from app.database import run_schema_ddl
+
     def _check_and_add(sync_conn) -> None:
         insp = inspect(sync_conn)
         try:
@@ -105,13 +108,12 @@ async def ensure_filename_column() -> None:
         if "filename" not in cols:
             sync_conn.execute(text("ALTER TABLE models ADD COLUMN filename VARCHAR(255)"))
 
-    async with engine.begin() as conn:
-        await conn.run_sync(_check_and_add)
+    await run_schema_ddl(_check_and_add, bind)
 
 
 async def ensure_default_models(db: AsyncSession, tenant_id: str) -> None:
     """Idempotently seed the two baseline records for a tenant."""
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     result = await db.execute(select(Model).where(Model.tenant_id == tenant_id))
     existing = list(result.scalars().all())
     if existing:
@@ -149,7 +151,7 @@ async def ensure_web_models(db: AsyncSession, tenant_id: str) -> None:
     Rows whose sha256 is still an unfilled placeholder are skipped, so a
     half-configured entry can never land in the database.
     """
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     result = await db.execute(select(Model.filename).where(Model.tenant_id == tenant_id))
     existing = set(result.scalars().all())
     for meta in WEB_MODELS:

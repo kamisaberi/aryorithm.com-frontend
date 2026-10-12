@@ -26,7 +26,7 @@ def _aware(dt: datetime) -> datetime:
     return dt
 
 
-async def _ensure_soc_schema() -> None:
+async def _ensure_soc_schema(bind=None) -> None:
     def _migrate(sync_conn) -> None:
         import app.models  # noqa: F401 (register tables for create_all)
 
@@ -34,10 +34,9 @@ async def _ensure_soc_schema() -> None:
 
         Base.metadata.create_all(sync_conn)
 
-    from app.database import engine as _engine
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await _run_ddl(_migrate, bind)
 
 
 def _to_summary(row: MDRIncident) -> MDRIncidentSummary:
@@ -62,7 +61,7 @@ async def list_incidents(
     db: AsyncSession = Depends(get_db),
 ):
     """Active triage queue for the 24/7 MDR team."""
-    await _ensure_soc_schema()
+    await _ensure_soc_schema(db.bind)
     rows = list(
         (await db.execute(
             select(MDRIncident)
@@ -80,7 +79,7 @@ async def get_incident(
     db: AsyncSession = Depends(get_db),
 ):
     """Case details with analyst chat history and PCAP links."""
-    await _ensure_soc_schema()
+    await _ensure_soc_schema(db.bind)
     row = (
         await db.execute(
             select(MDRIncident).where(
@@ -128,7 +127,7 @@ async def post_message(
     db: AsyncSession = Depends(get_db),
 ):
     """Customer/analyst chat message on a triage case."""
-    await _ensure_soc_schema()
+    await _ensure_soc_schema(db.bind)
     row = (
         await db.execute(
             select(MDRIncident).where(

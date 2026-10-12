@@ -34,7 +34,7 @@ async def _rollout(db: AsyncSession, tenant_id: str) -> OTARollout:
 
 
 async def get_status(db: AsyncSession, tenant_id: str) -> dict:
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     rollout = await _rollout(db, tenant_id)
     await db.flush()
     return {
@@ -50,7 +50,7 @@ async def stage_candidate(
     db: AsyncSession, tenant_id: str, version: str, sha256: str, url: str
 ) -> dict:
     """Stage newly trained Forge weights into SHADOW_MODE."""
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     filename = version if version.endswith(".onnx") else f"{version}.onnx"
     result = await db.execute(
         select(Model).where(
@@ -83,7 +83,7 @@ async def stage_candidate(
 
 async def advance(db: AsyncSession, tenant_id: str) -> dict:
     """Advance rollout: Shadow -> 5% -> Fleet (promotes on arrival)."""
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     rollout = await _rollout(db, tenant_id)
     try:
         idx = ORDER.index(rollout.stage)
@@ -128,7 +128,7 @@ async def advance(db: AsyncSession, tenant_id: str) -> dict:
 
 async def rollback(db: AsyncSession, tenant_id: str) -> dict:
     """Emergency rollback to the previous stable model."""
-    await ensure_filename_column()
+    await ensure_filename_column(db.bind)
     rollout = await _rollout(db, tenant_id)
     if rollout.candidate_version:
         filename = (

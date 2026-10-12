@@ -129,7 +129,7 @@ async def compile_model(
     import random as _random
     from pathlib import Path as _Path
 
-    await _ensure_ai_schema()
+    await _ensure_ai_schema(db.bind)
     target = (target_silicon or "").strip().upper()
     allowed = {"ROCKCHIP_RKNN", "NVIDIA_TENSORRT", "INTEL_OPENVINO", "HAILO_8", "QUALCOMM_QNN"}
     if target not in allowed:
@@ -209,7 +209,7 @@ async def get_compile_status(
 
     from sqlalchemy import select as _select
 
-    await _ensure_ai_schema()
+    await _ensure_ai_schema(db.bind)
     task = (
         await db.execute(
             _select(CompileTask).where(
@@ -296,7 +296,7 @@ async def download_artifact(
     return FileResponse(path=str(local), media_type="application/octet-stream", filename=filename)
 
 
-async def _ensure_ai_schema() -> None:
+async def _ensure_ai_schema(bind=None) -> None:
     def _migrate(sync_conn) -> None:
         import app.models  # noqa: F401 (register tables for create_all)
         from sqlalchemy import inspect as _inspect, text as _text
@@ -317,10 +317,9 @@ async def _ensure_ai_schema() -> None:
             if name not in cols:
                 sync_conn.execute(_text(f"ALTER TABLE compile_tasks ADD COLUMN {name} {ddl}"))
 
-    from app.database import engine as _engine
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as conn:
-        await conn.run_sync(_migrate)
+    await _run_ddl(_migrate, bind)
 
 
 @router.post("/trism/evaluate", response_model=TrismResponse)
@@ -340,12 +339,10 @@ async def evaluate_trism(
     from datetime import datetime as _dt
     from datetime import timezone as _tz
 
-    from app.database import engine as _engine
-
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, db.bind)
 
     text = body.prompt_text or ""
     lowered = text.lower()

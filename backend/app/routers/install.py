@@ -26,10 +26,12 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.database import get_db
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # backend/
 ENV_PATH = BASE_DIR / ".env"
@@ -208,10 +210,8 @@ async def generate_secret() -> dict:
 
 
 @router.get("/status")
-async def install_status() -> dict:
+async def install_status(db: AsyncSession = Depends(get_db)) -> dict:
     """Public: is this backend already installed?"""
-    from app.database import engine
-
     locked = is_locked()
     has_env = ENV_PATH.is_file()
     user_count: int | None = None
@@ -224,12 +224,11 @@ async def install_status() -> dict:
         except Exception:
             admin_email = None
     try:
-        async with engine.connect() as conn:
-            try:
-                result = await conn.execute(text("SELECT COUNT(*) FROM users"))
-                user_count = int(result.scalar() or 0)
-            except Exception as exc:
-                db_error = f"users table not reachable ({type(exc).__name__})"
+        try:
+            result = await db.execute(text("SELECT COUNT(*) FROM users"))
+            user_count = int(result.scalar() or 0)
+        except Exception as exc:
+            db_error = f"users table not reachable ({type(exc).__name__})"
     except Exception as exc:  # DB unreachable (wrong .env, MySQL down)
         db_error = f"{type(exc).__name__}: {exc}".split("\n")[0][:300]
 

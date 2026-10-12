@@ -29,12 +29,11 @@ def _aware(dt: datetime) -> datetime:
     return dt
 
 
-async def _ensure_identity_schema() -> None:
-    from app.database import engine as _engine
+async def _ensure_identity_schema(bind=None) -> None:
     from app.database import Base as _Base
+    from app.database import run_schema_ddl as _run_ddl
 
-    async with _engine.begin() as _conn:
-        await _conn.run_sync(_Base.metadata.create_all)
+    await _run_ddl(_Base.metadata.create_all, bind)
 
 
 @router.get("/threats/itdr/events", response_model=list[ITDREventResponse])
@@ -43,7 +42,7 @@ async def list_itdr_events(
     db: AsyncSession = Depends(get_db),
 ):
     """Identity compromise table (Service 17)."""
-    await _ensure_identity_schema()
+    await _ensure_identity_schema(db.bind)
     rows = list(
         (await db.execute(
             select(ITDREvent)
@@ -74,7 +73,7 @@ async def revoke_itdr_session(
     db: AsyncSession = Depends(get_db),
 ):
     """1-click Entra ID / AD session revocation (marks incident REVOKED)."""
-    await _ensure_identity_schema()
+    await _ensure_identity_schema(db.bind)
     result = await db.execute(
         select(ITDREvent).where(
             ITDREvent.tenant_id == user.tenant_id,
@@ -184,7 +183,7 @@ async def list_ztna_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     """Continuous identity risk table (Service 20)."""
-    await _ensure_identity_schema()
+    await _ensure_identity_schema(db.bind)
     rows = list(
         (await db.execute(
             select(ZTNASession)

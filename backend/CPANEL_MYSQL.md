@@ -1,5 +1,24 @@
 # MySQL Setup, Conversion & cPanel Transfer Guide
 
+> **This machine (Oct 2026):** a user-space MySQL 8.0.44 already runs from
+> persistent disk — no `sudo`/install needed. Data dir `/home/kami/mysql/data`,
+> socket `/home/kami/mysql/mysql.sock`, port `3307`, root with no password
+> (dev only). After a reboot, start it with:
+>
+> ```bash
+> /home/kami/mysql/start-mysql.sh        # start (background)
+> /home/kami/mysql/start-mysql.sh stop   # clean shutdown
+> ```
+>
+> Canonical migrated database: `aryorithm` (fresh copy of `aryorithm.db`,
+> 59 tables / 357 rows, verified identical). `backend/.env` already points
+> at it, so `uvicorn app.main:app` runs on MySQL out of the box.
+> Test database: `aryorithm_test`
+> (`TEST_DATABASE_URL="mysql+aiomysql://root@127.0.0.1:3307/aryorithm_test?charset=utf8mb4"`).
+> NOTE: `/tmp` on this box is tmpfs — do NOT keep MySQL data there (an old
+> copy under `/tmp/opencode` was relocated to `/home/kami/mysql` for this
+> reason).
+
 This covers: (1) installing MySQL on the dev machine, (2) what changed in
 the backend for MySQL support, (3) moving the database to cPanel with data.
 
