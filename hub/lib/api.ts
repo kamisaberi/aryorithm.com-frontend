@@ -1,5 +1,40 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_HUB_API_URL || "http://localhost:8000/api/v1";
+/**
+ * Backend endpoint configuration — single source of truth.
+ *
+ * Local dev:  http://localhost:8000/api/v1   (hub/.env.local)
+ * Web host:   https://backend.aryorithm.com/api/v1   (hub/.env.production)
+ *
+ * NEXT_PUBLIC_* values are baked into client JS at `next build` time, so the
+ * production build MUST run with the production env file present (it is —
+ * `.env.production` is committed). Server components (`next start`) read the
+ * same vars at request time.
+ */
+const DEV_API_BASE = "http://localhost:8000/api/v1";
+const PROD_API_BASE = "https://backend.aryorithm.com/api/v1";
+
+function normalizeApiBase(raw: string | undefined): string {
+  const v = (raw || "").trim().replace(/\/+$/, "");
+  if (!v) {
+    return process.env.NODE_ENV === "production" && !raw
+      ? PROD_API_BASE
+      : DEV_API_BASE;
+  }
+  // Accept a bare host (https://backend.aryorithm.com) or a full base URL.
+  return v.endsWith("/api/v1") ? v : `${v}/api/v1`;
+}
+
+const API_BASE_URL = normalizeApiBase(process.env.NEXT_PUBLIC_HUB_API_URL);
+
+/** Backend origin without the `/api/v1` suffix (health checks, links). */
+export const HUB_BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
+
+/** True when talking to a local dev backend (gates dev-only UI). */
+export function isLocalBackend(): boolean {
+  return (
+    HUB_BACKEND_ORIGIN.includes("localhost") ||
+    HUB_BACKEND_ORIGIN.includes("127.0.0.1")
+  );
+}
 
 /** Absolute backend base for direct binary downloads (<a href>, not fetch). */
 export const HUB_API_BASE_URL = API_BASE_URL;
@@ -84,7 +119,7 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
   try {
     response = await fetch(url, { ...init, headers });
   } catch {
-    throw new ApiError(0, "NETWORK_ERROR", "Hub backend unreachable. Is it running on :8000?");
+    throw new ApiError(0, "NETWORK_ERROR", `Hub backend unreachable (${API_BASE_URL}). Is the backend running?`);
   }
 
   if (response.status === 204) {
@@ -124,7 +159,7 @@ export const api = {
     try {
       response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers });
     } catch {
-      throw new ApiError(0, "NETWORK_ERROR", "Hub backend unreachable. Is it running on :8000?");
+      throw new ApiError(0, "NETWORK_ERROR", `Hub backend unreachable (${API_BASE_URL}). Is the backend running?`);
     }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

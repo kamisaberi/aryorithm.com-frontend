@@ -43,7 +43,7 @@ export default function BotKinematicsPage() {
     setError(null);
     try {
       const vectors = scripted
-        ? points.map((p, i) => ({ x: p.x, y: p.y, dt_ms: 16 }))
+        ? points.map((p) => ({ x: p.x, y: p.y, dt_ms: 16 }))
         : points.map((p, i) => ({ x: p.x + (i % 3) * 7, y: p.y + (i % 5) * 3, dt_ms: 16 + ((i * 37) % 120) }));
       const res = await backend.botEvaluate(
         { session_id: `sess_demo_${Date.now()}`, kinematic_vectors: vectors, keystroke_jitter_ms: scripted ? 0.04 : 12.6 },

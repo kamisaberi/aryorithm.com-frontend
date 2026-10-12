@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
+import { isLocalBackend } from "@/lib/api";
 
 const NAV = [
   { label: "Explore", href: "/explore" },
@@ -13,11 +14,16 @@ const NAV = [
   { label: "Publish", href: "/publish" },
 ];
 
-const ECOSYSTEM = [
+const ECOSYSTEM_BASE = [
   { label: "Main Portal (aryorithm.com)", href: "https://aryorithm.com" },
   { label: "Fleet SaaS (app.aryorithm.com)", href: "https://app.aryorithm.com" },
-  { label: "Nexus Local Hub (Port 9443)", href: "http://localhost:9443" },
 ];
+
+// The Nexus local edge-collector UI only exists on a dev machine — hide the
+// dead link on the hosted site (shown when the backend is localhost).
+const ECOSYSTEM = isLocalBackend()
+  ? [...ECOSYSTEM_BASE, { label: "Nexus Local Hub (Port 9443)", href: "http://localhost:9443" }]
+  : ECOSYSTEM_BASE;
 
 /** Sticky glass app bar (§1.1): brand, nav, search trigger, switcher, CTA. */
 export default function Header() {

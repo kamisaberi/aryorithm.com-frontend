@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE_URL } from "@/lib/config";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
@@ -46,7 +47,7 @@ export default function ResilienceBenchPage() {
 
   const download = async () => {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/range/resilience/certify`,
+      `${API_BASE_URL}/range/resilience/certify`,
       { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {} }
     );
     if (!res.ok) return;

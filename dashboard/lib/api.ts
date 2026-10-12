@@ -1,5 +1,5 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE_URL } from "./config";
+
 
 export class ApiError extends Error {
   status: number;
@@ -125,11 +125,13 @@ export const api = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     try {
       const { getSelectedTenant } = await import("./tenant");
-      const selected = getSelectedTenant();
+      const selected = options?.tenantId ?? getSelectedTenant();
       if (selected) headers["X-Tenant-ID"] = selected;
     } catch {
       /* no tenant context */
     }
+    if (options?.enclaveId) headers["X-Enclave-ID"] = options.enclaveId;
+    if (options?.apiKey) headers["X-API-Key"] = options.apiKey;
     const response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers });
     if (!response.ok) throw new Error(`Export failed with status ${response.status}`);
     return response.blob();

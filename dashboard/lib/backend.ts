@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { API_BASE_URL } from "./config";
 
 /* ---------- Mission Control ---------- */
 export interface OverviewMetrics {
@@ -851,7 +852,7 @@ export const backend = {
       `/licenses/verify/${encodeURIComponent(ref)}`, t
     ),
   downloadLicense: async (hardwareToken: string, t: string | null): Promise<{ blob: Blob; filename: string }> => {
-    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    const base = API_BASE_URL;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (t) headers["Authorization"] = `Bearer ${t}`;
     try {

@@ -1,4 +1,16 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is the Aryorithm fleet dashboard (Next.js 14). API calls go through one
+config module — `lib/config.ts`:
+
+- Local dev: `http://localhost:8000/api/v1` (`dashboard/.env.local`)
+- Web host: `https://backend.aryorithm.com/api/v1` (`dashboard/.env.production`)
+
+`NEXT_PUBLIC_*` values bake into client JS at `next build`, so build for the
+host with `.env.production` present (committed) and **without** `.env.local`
+(git-ignored — never upload it, it would override production).
+
+## Getting Started
+
+First, run the development server:
 
 ## Getting Started
 
@@ -15,6 +27,25 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Deploy (Node.js web host, e.g. cPanel Setup Node App)
+
+1. On the host, point `backend.aryorithm.com` at the FastAPI backend and
+   allow the dashboard origin in its `CORS_ORIGINS`
+   (`https://app.aryorithm.com` is already included).
+2. Upload the project **without** `.env.local` (git-ignored) and without
+   `node_modules`/`.next`. `.env.production` ships the backend URL.
+   Keep `NEXT_PUBLIC_NEXUS_API_KEY` in sync with the backend's
+   `NEXUS_API_KEY`, or edge polling gets 401s.
+3. On the host:
+   ```bash
+   npm ci
+   npm run build   # uses .env.production
+   npm run start   # serves app.aryorithm.com (set PORT if the panel needs it)
+   ```
+4. Local dev is unchanged: `.env.local` (localhost:8000) always wins over
+   `.env.production` on your machine. `/api/:path*` rewrites proxy to the
+   configured backend for same-origin calls.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

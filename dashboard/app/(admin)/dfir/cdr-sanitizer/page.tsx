@@ -6,7 +6,7 @@ import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import { useAuth } from "@/lib/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE_URL as API_BASE } from "@/lib/config";
 
 const STAGES = ["Scanning document structures", "Stripping VBA macros / OLE objects / scripts", "Rebuilding clean visual representation"];
 

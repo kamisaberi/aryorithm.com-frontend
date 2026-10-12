@@ -7,8 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Table from "@/components/ui/Table";
 import { useAuth } from "@/lib/auth";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE_URL as API_BASE } from "@/lib/config";
 
 interface Vuln {
   cve: string;

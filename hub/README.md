@@ -13,6 +13,24 @@ npm run dev                  # http://localhost:3001
 
 The backend runs on `:8000` by default (`NEXT_PUBLIC_HUB_API_URL`).
 
+## Deploy (Node.js web host, e.g. cPanel Setup Node App)
+
+1. On the host, point `backend.aryorithm.com` at the FastAPI backend and
+   allow the hub origin in its `CORS_ORIGINS`
+   (`https://hub.aryorithm.com` is already included).
+2. Upload the project **without** `.env.local` (git-ignored) and without
+   `node_modules`/`.next`. `.env.production` ships the backend URL:
+   `NEXT_PUBLIC_HUB_API_URL=https://backend.aryorithm.com/api/v1`.
+3. On the host:
+   ```bash
+   npm ci
+   npm run build   # uses .env.production
+   npm run start   # serves hub.aryorithm.com (set PORT if the panel needs it)
+   # …or `node server.js` (custom server, same thing)
+   ```
+4. Local dev is unchanged: `.env.local` (localhost:8000) always wins over
+   `.env.production` on your machine.
+
 ## Structure
 
 - `app/` — landing `/`, catalog `/explore`, detail `/plugins/[slug]`,

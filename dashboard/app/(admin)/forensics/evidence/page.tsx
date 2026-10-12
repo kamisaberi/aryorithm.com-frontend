@@ -10,8 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useBackend } from "@/hooks/useBackend";
 import { DUMMY_PCAPS } from "@/data/dummy";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE_URL as API_BASE } from "@/lib/config";
 
 function truncateHash(hash: string): string {
   if (hash.length <= 20) return hash;
