@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { NAV } from "@/data/navigation";
+import AccountButton from "./AccountButton";
 
 export default function MobileDrawer({ onNavigate }: { onNavigate: () => void }) {
   return (
@@ -47,6 +48,7 @@ export default function MobileDrawer({ onNavigate }: { onNavigate: () => void })
         >
           Schedule Pilot
         </Link>
+        <AccountButton variant="mobile" onNavigate={onNavigate} />
       </div>
     </nav>
   );
