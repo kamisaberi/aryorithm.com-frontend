@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
 import { isLocalBackend } from "@/lib/api";
 import {
-  dashboardUrl,
   getSession,
   hubLogout,
   isAdminRole,
@@ -198,18 +197,18 @@ export default function Header() {
             </span>
           ) : (
             <span className="hidden items-center gap-2 lg:flex">
-              <a
-                href={dashboardUrl()}
+              <Link
+                href="/login"
                 className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
               >
                 Login
-              </a>
-              <a
-                href={dashboardUrl("/register")}
+              </Link>
+              <Link
+                href="/register"
                 className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan"
               >
                 Register
-              </a>
+              </Link>
             </span>
           )}
 
@@ -285,18 +284,20 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  <a
-                    href={dashboardUrl()}
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
                     className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
                   >
                     Login
-                  </a>
-                  <a
-                    href={dashboardUrl("/register")}
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileOpen(false)}
                     className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-cyan"
                   >
                     Register
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>

@@ -20,18 +20,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [token, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-void">
-        <div className="text-center">
-          <span className="pip-pulse mx-auto block h-3 w-3 bg-cyan" style={{ boxShadow: "0 0 12px rgba(0,229,255,0.9)" }} aria-hidden="true" />
-          <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.2em] text-muted">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!token) return null;
-
   return <AdminShell>{children}</AdminShell>;
 }

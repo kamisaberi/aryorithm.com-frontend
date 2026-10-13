@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  dashboardUrl,
   getSession,
   siteLogout,
   type SiteSession,
@@ -73,18 +72,18 @@ export default function AccountButton({
     }
     return (
       <div className="space-y-2.5">
-        <a
-          href={dashboardUrl("/login")}
+        <Link
+          href="/login"
           className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted"
         >
           Login
-        </a>
-        <a
-          href={dashboardUrl("/register")}
+        </Link>
+        <Link
+          href="/register"
           className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-cyan"
         >
           Register
-        </a>
+        </Link>
       </div>
     );
   }
@@ -113,18 +112,18 @@ export default function AccountButton({
 
   return (
     <span className="hidden items-center gap-3 lg:flex">
-      <a
-        href={dashboardUrl("/login")}
+      <Link
+        href="/login"
         className="font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
       >
         Login
-      </a>
-      <a
-        href={dashboardUrl("/register")}
+      </Link>
+      <Link
+        href="/register"
         className="rounded-md border border-hairline px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan"
       >
         Register
-      </a>
+      </Link>
     </span>
   );
 }
