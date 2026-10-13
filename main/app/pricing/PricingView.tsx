@@ -66,7 +66,7 @@ export default function PricingView() {
             <span className="text-kernel">[</span> Commercial Subscription Matrix <span className="text-kernel">]</span>
           </span>
           <h1 className="mt-5 max-w-4xl font-display text-[32px] font-bold leading-tight text-ink sm:text-[42px]">
-            Four Plans. <span className="text-cyan text-glow">92 Capabilities.</span> Zero Egress Taxes.
+            Four Plans. <span className="text-cyan text-glow">{PLAN_ITEMS.length} Capabilities.</span> Zero Egress Taxes.
           </h1>
           <p className="mt-4 max-w-2xl text-[15px] leading-[1.75] text-muted">
             Node-based licensing for air-gapped enclaves and distributed infrastructure. Every cell below is served
@@ -112,7 +112,7 @@ export default function PricingView() {
                   </p>
                   <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted">{p.target}</p>
                   <ul className="mt-4 flex-1 space-y-2 text-[12.5px] text-muted">
-                    {[["Deployment", p.deployment], ["Capacity", p.nodeCapacity], ["Licensing", p.licensing], ["Support", p.support]].map(([k, v]) => (
+                    {[["Deployment", p.deployment], ["Capacity", p.nodeCapacity], ["Kernel", p.kernelMitigation], ["Extensibility", p.extensibility], ["Licensing", p.licensing], ["Support", p.support]].map(([k, v]) => (
                       <li key={k} className="flex gap-2"><span className="shrink-0 font-mono text-[10.5px] text-cyan">{k}:</span><span>{v}</span></li>
                     ))}
                   </ul>
@@ -133,7 +133,7 @@ export default function PricingView() {
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">{"// Full Capability Matrix"}</p>
         <h2 className="mt-2 font-display text-[24px] font-bold text-ink lg:text-[30px]">Every Tier. Every Module. Every Plugin.</h2>
         <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Feature categories">
-          {[{ slug: "all", label: "All Features" }, ...PLAN_CATEGORIES].map((c) => (
+          {[{ slug: "all", label: `All Features (${counts.all})` }, ...PLAN_CATEGORIES].map((c) => (
             <button
               key={c.slug}
               type="button"

@@ -87,3 +87,50 @@ async def test_plans_matrix_and_patches(client):
     r = await ac.patch("/api/v1/plans/items/00000000-0000-0000-0000-000000000000",
                        json={}, headers=auth_headers(admin_token))
     assert r.status_code == 404
+
+
+@needs_db
+async def test_plans_upgraded_catalog(client):
+    """Upgraded pricing brief: new plan fields, sub-rows, hub service."""
+    ac, factory = client
+    admin_token, _, _ = await make_user(factory, email="c@example.com")
+
+    r = await ac.get("/api/v1/plans")
+    assert r.status_code == 200
+    body = r.json()
+    plans = {p["slug"]: p for p in body["plans"]}
+    # New glance-table columns served for every plan.
+    for p in body["plans"]:
+        assert p["kernel_mitigation"] and p["extensibility"]
+    assert plans["critical"]["kernel_mitigation"] == "eBPF CO-RE + AF_XDP Zero-Copy"
+    assert plans["enterprise"]["extensibility"] == "Tier C (Lua) & Tier B (Wasm)"
+    # Updated copy from the brief.
+    assert plans["enterprise"]["target"] == "Corporate IT, Cloud, DMZ"
+    assert plans["critical"]["target"] == "Power, Water, Fabs, IoMT"
+    assert plans["critical"]["cta_label"] == "Request 30-Day Shadow Pilot"
+    assert plans["critical"]["cta_href"] == "/contact?tier=critical_ot"
+    assert plans["sovereign"]["cta_href"] == "/contact?tier=sovereign"
+    # Admins can edit the new fields.
+    r = await ac.patch("/api/v1/plans/critical",
+                       json={"kernel_mitigation": "X", "extensibility": "Y"},
+                       headers=auth_headers(admin_token))
+    assert r.status_code == 200
+    assert r.json()["kernel_mitigation"] == "X" and r.json()["extensibility"] == "Y"
+    # New matrix rows present; kept IR row retained.
+    keys = {(i["category"], i["item_key"]) for i in body["items"]}
+    for key in [("software_tier", "t2-ebpf-core"), ("software_tier", "t2-afxdp"),
+                ("software_tier", "t3-modelrouter"), ("software_tier", "t3-mrd-xai"),
+                ("software_tier", "t3-sentinel-ctl"), ("software_tier", "t4-golden-gate"),
+                ("software_tier", "t6-collective-bus"),
+                ("cloud_saas", "saas-hub-registry"), ("cloud_saas", "saas-ir")]:
+        assert key in keys, key
+    hub = next(i for i in body["items"] if i["item_key"] == "saas-hub-registry")
+    assert hub["values"]["critical"] == "Full Certified Catalog"
+    # Idempotent re-seed keeps the catalog (no duplicates).
+    from app.services.plan_catalog import ensure_plan_seed
+    n_before = len(body["items"])
+    async with factory() as db:
+        await ensure_plan_seed(db)
+        await db.commit()
+    r = await ac.get("/api/v1/plans")
+    assert len(r.json()["items"]) == n_before

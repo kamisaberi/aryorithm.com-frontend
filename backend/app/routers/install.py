@@ -347,32 +347,9 @@ async def run_installer(body: InstallRequest) -> dict:
 
             # --- subscription plans matrix ---
             if body.seed_plans:
-                from app.services.plan_catalog import ITEMS, PLANS
+                from app.services.plan_catalog import ensure_plan_seed
 
-                plans = {p.slug: p for p in (await db.execute(_select(SubscriptionPlan))).scalars()}
-                for i, p in enumerate(PLANS):
-                    if p["slug"] in plans:
-                        row = plans[p["slug"]]
-                        for k, v in p.items():
-                            setattr(row, k, v)
-                        row.sort_order = i
-                    else:
-                        db.add(SubscriptionPlan(**{**p, "sort_order": i}))
-                rows = {
-                    (r.category, r.item_key): r
-                    for r in (await db.execute(_select(PlanEntitlement))).scalars()
-                }
-                for i, item in enumerate(ITEMS):
-                    key = (item["category"], item["item_key"])
-                    if key in rows:
-                        row = rows[key]
-                        row.item_label = item["item_label"]
-                        row.item_sub = item["item_sub"]
-                        row.values = item["values"]
-                        row.sort_order = i
-                    else:
-                        db.add(PlanEntitlement(**{**item, "sort_order": i}))
-                await db.flush()
+                await ensure_plan_seed(db)
                 seeded["plans"] = True
 
             # --- baseline threat-model inventory for the admin tenant ---

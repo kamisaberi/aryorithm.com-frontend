@@ -28,6 +28,8 @@ class SubscriptionPlan(Base):
     node_capacity: Mapped[str] = mapped_column(String(128), default="")
     licensing: Mapped[str] = mapped_column(String(255), default="")
     support: Mapped[str] = mapped_column(String(255), default="")
+    kernel_mitigation: Mapped[str] = mapped_column(String(255), default="")
+    extensibility: Mapped[str] = mapped_column(String(255), default="")
     cta_label: Mapped[str] = mapped_column(String(128), default="")
     cta_href: Mapped[str] = mapped_column(String(255), default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)

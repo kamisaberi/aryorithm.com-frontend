@@ -14,6 +14,7 @@ from app.database import get_db
 from app.dependencies import get_current_admin
 from app.models.subscription import PlanEntitlement, SubscriptionPlan
 from app.models.user import User
+from app.services.plan_catalog import ensure_plan_schema, ensure_plan_seed
 
 router = APIRouter(prefix="/plans", tags=["Subscription Plans"])
 
@@ -29,6 +30,8 @@ class PlanOut(BaseModel):
     node_capacity: str
     licensing: str
     support: str
+    kernel_mitigation: str = ""
+    extensibility: str = ""
     cta_label: str
     cta_href: str
     sort_order: int
@@ -62,6 +65,8 @@ class PlanPatch(BaseModel):
     node_capacity: str | None = None
     licensing: str | None = None
     support: str | None = None
+    kernel_mitigation: str | None = None
+    extensibility: str | None = None
     cta_label: str | None = None
     cta_href: str | None = None
     is_active: bool | None = None
@@ -79,6 +84,7 @@ class EntitlementPatch(BaseModel):
 @router.get("/", response_model=PlansMatrix, include_in_schema=False)
 async def get_matrix(db: AsyncSession = Depends(get_db)):
     """Public subscription matrix (pricing page + dashboard)."""
+    await ensure_plan_schema(db)
     plans = (
         await db.execute(
             select(SubscriptionPlan)
@@ -94,13 +100,7 @@ async def get_matrix(db: AsyncSession = Depends(get_db)):
         )
     ).scalars().all()
     if not plans:
-        from app.services.plan_catalog import ITEMS, PLANS
-
-        for i, p in enumerate(PLANS):
-            db.add(SubscriptionPlan(**{**p, "sort_order": i}))
-        for i, item in enumerate(ITEMS):
-            db.add(PlanEntitlement(**{**item, "sort_order": i}))
-        await db.flush()
+        await ensure_plan_seed(db)
         plans = (
             await db.execute(
                 select(SubscriptionPlan).order_by(SubscriptionPlan.sort_order)

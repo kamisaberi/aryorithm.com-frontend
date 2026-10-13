@@ -556,6 +556,8 @@ export interface SubPlan {
   node_capacity: string;
   licensing: string;
   support: string;
+  kernel_mitigation?: string;
+  extensibility?: string;
   cta_label: string;
   cta_href: string;
   sort_order: number;

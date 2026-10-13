@@ -4,6 +4,8 @@ Single source for the seed script. Cell values are display strings:
 "In" prefix ("✔ Included") renders green, "✖" renders muted.
 """
 
+from sqlalchemy import tuple_
+
 C = "community"
 E = "enterprise"
 K = "critical"
@@ -23,6 +25,8 @@ PLANS: list[dict] = [
         "node_capacity": "Max 1 Node (Lab: 3 Nodes)",
         "licensing": "FOSS (Apache/MIT)",
         "support": "Community / Discord",
+        "kernel_mitigation": "eBPF Generic (0.84 µs)",
+        "extensibility": "Community FOSS Rules",
         "cta_label": "Clone on GitHub",
         "cta_href": "https://github.com/kamisaberi/sentinel-stack",
         "sort_order": 0,
@@ -33,11 +37,13 @@ PLANS: list[dict] = [
         "price_month_cents": 29900,
         "price_display": "€299",
         "per_node": True,
-        "target": "Corporate IT, Cloud, FinTech",
+        "target": "Corporate IT, Cloud, DMZ",
         "deployment": "Cloud Hybrid (SaaS + Edge)",
         "node_capacity": "Unlimited",
         "licensing": "SaaS JWT / Commercial EULA",
         "support": "99.9% Cloud SLA, Standard",
+        "kernel_mitigation": "eBPF CO-RE Driver Drop",
+        "extensibility": "Tier C (Lua) & Tier B (Wasm)",
         "cta_label": "Start 14-Day Cloud Trial",
         "cta_href": "https://app.aryorithm.com/portal/register",
         "sort_order": 1,
@@ -48,13 +54,15 @@ PLANS: list[dict] = [
         "price_month_cents": 69900,
         "price_display": "€699",
         "per_node": True,
-        "target": "Substation, Factory, Hospital",
+        "target": "Power, Water, Fabs, IoMT",
         "deployment": "Hybrid or 100% Air-Gapped",
         "node_capacity": "Unlimited",
         "licensing": "Commercial Air-Gapped (.lic)",
         "support": "24/7/365 L3, 15-min Critical",
-        "cta_label": "Request 14-Day Shadow Pilot",
-        "cta_href": "/contact",
+        "kernel_mitigation": "eBPF CO-RE + AF_XDP Zero-Copy",
+        "extensibility": "Full 3-Tier .spkg (A, B, C)",
+        "cta_label": "Request 30-Day Shadow Pilot",
+        "cta_href": "/contact?tier=critical_ot",
         "sort_order": 2,
     },
     {
@@ -63,13 +71,15 @@ PLANS: list[dict] = [
         "price_month_cents": None,
         "price_display": "Custom",
         "per_node": True,
-        "target": "Defense, Nuclear, Classified",
+        "target": "Nuclear, Classified, DoD",
         "deployment": "100% Air-Gapped Sovereign",
         "node_capacity": "Unlimited",
         "licensing": "Air-Gapped Hardware Dongle",
         "support": "Dedicated On-Site Team",
+        "kernel_mitigation": "eBPF CO-RE + Custom Silicon",
+        "extensibility": "Custom Native & Hardened",
         "cta_label": "Request Sovereign Consultation",
-        "cta_href": "/contact?tier=defense",
+        "cta_href": "/contact?tier=sovereign",
         "sort_order": 3,
     },
 ]
@@ -80,17 +90,31 @@ ITEMS: list[dict] = [
      "item_sub": "Apache 2.0 (Open Source)", "values": {C: YES, E: YES, K: YES, S: YES}},
     {"category": "software_tier", "item_key": "t2-blackbox", "item_label": "Tier 2: blackbox-essential (libblackbox.so)",
      "item_sub": "Apache 2.0 / GPLv2 (Open Source)", "values": {C: YES, E: YES, K: YES, S: YES}},
+    {"category": "software_tier", "item_key": "t2-ebpf-core", "item_label": "▸ eBPF CO-RE Relocations (vmlinux.h)",
+     "item_sub": "BTF Relocations (Linux 5.15–6.12+)", "values": {C: "Basic Headers", E: YES, K: YES, S: YES}},
+    {"category": "software_tier", "item_key": "t2-afxdp", "item_label": "▸ AF_XDP UMEM Zero-Copy Engine",
+     "item_sub": "Adaptive Dual-Mode (XDP_ZEROCOPY)", "values": {C: "Standard SKB", E: "Standard Copy Mode", K: "✔ Hardware Zero-Copy (10M+ EPS)", S: "✔ Multi-Queue RSS (40M+ EPS)"}},
     {"category": "software_tier", "item_key": "t3-sentinel", "item_label": "Tier 3: blackbox-sentinel (Appliance Daemon)",
      "item_sub": "C++ LicenseManager Ed25519 Key",
      "values": {C: "Limited (5 Modules)", E: "✔ Included (IT Tier)", K: "✔ Included (Full OT)", S: "✔ Included (Custom Silicon)"}},
+    {"category": "software_tier", "item_key": "t3-modelrouter", "item_label": "▸ Hierarchical ModelRouter Engine",
+     "item_sub": "Configured via model_routes.yaml", "values": {C: "Basic Pass", E: "Single-Stage Model", K: "✔ 4-Stage Cascade Pipeline", S: "✔ Custom DAG & Fusion Engine"}},
+    {"category": "software_tier", "item_key": "t3-mrd-xai", "item_label": "▸ MRD XAI Feature Explainer (< 80 ns)",
+     "item_sub": "Microsecond Residual Decomposition", "values": {C: NO, E: YES, K: YES, S: YES}},
+    {"category": "software_tier", "item_key": "t3-sentinel-ctl", "item_label": "▸ sentinel-ctl Dependency Manager",
+     "item_sub": "Automated .spkg & model sync CLI", "values": {C: YES, E: YES, K: YES, S: YES}},
     {"category": "software_tier", "item_key": "t4-forge", "item_label": "Tier 4: xinfer-forge (forge-cli)",
      "item_sub": "Automated Safety Gate in forge-cli",
-     "values": {C: "Limited (Manual CLI)", E: YES, K: YES, S: YES}},
+     "values": {C: "Manual CLI", E: YES, K: YES, S: YES}},
+    {"category": "software_tier", "item_key": "t4-golden-gate", "item_label": "▸ Golden Attacks 100% Recall Gate",
+     "item_sub": "Enforces S(θ*) = 1.000", "values": {C: "Basic Gate", E: YES, K: YES, S: YES}},
     {"category": "software_tier", "item_key": "t5-lab", "item_label": "Tier 5: sentinel-lab (Academic Testbed)",
      "item_sub": "MIT License (Open Access / Zenodo)", "values": {C: YES, E: YES, K: YES, S: YES}},
     {"category": "software_tier", "item_key": "t6-nexus", "item_label": "Tier 6: sentinel-nexus (Command Plane)",
      "item_sub": "Node quota check in C++ daemon",
-     "values": {C: "Limited (Max 3 Nodes)", E: "✔ Included (Cloud C2)", K: "✔ Included (On-Prem/Cloud)", S: "✔ Included (Multi-Cluster HA)"}},
+     "values": {C: "Limited (≤ 3 Nodes)", E: "✔ Included (Cloud C2)", K: "✔ Included (On-Prem/Cloud)", S: "✔ Included (Multi-Cluster HA)"}},
+    {"category": "software_tier", "item_key": "t6-collective-bus", "item_label": "▸ Sub-50ms Collective Defense Bus",
+     "item_sub": "Fleet-wide gRPC rule broadcast", "values": {C: NO, E: YES, K: YES, S: YES}},
     {"category": "software_tier", "item_key": "t7-matrix", "item_label": "Tier 7: sentinel-matrix (Cyber-Range)",
      "item_sub": "Docker Compose profile entitlement",
      "values": {C: "Limited (Basic Traffic)", E: "✔ Included (API/Web)", K: "✔ Included (Full OT Mesh)", S: "✔ Included (Full Digital Twin)"}},
@@ -220,65 +244,68 @@ ITEMS: list[dict] = [
      "item_sub": "Fleet C2 — Automated cloud enrollment via TPM 2.0", "values": {C: NO, E: YES, K: YES, S: YES}},
     {"category": "cloud_saas", "item_key": "saas-mssp", "item_label": "3 · Multi-Tenant MSSP Portal",
      "item_sub": "Fleet C2 — Hierarchical multi-client management", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-compiler", "item_label": "4 · xInfer Compiler Cloud",
+    {"category": "cloud_saas", "item_key": "saas-hub-registry", "item_label": "4 · Aryorithm Hub Registry (hub.aryorithm.com)",
+     "item_sub": "Extensions — Distribution of signed .spkg packages",
+     "values": {C: "Community FOSS", E: "Standard Catalog", K: "Full Certified Catalog", S: "Air-Gapped Private Hub"}},
+    {"category": "cloud_saas", "item_key": "saas-compiler", "item_label": "5 · xInfer Compiler Cloud",
      "item_sub": "AI & Silicon — Cross-compile for 15 silicon targets",
      "values": {C: NO, E: "50 builds/mo", K: "250 builds/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-federated", "item_label": "5 · Federated Continual Retraining",
+    {"category": "cloud_saas", "item_key": "saas-federated", "item_label": "6 · Federated Continual Retraining",
      "item_sub": "AI & Silicon — Cross-fleet privacy-preserving tuning", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-trism", "item_label": "6 · AI TRiSM Gateway",
+    {"category": "cloud_saas", "item_key": "saas-trism", "item_label": "7 · AI TRiSM Gateway",
      "item_sub": "AI & Silicon — LLM prompt injection firewall proxy",
      "values": {C: NO, E: "50k tokens/mo", K: "1M tokens/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-feed", "item_label": "7 · Global Collective Defense Feed",
+    {"category": "cloud_saas", "item_key": "saas-feed", "item_label": "8 · Global Collective Defense Feed",
      "item_sub": "CTI — Sub-50ms crowdsourced zero-day feed", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-ot-feed", "item_label": "8 · OT/SCADA Exploit Warning Feed",
+    {"category": "cloud_saas", "item_key": "saas-ot-feed", "item_label": "9 · OT/SCADA Exploit Warning Feed",
      "item_sub": "CTI — Early warning for weaponized PLC exploits", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-ransomware", "item_label": "9 · Ransomware IOC Clearinghouse",
+    {"category": "cloud_saas", "item_key": "saas-ransomware", "item_label": "10 · Ransomware IOC Clearinghouse",
      "item_sub": "CTI — Real-time high-entropy process hash registry", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-nis2", "item_label": "10 · Automated EU NIS2 / DORA Vault",
+    {"category": "cloud_saas", "item_key": "saas-nis2", "item_label": "11 · Automated EU NIS2 / DORA Vault",
      "item_sub": "Compliance — Timestamped incident SLA proofs", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-cmmc", "item_label": "11 · CMMC 2.0 / NIST 800-171 Vault",
+    {"category": "cloud_saas", "item_key": "saas-cmmc", "item_label": "12 · CMMC 2.0 / NIST 800-171 Vault",
      "item_sub": "Compliance — Assessor-ready packages with TPM quotes", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-insurance", "item_label": "12 · Cyber Insurance Risk Verifier",
+    {"category": "cloud_saas", "item_key": "saas-insurance", "item_label": "13 · Cyber Insurance Risk Verifier",
      "item_sub": "Compliance — Proof for 20%–40% premium cuts", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-sbom", "item_label": "13 · Dynamic SBOM & VEX Tracker",
+    {"category": "cloud_saas", "item_key": "saas-sbom", "item_label": "14 · Dynamic SBOM & VEX Tracker",
      "item_sub": "Compliance — Cloud CycloneDX/SPDX vulnerability indexer", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-scada", "item_label": "14 · SCADA Actuator Analytics",
+    {"category": "cloud_saas", "item_key": "saas-scada", "item_label": "15 · SCADA Actuator Analytics",
      "item_sub": "CPS Security — Long-term PLC chatter & wear analysis", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-medical", "item_label": "15 · Medical IoMT & DICOM Cloud",
+    {"category": "cloud_saas", "item_key": "saas-medical", "item_label": "16 · Medical IoMT & DICOM Cloud",
      "item_sub": "CPS Security — Hospital radiology security hub", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-maritime", "item_label": "16 · Maritime & Vessel Fleet Portal",
+    {"category": "cloud_saas", "item_key": "saas-maritime", "item_label": "17 · Maritime & Vessel Fleet Portal",
      "item_sub": "CPS Security — Low-bandwidth satellite tracking", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-itdr", "item_label": "17 · Identity Threat (ITDR) Cloud",
+    {"category": "cloud_saas", "item_key": "saas-itdr", "item_label": "18 · Identity Threat (ITDR) Cloud",
      "item_sub": "Identity — Entra ID & AD abuse monitoring", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-botapi", "item_label": "18 · Kinematic Bot Defense API",
+    {"category": "cloud_saas", "item_key": "saas-botapi", "item_label": "19 · Kinematic Bot Defense API",
      "item_sub": "Identity — Web API scoring trajectory curves",
      "values": {C: NO, E: "100k req/mo", K: "1M req/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-deception", "item_label": "19 · Deception & Honeypot Cloud",
+    {"category": "cloud_saas", "item_key": "saas-deception", "item_label": "20 · Deception & Honeypot Cloud",
      "item_sub": "Identity — Remote VIP rotation of decoy PLCs", "values": {C: NO, E: NO, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-ztna", "item_label": "20 · Dynamic Zero Trust Scorer",
+    {"category": "cloud_saas", "item_key": "saas-ztna", "item_label": "21 · Dynamic Zero Trust Scorer",
      "item_sub": "Identity — Real-time session risk scoring (0.0 - 1.0)", "values": {C: NO, E: YES, K: YES, S: YES}},
-    {"category": "cloud_saas", "item_key": "saas-vault", "item_label": "21 · Cloud Evidence Vault (PCAP)",
+    {"category": "cloud_saas", "item_key": "saas-vault", "item_label": "22 · Cloud Evidence Vault (PCAP)",
      "item_sub": "Forensics — Signed PCAP with legal chain-of-custody",
      "values": {C: NO, E: "10 GB Storage", K: "100 GB Storage", S: "Unlimited Storage"}},
-    {"category": "cloud_saas", "item_key": "saas-cdr", "item_label": "22 · Cloud CDR Document Sanitizer",
+    {"category": "cloud_saas", "item_key": "saas-cdr", "item_label": "23 · Cloud CDR Document Sanitizer",
      "item_sub": "Forensics — Cloud API stripping macros from PDF/DOCX",
      "values": {C: NO, E: "500 docs/mo", K: "5,000 docs/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-firmware", "item_label": "23 · Firmware Backdoor Scanner",
+    {"category": "cloud_saas", "item_key": "saas-firmware", "item_label": "24 · Firmware Backdoor Scanner",
      "item_sub": "Forensics — Static analysis for router/PLC firmware",
      "values": {C: NO, E: NO, K: "10 scans/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-twin", "item_label": "24 · Matrix Digital Twin Cyber-Range",
+    {"category": "cloud_saas", "item_key": "saas-twin", "item_label": "25 · Matrix Digital Twin Cyber-Range",
      "item_sub": "Simulation — Cloud-hosted virtual replica of plants",
      "values": {C: NO, E: "10 hours/mo", K: "50 hours/mo", S: "Unlimited Dedicated"}},
-    {"category": "cloud_saas", "item_key": "saas-bas", "item_label": "25 · Automated Breach Simulation (BAS)",
+    {"category": "cloud_saas", "item_key": "saas-bas", "item_label": "26 · Automated Breach Simulation (BAS)",
      "item_sub": "Simulation — Scheduled nmap/Modbus attack sims",
      "values": {C: NO, E: "1 run/mo", K: "10 runs/mo", S: "Continuous Daily"}},
-    {"category": "cloud_saas", "item_key": "saas-resilience", "item_label": "26 · Resilience & MTTR Certification",
+    {"category": "cloud_saas", "item_key": "saas-resilience", "item_label": "27 · Resilience & MTTR Certification",
      "item_sub": "Simulation — Certified Mean Time to Fleet Immunity",
      "values": {C: NO, E: "Annual Audit", K: "Semi-Annual Audit", S: "Continuous Audit"}},
-    {"category": "cloud_saas", "item_key": "saas-mdr", "item_label": "27 · Co-Managed CPS SOC (MDR)",
+    {"category": "cloud_saas", "item_key": "saas-mdr", "item_label": "28 · Co-Managed CPS SOC (MDR)",
      "item_sub": "Managed — 24/7 human-in-the-loop alert triage",
      "values": {C: NO, E: "Optional Add-on", K: YES, S: "Dedicated Analysts"}},
-    {"category": "cloud_saas", "item_key": "saas-ir", "item_label": "28 · Incident Response Guarantee",
+    {"category": "cloud_saas", "item_key": "saas-ir", "item_label": "29 · Incident Response Guarantee",
      "item_sub": "Managed — Emergency on-demand kernel & SCADA response",
      "values": {C: NO, E: "4-Hour SLA", K: "1-Hour SLA", S: "15-Minute Critical SLA"}},
 ]
@@ -289,3 +316,81 @@ CATEGORIES = [
     ("industrial_plugin", "Industrial Plugins", 30),
     ("cloud_saas", "Cloud SaaS Services", 28),
 ]
+
+
+async def ensure_plan_schema(db) -> None:
+    """Additively migrate pre-existing `subscription_plans` tables.
+
+    Adds `kernel_mitigation` / `extensibility` when missing (older DBs
+    created before those columns existed). Idempotent, data untouched.
+    Scoped to the session's own bind (same pattern as
+    sentinel_packages._ensure_columns), so tests stay isolated.
+    """
+
+    def _migrate(sync_conn) -> None:
+        from sqlalchemy import inspect as _inspect
+        from sqlalchemy import text as _text
+
+        try:
+            cols = {c["name"] for c in _inspect(sync_conn).get_columns("subscription_plans")}
+        except Exception:
+            return
+        if "kernel_mitigation" not in cols:
+            sync_conn.execute(_text("ALTER TABLE subscription_plans ADD COLUMN kernel_mitigation VARCHAR(255) DEFAULT ''"))
+        if "extensibility" not in cols:
+            sync_conn.execute(_text("ALTER TABLE subscription_plans ADD COLUMN extensibility VARCHAR(255) DEFAULT ''"))
+
+    bind = db.bind
+    if hasattr(bind, "begin"):
+        async with bind.begin() as conn:
+            await conn.run_sync(_migrate)
+    else:  # already an AsyncConnection
+        await bind.run_sync(_migrate)
+
+
+async def ensure_plan_seed(db) -> None:
+    """Idempotently reconcile the DB with the PLANS/ITEMS catalog.
+
+    Upserts plans by slug and entitlements by (category, item_key) so price
+    and copy edits land without redeploying; prunes entitlement rows whose
+    key vanished from the catalog. Plan rows themselves are never deleted.
+    """
+    from sqlalchemy import delete, select
+
+    from app.models.subscription import PlanEntitlement, SubscriptionPlan
+
+    await ensure_plan_schema(db)
+
+    plans = {p.slug: p for p in (await db.execute(select(SubscriptionPlan))).scalars()}
+    for i, p in enumerate(PLANS):
+        if p["slug"] in plans:
+            row = plans[p["slug"]]
+            for k, v in p.items():
+                setattr(row, k, v)
+            row.sort_order = i
+        else:
+            db.add(SubscriptionPlan(**{**p, "sort_order": i}))
+    rows = {
+        (r.category, r.item_key): r
+        for r in (await db.execute(select(PlanEntitlement))).scalars()
+    }
+    catalog_keys = set()
+    for i, item in enumerate(ITEMS):
+        key = (item["category"], item["item_key"])
+        catalog_keys.add(key)
+        if key in rows:
+            row = rows[key]
+            row.item_label = item["item_label"]
+            row.item_sub = item["item_sub"]
+            row.values = item["values"]
+            row.sort_order = i
+        else:
+            db.add(PlanEntitlement(**{**item, "sort_order": i}))
+    stale = [k for k in rows if k not in catalog_keys]
+    if stale:
+        await db.execute(
+            delete(PlanEntitlement).where(
+                tuple_(PlanEntitlement.category, PlanEntitlement.item_key).in_(stale)
+            )
+        )
+    await db.flush()
