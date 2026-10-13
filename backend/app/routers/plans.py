@@ -114,7 +114,7 @@ async def get_matrix(db: AsyncSession = Depends(get_db)):
             )
         ).scalars().all()
     return PlansMatrix(
-        plans=[PlanOut(**{k: getattr(p, k) for k in PlanOut.model_fields}) for p in plans],
+        plans=[PlanOut(**{k: getattr(p, k, PlanOut.model_fields[k].default) for k in PlanOut.model_fields}) for p in plans],
         items=[EntitlementOut.model_validate(i) for i in items],
     )
 
@@ -137,7 +137,7 @@ async def patch_plan(
         if hasattr(plan, field):
             setattr(plan, field, value)
     await db.flush()
-    return PlanOut(**{k: getattr(plan, k) for k in PlanOut.model_fields})
+    return PlanOut(**{k: getattr(plan, k, PlanOut.model_fields[k].default) for k in PlanOut.model_fields})
 
 
 @router.patch("/items/{item_id}", response_model=EntitlementOut)

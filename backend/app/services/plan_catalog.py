@@ -354,6 +354,11 @@ async def ensure_plan_seed(db) -> None:
     Upserts plans by slug and entitlements by (category, item_key) so price
     and copy edits land without redeploying; prunes entitlement rows whose
     key vanished from the catalog. Plan rows themselves are never deleted.
+
+    Catalog keys unknown to the running model (e.g. a partial deploy where
+    plan_catalog.py is newer than models/subscription.py) are skipped instead
+    of raising TypeError — the install succeeds and the missing fields land
+    on the next full redeploy.
     """
     from sqlalchemy import delete, select
 
@@ -361,15 +366,19 @@ async def ensure_plan_seed(db) -> None:
 
     await ensure_plan_schema(db)
 
+    plan_cols = {c.key for c in SubscriptionPlan.__table__.columns}
+    item_cols = {c.key for c in PlanEntitlement.__table__.columns}
+
     plans = {p.slug: p for p in (await db.execute(select(SubscriptionPlan))).scalars()}
     for i, p in enumerate(PLANS):
+        values = {k: v for k, v in p.items() if k in plan_cols}
         if p["slug"] in plans:
             row = plans[p["slug"]]
-            for k, v in p.items():
+            for k, v in values.items():
                 setattr(row, k, v)
             row.sort_order = i
         else:
-            db.add(SubscriptionPlan(**{**p, "sort_order": i}))
+            db.add(SubscriptionPlan(**{**values, "sort_order": i}))
     rows = {
         (r.category, r.item_key): r
         for r in (await db.execute(select(PlanEntitlement))).scalars()
@@ -378,14 +387,14 @@ async def ensure_plan_seed(db) -> None:
     for i, item in enumerate(ITEMS):
         key = (item["category"], item["item_key"])
         catalog_keys.add(key)
+        values = {k: v for k, v in item.items() if k in item_cols}
         if key in rows:
             row = rows[key]
-            row.item_label = item["item_label"]
-            row.item_sub = item["item_sub"]
-            row.values = item["values"]
+            for k, v in values.items():
+                setattr(row, k, v)
             row.sort_order = i
         else:
-            db.add(PlanEntitlement(**{**item, "sort_order": i}))
+            db.add(PlanEntitlement(**{**values, "sort_order": i}))
     stale = [k for k in rows if k not in catalog_keys]
     if stale:
         await db.execute(

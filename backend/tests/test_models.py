@@ -134,3 +134,22 @@ async def test_plans_upgraded_catalog(client):
         await db.commit()
     r = await ac.get("/api/v1/plans")
     assert len(r.json()["items"]) == n_before
+
+
+@needs_db
+async def test_seed_ignores_unknown_catalog_keys(client, monkeypatch):
+    """Partial deploys (new catalog, old model) must seed, not 500."""
+    import app.services.plan_catalog as pc
+
+    ac, factory = client
+    monkeypatch.setattr(
+        pc, "PLANS",
+        [{**pc.PLANS[0], "bogus_future_field": "x"},
+         {k: v for k, v in pc.PLANS[1].items()}],
+    )
+    async with factory() as db:
+        await pc.ensure_plan_seed(db)  # must not raise TypeError
+        await db.commit()
+    r = await ac.get("/api/v1/plans")
+    assert r.status_code == 200
+    assert {pl["slug"] for pl in r.json()["plans"]} >= {"community", "enterprise"}
