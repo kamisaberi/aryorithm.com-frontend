@@ -24,12 +24,13 @@ The backend runs on `:8000` by default (`NEXT_PUBLIC_HUB_API_URL`).
 3. On the host:
    ```bash
    npm ci
-   npm run build   # uses .env.production
+   npm run build:prod   # stashes .env.local automatically, uses .env.production
    npm run start   # serves hub.aryorithm.com (set PORT if the panel needs it)
    # …or `node server.js` (custom server, same thing)
    ```
-4. Local dev is unchanged: `.env.local` (localhost:8000) always wins over
-   `.env.production` on your machine.
+4. Local dev needs no env files (built-in localhost defaults). An optional
+   git-ignored `.env.local` overrides them — but never upload it: it would
+   override production on the host.
 
 ## Single sign-on (SSO)
 

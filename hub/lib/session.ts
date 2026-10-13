@@ -33,11 +33,27 @@ export async function hubLogout(): Promise<void> {
   }
 }
 
-/** Dashboard origin for the "Sign in" handoff (same shared session). */
+/** Dashboard origin for the "Login / Register" handoff (same shared session). */
 export function dashboardUrl(path = "/login"): string {
   const base = (process.env.NEXT_PUBLIC_DASHBOARD_URL || "").trim().replace(/\/+$/, "");
   if (base) return `${base}${path}`;
   return process.env.NODE_ENV === "production"
     ? `https://app.aryorithm.com${path}`
     : `http://localhost:3000${path}`;
+}
+
+/** Main-site origin (the shared member profile lives there). */
+export function mainUrl(path = "/"): string {
+  const base = (process.env.NEXT_PUBLIC_MAIN_URL || "").trim().replace(/\/+$/, "");
+  if (base) return `${base}${path}`;
+  return process.env.NODE_ENV === "production"
+    ? `https://aryorithm.com${path}`
+    : `http://localhost:3002${path}`;
+}
+
+/** Roles allowed through admin gates (mirrors backend get_current_admin). */
+const ADMIN_ROLES = new Set(["super_admin", "tenant_admin", "admin"]);
+
+export function isAdminRole(role: string | null | undefined): boolean {
+  return !!role && ADMIN_ROLES.has(role);
 }

@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
+import RequireAdmin from "@/components/layout/RequireAdmin";
 import Table from "@/components/ui/Table";
 import { backend, type Webhook } from "@/lib/backend";
 import { useAuth } from "@/lib/auth";
@@ -87,6 +88,7 @@ function WebhookSection() {
 
 export default function SettingsPage() {
   return (
+    <RequireAdmin>
     <div className="space-y-6">
       <PageHeader
         title="Settings"
@@ -216,5 +218,6 @@ export default function SettingsPage() {
 
       <WebhookSection />
     </div>
+    </RequireAdmin>
   );
 }

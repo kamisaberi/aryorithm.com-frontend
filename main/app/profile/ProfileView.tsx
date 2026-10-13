@@ -5,6 +5,7 @@ import {
   dashboardUrl,
   getSession,
   hubUrl,
+  isAdminRole,
   siteLogout,
   type SiteSession,
 } from "@/lib/session";
@@ -123,6 +124,14 @@ export default function ProfileView() {
             >
               Extension hub <span className="font-mono text-[11px] text-muted">→ hub.aryorithm.com</span>
             </a>
+            {isAdminRole(session.role) && (
+              <a
+                href={dashboardUrl("/settings")}
+                className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-3 text-[13.5px] text-cyan transition-colors hover:bg-cyan/[0.12]"
+              >
+                Admin console <span className="font-mono text-[11px] opacity-70">→ workspace settings</span>
+              </a>
+            )}
             <button
               type="button"
               onClick={logout}

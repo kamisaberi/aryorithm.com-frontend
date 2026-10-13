@@ -54,6 +54,13 @@ export async function siteLogout(): Promise<void> {
   }
 }
 
+/** Roles allowed through admin gates (mirrors backend get_current_admin). */
+const ADMIN_ROLES = new Set(["super_admin", "tenant_admin", "admin"]);
+
+export function isAdminRole(role: string | null | undefined): boolean {
+  return !!role && ADMIN_ROLES.has(role);
+}
+
 function originOf(raw: string | undefined, prod: string, dev: string): string {
   const v = (raw || "").trim().replace(/\/+$/, "");
   if (v) return v;

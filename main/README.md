@@ -26,16 +26,17 @@ the member in everywhere. Logged-in members get an avatar → `/profile`
 
 ## Env files
 
-- `.env.local` — localhost trio (dev). Never upload.
 - `.env.production` — `backend`/`app`/`hub.aryorithm.com` (baked at build).
 - `.env.example` — documented template.
+- No `.env.local` needed for dev (built-in localhost defaults); an optional
+  git-ignored one overrides them. Never upload it to the host.
 
 ## Deploy (Node.js web host)
 
 ```bash
 npm ci
-npm run build   # uses .env.production; check the
-                # "[next.config] backend API base: https://backend.aryorithm.com/api/v1" line
+npm run build:prod   # stashes .env.local automatically, uses .env.production; check the
+                     # "[next.config] backend API base: https://backend.aryorithm.com/api/v1" line
 npm run start   # serves aryorithm.com (set PORT if the panel needs it)
 ```
 

@@ -64,6 +64,18 @@ Tests: `tests/test_auth.py`, `tests/test_sso_cookies.py`
 > `GET /auth/me` (session bootstrap) and cookie-only `POST /auth/refresh`.
 > `POST /auth/logout` revokes all of the caller's refresh tokens and clears
 > both cookies (global logout).
+>
+> **Integrated authorization (single role model):** the JWT + `/auth/me`
+> carry `role` (`super_admin`/`tenant_admin`/`admin` ⇒ admin) and the tenant
+> list to every app; enforcement matrix:
+>
+> | Surface | Enforcer | Rule |
+> |---|---|---|
+> | API writes/admin routes | backend `get_current_admin` | 403 unless admin role (source of truth) |
+> | Dashboard `/settings*` | `RequireAdmin` (`dashboard/components/layout/RequireAdmin.tsx`) | access-denied card for non-admins (backend still 403s) |
+> | Dashboard sidebar | role line under the user | identity display only |
+> | Hub header | role chip next to the account icon | identity display only (marketplace stays public; registry publishing still needs `packages:publish` ApiKey scope) |
+> | Main `/profile` | admin shortcut card | links admins to dashboard `/settings` |
 
 ---
 

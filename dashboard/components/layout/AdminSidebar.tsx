@@ -76,6 +76,11 @@ export default function AdminSidebar() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-medium text-ink">{user?.name || "Admin User"}</p>
             <p className="truncate font-mono text-[10px] text-muted">{user?.email || "admin@aryorithm.com"}</p>
+            {user?.role && (
+              <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-cyan">
+                {user.role.replace(/_/g, " ")}
+              </p>
+            )}
           </div>
           <button
             type="button"

@@ -5,12 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
 import { isLocalBackend } from "@/lib/api";
-import { dashboardUrl, getSession, hubLogout, type HubSession } from "@/lib/session";
+import {
+  dashboardUrl,
+  getSession,
+  hubLogout,
+  isAdminRole,
+  mainUrl,
+  type HubSession,
+} from "@/lib/session";
 
 const NAV = [
   { label: "Explore", href: "/explore" },
   { label: "Models", href: "/models" },
-  { label: "Runtimes & Targets", href: "/explore" },
   { label: "Documentation & SDK", href: "/docs" },
   { label: "Publish", href: "/publish" },
 ];
@@ -154,14 +160,34 @@ export default function Header() {
             Submit Plugin
           </Link>
 
-          {session === undefined ? null : session ? (
+          {session === undefined ? (
+            <span
+              aria-hidden="true"
+              className="hidden h-9 w-28 animate-pulse rounded-md border border-hairline lg:block"
+            />
+          ) : session ? (
             <span className="hidden items-center gap-2 lg:flex">
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-kernel/40 bg-kernel/10 font-mono text-[11px] font-bold uppercase text-kernel"
-                title={session.email}
+              <a
+                href={mainUrl("/profile")}
+                title={`Signed in as ${session.name} (${session.email}) — open profile`}
+                aria-label="Account profile"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-kernel/50 bg-kernel/10 text-kernel transition-colors hover:bg-kernel/20"
               >
-                {(session.name || session.email).slice(0, 1)}
-              </span>
+                <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+                  <path
+                    d="M3.5 17c1.2-3.4 3.6-5 6.5-5s5.3 1.6 6.5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </a>
+              {isAdminRole(session.role) && (
+                <span className="rounded border border-kernel/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-kernel">
+                  {session.role.replace(/_/g, " ")}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={onLogout}
@@ -171,12 +197,20 @@ export default function Header() {
               </button>
             </span>
           ) : (
-            <a
-              href={dashboardUrl()}
-              className="hidden rounded-md border border-hairline px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan lg:block"
-            >
-              Sign in
-            </a>
+            <span className="hidden items-center gap-2 lg:flex">
+              <a
+                href={dashboardUrl()}
+                className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
+              >
+                Login
+              </a>
+              <a
+                href={dashboardUrl("/register")}
+                className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan"
+              >
+                Register
+              </a>
+            </span>
           )}
 
           <button
@@ -230,23 +264,40 @@ export default function Header() {
                 Submit Plugin
               </Link>
               {session === undefined ? null : session ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setMobileOpen(false);
-                    await onLogout();
-                  }}
-                  className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
-                >
-                  Logout ({session.email})
-                </button>
+                <div className="space-y-2.5">
+                  <a
+                    href={mainUrl("/profile")}
+                    onClick={() => setMobileOpen(false)}
+                    className="block rounded-md border border-kernel/40 bg-kernel/[0.06] px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-kernel"
+                  >
+                    {(session.name || session.email).slice(0, 24)} — Profile
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setMobileOpen(false);
+                      await onLogout();
+                    }}
+                    className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
+                  >
+                    Logout ({session.email})
+                  </button>
+                </div>
               ) : (
-                <a
-                  href={dashboardUrl()}
-                  className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
-                >
-                  Sign in
-                </a>
+                <div className="space-y-2.5">
+                  <a
+                    href={dashboardUrl()}
+                    className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
+                  >
+                    Login
+                  </a>
+                  <a
+                    href={dashboardUrl("/register")}
+                    className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-cyan"
+                  >
+                    Register
+                  </a>
+                </div>
               )}
             </div>
           </nav>

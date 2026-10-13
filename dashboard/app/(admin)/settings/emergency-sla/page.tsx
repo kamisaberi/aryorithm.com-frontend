@@ -4,6 +4,7 @@ import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
+import RequireAdmin from "@/components/layout/RequireAdmin";
 import Table from "@/components/ui/Table";
 import { backend, type EmergencyDispatch } from "@/lib/backend";
 import { useBackend } from "@/hooks/useBackend";
@@ -65,6 +66,7 @@ export default function EmergencySlaPage() {
   ];
 
   return (
+    <RequireAdmin>
     <div className="space-y-6">
       <PageHeader
         title="Emergency SLA & Triage"
@@ -102,5 +104,6 @@ export default function EmergencySlaPage() {
         </Card>
       </div>
     </div>
+    </RequireAdmin>
   );
 }

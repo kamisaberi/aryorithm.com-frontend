@@ -1,16 +1,12 @@
 This is the Aryorithm fleet dashboard (Next.js 14). API calls go through one
 config module — `lib/config.ts`:
 
-- Local dev: `http://localhost:8000/api/v1` (`dashboard/.env.local`)
+- Local dev: `http://localhost:8000/api/v1` (built-in default — no env file needed)
 - Web host: `https://backend.aryorithm.com/api/v1` (`dashboard/.env.production`)
 
 `NEXT_PUBLIC_*` values bake into client JS at `next build`, so build for the
 host with `.env.production` present (committed) and **without** `.env.local`
 (git-ignored — never upload it, it would override production).
-
-## Getting Started
-
-First, run the development server:
 
 ## Getting Started
 
@@ -40,11 +36,12 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 3. On the host:
    ```bash
    npm ci
-   npm run build   # uses .env.production
+   npm run build:prod   # stashes .env.local automatically, uses .env.production
    npm run start   # serves app.aryorithm.com (set PORT if the panel needs it)
    ```
-4. Local dev is unchanged: `.env.local` (localhost:8000) always wins over
-   `.env.production` on your machine. `/api/:path*` rewrites proxy to the
+4. Local dev needs no env files (built-in localhost defaults). An optional
+   git-ignored `.env.local` overrides them — but never upload it: it would
+   override production on the host. `/api/:path*` rewrites proxy to the
    configured backend for same-origin calls.
 
 ## Single sign-on (SSO)

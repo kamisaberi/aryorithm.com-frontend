@@ -36,6 +36,13 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const TOKEN_KEY = "aryorithm_token";
 const REFRESH_KEY = "aryorithm_refresh_token";
 
+/** Roles allowed through admin gates (mirrors backend get_current_admin). */
+const ADMIN_ROLES = new Set(["super_admin", "tenant_admin", "admin"]);
+
+export function isAdminRole(role: string | null | undefined): boolean {
+  return !!role && ADMIN_ROLES.has(role);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
