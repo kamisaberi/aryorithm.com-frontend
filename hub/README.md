@@ -31,6 +31,20 @@ The backend runs on `:8000` by default (`NEXT_PUBLIC_HUB_API_URL`).
 4. Local dev is unchanged: `.env.local` (localhost:8000) always wins over
    `.env.production` on your machine.
 
+## Single sign-on (SSO)
+
+A dashboard login is automatically recognized here — the header shows the
+member and a global Logout (shared `.aryorithm.com` session cookie, no
+token to store; see backend `ROUTES.md` §2). Details:
+
+- Every API call sends `credentials: "include"` (`lib/api.ts`).
+- `lib/session.ts`: `getSession()` (via cookie `GET /auth/me`),
+  `hubLogout()` (global logout), `dashboardUrl()` for the "Sign in"
+  handoff (`NEXT_PUBLIC_DASHBOARD_URL`: `http://localhost:3000` dev,
+  `https://app.aryorithm.com` prod).
+- Web publishing still uses CLI `ApiKey` tokens by design (separate
+  machine credential); the session covers identity/logout.
+
 ## Structure
 
 - `app/` — landing `/`, catalog `/explore`, detail `/plugins/[slug]`,

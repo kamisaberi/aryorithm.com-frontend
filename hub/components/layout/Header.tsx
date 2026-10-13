@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
 import { isLocalBackend } from "@/lib/api";
+import { dashboardUrl, getSession, hubLogout, type HubSession } from "@/lib/session";
 
 const NAV = [
   { label: "Explore", href: "/explore" },
@@ -31,6 +32,23 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Shared SSO session (dashboard login cookie). undefined = still checking.
+  const [session, setSession] = useState<HubSession | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSession().then((s) => {
+      if (!cancelled) setSession(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onLogout = async () => {
+    await hubLogout();
+    setSession(null);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -136,6 +154,31 @@ export default function Header() {
             Submit Plugin
           </Link>
 
+          {session === undefined ? null : session ? (
+            <span className="hidden items-center gap-2 lg:flex">
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-kernel/40 bg-kernel/10 font-mono text-[11px] font-bold uppercase text-kernel"
+                title={session.email}
+              >
+                {(session.name || session.email).slice(0, 1)}
+              </span>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
+              >
+                Logout
+              </button>
+            </span>
+          ) : (
+            <a
+              href={dashboardUrl()}
+              className="hidden rounded-md border border-hairline px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan lg:block"
+            >
+              Sign in
+            </a>
+          )}
+
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
@@ -186,6 +229,25 @@ export default function Header() {
               >
                 Submit Plugin
               </Link>
+              {session === undefined ? null : session ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMobileOpen(false);
+                    await onLogout();
+                  }}
+                  className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
+                >
+                  Logout ({session.email})
+                </button>
+              ) : (
+                <a
+                  href={dashboardUrl()}
+                  className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
+                >
+                  Sign in
+                </a>
+              )}
             </div>
           </nav>
         )}

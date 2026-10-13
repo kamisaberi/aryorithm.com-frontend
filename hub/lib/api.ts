@@ -117,7 +117,7 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
 
   let response: Response;
   try {
-    response = await fetch(url, { ...init, headers });
+    response = await fetch(url, { credentials: "include", ...init, headers });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR", `Hub backend unreachable (${API_BASE_URL}). Is the backend running?`);
   }
@@ -157,7 +157,7 @@ export const api = {
     else if (token) headers["Authorization"] = `Bearer ${token}`;
     let response: Response;
     try {
-      response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers });
+      response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers, credentials: "include" });
     } catch {
       throw new ApiError(0, "NETWORK_ERROR", `Hub backend unreachable (${API_BASE_URL}). Is the backend running?`);
     }
