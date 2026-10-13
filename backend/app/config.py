@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Cross-subdomain SSO cookies (dashboard + hub + main share one login).
+    # Browsers send Domain=.aryorithm.com cookies to every subdomain, so a
+    # member logged in on one app stays logged in on the others.
+    # Local dev: leave COOKIE_DOMAIN empty (localhost can't use Domain cookies).
+    COOKIE_ACCESS_NAME: str = "ary_access"
+    COOKIE_REFRESH_NAME: str = "ary_refresh"
+    COOKIE_DOMAIN: str = ""
+    COOKIE_PATH: str = "/"
+
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 

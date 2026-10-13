@@ -47,6 +47,17 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
    `.env.production` on your machine. `/api/:path*` rewrites proxy to the
    configured backend for same-origin calls.
 
+## Single sign-on (SSO)
+
+Login once here and you're logged in on hub too (shared `.aryorithm.com`
+session cookie — see backend `ROUTES.md` §2). Details:
+
+- Every API call sends `credentials: "include"` (`lib/api.ts`).
+- Fresh browser / came from another app with no stored token → the app
+  silently restores the session via cookie `POST /auth/refresh`.
+- `Logout` calls `POST /auth/logout`: revokes all refresh tokens and clears
+  the shared cookies, so hub is logged out at the same time.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

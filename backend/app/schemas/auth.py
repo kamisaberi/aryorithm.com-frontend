@@ -26,7 +26,9 @@ class WebAuthnVerifyRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # Optional: frontends bootstrapping an SSO session omit it and rely on
+    # the ary_refresh cookie (sent via credentials: "include").
+    refresh_token: str | None = None
 
 
 class TokenResponse(BaseModel):

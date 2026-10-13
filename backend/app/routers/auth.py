@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,6 +21,7 @@ from app.schemas.auth import (
     WebAuthnChallengeRequest,
     WebAuthnVerifyRequest,
 )
+from app.utils.cookies import clear_auth_cookies, get_cookie_tokens, set_auth_cookies
 from app.utils.security import (
     create_access_token,
     create_refresh_token,
@@ -64,7 +65,12 @@ async def _issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """Self-service registration: creates a personal tenant + admin user."""
     if len(body.password) < 8:
         raise HTTPException(
@@ -93,11 +99,19 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
-    return await _issue_tokens(db, user)
+    tokens = await _issue_tokens(db, user)
+    # Mirror into the shared-domain SSO cookies (dashboard + hub + main).
+    set_auth_cookies(response, request, tokens.access_token, tokens.refresh_token)
+    return tokens
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """Email/Password authentication."""
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -113,7 +127,10 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
 
     user.last_login = datetime.now(timezone.utc)
-    return await _issue_tokens(db, user)
+    tokens = await _issue_tokens(db, user)
+    # Mirror into the shared-domain SSO cookies (dashboard + hub + main).
+    set_auth_cookies(response, request, tokens.access_token, tokens.refresh_token)
+    return tokens
 
 
 @router.post("/webauthn/challenge")
@@ -134,9 +151,22 @@ async def webauthn_verify(body: WebAuthnVerifyRequest):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    """Exchange refresh token for new access JWT."""
-    user_id = decode_token(body.refresh_token, expected_type="refresh")
+async def refresh_token(
+    body: RefreshRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Exchange refresh token for new access JWT.
+
+    Accepts the token in the JSON body (existing clients) or in the
+    ``ary_refresh`` SSO cookie (frontends bootstrapping a shared session
+    with ``fetch(..., {credentials: "include"})`` and no stored token).
+    """
+    presented = body.refresh_token
+    if not presented:
+        _, presented = get_cookie_tokens(request)
+    user_id = decode_token(presented, expected_type="refresh") if presented else None
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -145,7 +175,7 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
 
     result = await db.execute(
         select(RefreshToken).where(
-            RefreshToken.token == body.refresh_token,
+            RefreshToken.token == presented,
             RefreshToken.revoked.is_(False),
         )
     )
@@ -163,7 +193,31 @@ async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)
         )
 
     access_token, expires_in = create_access_token(user_id)
+    set_auth_cookies(response, request, access_token, presented)
     return TokenResponse(access_token=access_token, expires_in=expires_in)
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Global logout across dashboard + hub + main.
+
+    Revokes every refresh token of the caller (so silent-refresh fails on
+    all devices/apps) and clears the shared-domain SSO cookies. Callers
+    should also drop any locally stored tokens.
+    """
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False))
+        .values(revoked=True)
+    )
+    await db.flush()
+    clear_auth_cookies(response)
+    return {"status": "logged_out"}
 
 
 @router.get("/me", response_model=UserResponse)

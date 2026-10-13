@@ -46,14 +46,24 @@ default role `TENANT_ADMIN`, password `password123`); use
 |---|---|---|---|
 | `POST /api/v1/auth/register` | none | `{name, email, password≥8}` | `201 {access_token, refresh_token, expires_in}`; creates personal tenant + `TENANT_ADMIN` user. `400` short pw, `409` duplicate email |
 | `POST /api/v1/auth/login` | none | `{email, password}` | `200` tokens; `401` bad credentials, `403` deactivated account |
-| `POST /api/v1/auth/refresh` | none | `{refresh_token}` | `200` fresh access token; `401` unknown/expired/revoked token |
+| `POST /api/v1/auth/refresh` | none | `{refresh_token?}` (omissible — falls back to the `ary_refresh` SSO cookie) | `200` fresh access token (+ refreshed cookies); `401` unknown/expired/revoked token |
+| `POST /api/v1/auth/logout` | user (Bearer or SSO cookie) | — | revokes **all** refresh tokens of the caller (logout everywhere) + clears SSO cookies |
 | `GET /api/v1/auth/me` | user | — | `{user_id, email, name, role, tenants:[{id,name}]}` |
 | `GET /api/v1/auth/tenants` | admin | — | all tenants for `super_admin`, else own tenant only |
 | `POST /api/v1/auth/tenants` | admin | `{name, tier: STARTER\|PRO\|ENTERPRISE}` | `201`; `400` bad tier |
 | `POST /api/v1/auth/webauthn/challenge` | none | `{email}` | stub `{challenge, timeout: 60000}` (TODO) |
 | `POST /api/v1/auth/webauthn/verify` | none | `{credential_id, signature}` | always `501` (not implemented) |
 
-Tests: `tests/test_auth.py`
+Tests: `tests/test_auth.py`, `tests/test_sso_cookies.py`
+
+> **SSO (one login for dashboard + hub + main):** `login`/`register`/`refresh`
+> mirror the JWTs into `ary_access` + `ary_refresh` HttpOnly cookies
+> (`SameSite=Lax`, `Domain=.aryorithm.com` in prod via `COOKIE_DOMAIN`,
+> host-only on localhost dev). Frontends send `credentials: "include"` and
+> fall back to the cookie when no `Bearer` header is present — including
+> `GET /auth/me` (session bootstrap) and cookie-only `POST /auth/refresh`.
+> `POST /auth/logout` revokes all of the caller's refresh tokens and clears
+> both cookies (global logout).
 
 ---
 

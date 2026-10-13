@@ -91,7 +91,7 @@ async function request<T>(endpoint: string, options: ApiOptions = {}, token?: st
     headers["X-API-Key"] = apiKey;
   }
 
-  const response = await fetch(url, { ...init, headers });
+  const response = await fetch(url, { credentials: "include", ...init, headers });
 
   if (response.status === 204) {
     return undefined as T;
@@ -132,7 +132,12 @@ export const api = {
     }
     if (options?.enclaveId) headers["X-Enclave-ID"] = options.enclaveId;
     if (options?.apiKey) headers["X-API-Key"] = options.apiKey;
-    const response = await fetch(url, { method: "POST", body: JSON.stringify(body), headers });
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers,
+      credentials: "include",
+    });
     if (!response.ok) throw new Error(`Export failed with status ${response.status}`);
     return response.blob();
   },

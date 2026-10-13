@@ -1,6 +1,6 @@
 """Shared FastAPI dependencies."""
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,24 +8,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.utils.cookies import get_cookie_tokens
 from app.utils.security import decode_token
 
 security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Load the current user from a validated JWT access token."""
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    """Load the current user from a validated JWT access token.
 
-    user_id = decode_token(credentials.credentials, expected_type="access")
+    Prefers the ``Authorization: Bearer`` header (existing clients); falls
+    back to the ``ary_access`` SSO cookie so dashboard/hub/main frontends
+    share one login via ``fetch(..., {credentials: "include"})``.
+    """
+    token: str | None = None
+    if credentials:
+        token = credentials.credentials
+    if not token and request is not None:
+        token, _ = get_cookie_tokens(request)
+    user_id = decode_token(token, expected_type="access") if token else None
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
