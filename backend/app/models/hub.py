@@ -7,7 +7,10 @@ dashboard reads the same index. Stars and API tokens are per-user.
 import uuid
 from datetime import datetime, timezone
 
+import enum
+
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -184,3 +187,110 @@ class SentinelPackage(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class PcapCategory(str, enum.Enum):
+    SCADA_ICS = "SCADA_ICS"
+    MALWARE_C2 = "MALWARE_C2"
+    EXPLOIT_DOS = "EXPLOIT_DOS"
+    HEALTHCARE_IOMT = "HEALTHCARE_IOMT"
+    AEROSPACE_UAV = "AEROSPACE_UAV"
+
+
+class DatasetFormat(str, enum.Enum):
+    SLAB_BINARY = "SLAB_BINARY"
+    PCAP_RAW = "PCAP_RAW"
+    PARQUET_COMPACT = "PARQUET_COMPACT"
+    NETFLOW_IPFIX = "NETFLOW_IPFIX"
+
+
+class ScenarioComplexity(str, enum.Enum):
+    STARTER = "STARTER"
+    INTERMEDIATE = "INTERMEDIATE"
+    ADVANCED_RED_TEAM = "ADVANCED_RED_TEAM"
+
+
+class HubPcap(Base):
+    """Certified malware PCAP capture (Malware PCAP Vault).
+
+    Portable adaptation of the Postgres brief: enums stay natural SQLAlchemy
+    enums, TEXT[] becomes JSON, NUMERIC becomes Float. Artifact files are
+    deterministic stand-ins until real captures are published (Step 2);
+    ``file_size_bytes``/``sha256_checksum`` always describe the real bytes
+    on disk. ``download_url`` is built per-request (host-independent), so it
+    is NOT a stored column.
+    """
+
+    __tablename__ = "hub_pcaps"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    category: Mapped[PcapCategory] = mapped_column(SQLEnum(PcapCategory), nullable=False, index=True)
+    target_protocol: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    attack_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_origin: Mapped[str] = mapped_column(String(128), nullable=False)
+    packet_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    file_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sha256_checksum: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    mitre_attack_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    recommended_spkg_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    short_description: Mapped[str] = mapped_column(Text, nullable=False)
+    technical_analysis: Mapped[str] = mapped_column(Text, nullable=False)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    artifact_path: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class HubDataset(Base):
+    """Pre-converted SLAB research dataset (SLAB Research Datasets)."""
+
+    __tablename__ = "hub_datasets"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    format: Mapped[DatasetFormat] = mapped_column(SQLEnum(DatasetFormat), nullable=False, default=DatasetFormat.SLAB_BINARY, index=True)
+    tensor_dimension: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_records: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    normal_records_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    anomalous_records_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    normalization_method: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    source_benchmark: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    file_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sha256_checksum: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    doi_citation: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    paper_reference: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    streaming_throughput_eps: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    short_description: Mapped[str] = mapped_column(Text, nullable=False)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    artifact_path: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class HubScenario(Base):
+    """Matrix digital-twin scenario bundle (Digital Twin Scenarios)."""
+
+    __tablename__ = "hub_scenarios"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    complexity: Mapped[ScenarioComplexity] = mapped_column(SQLEnum(ScenarioComplexity), nullable=False, default=ScenarioComplexity.INTERMEDIATE, index=True)
+    target_sector: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    network_subnet: Mapped[str] = mapped_column(String(32), nullable=False, default="10.240.0.0/24")
+    node_topology: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    replayed_attacks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    expected_mitigation_sla: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    file_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sha256_checksum: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    cli_pull_command: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    short_description: Mapped[str] = mapped_column(Text, nullable=False)
+    technical_walkthrough: Mapped[str] = mapped_column(Text, nullable=False)
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    artifact_path: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

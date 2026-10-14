@@ -28,6 +28,95 @@ CREATE INDEX ix_ai_models_domain ON ai_models (domain);
 CREATE UNIQUE INDEX ix_ai_models_slug ON ai_models (slug);
 INSERT INTO `ai_models` (`id`, `slug`, `name`, `tier`, `domain`, `architecture`, `author`, `short_description`, `technical_description`, `input_tensor_shape`, `output_tensor_shape`, `created_at`, `updated_at`) VALUES ('aryo-netflow-mae-v2', 'netflow-mae-v2', 'NetFlow Tabular Masked Autoencoder v2', 'FOUNDATION', 'NETWORK_DETECTION', 'Tabular-MAE-32D', 'Aryorithm AI Research Lab', '32-dimensional tabular NetFlow/IPFIX anomaly detector trained with self-supervised stochastic masking.', 'Trained on over 42 million real industrial and enterprise NetFlow vectors using 30% random feature masking and InfoNCE contrastive representation learning. High reconstruction residuals directly trigger Microsecond Residual Decomposition (MRD XAI) in < 80 nanoseconds.', '[1, 32] (Float32 NetFlow Feature Vector)', '[1, 32] (Reconstructed Residual Vector)', '2026-10-10 17:24:05.851484', '2026-10-10 17:24:05.851487'), ('aryo-scada-kinematic-v1', 'scada-kinematic-v1', 'SCADA Physical Actuator Trajectory Scorer', 'FOUNDATION', 'SCADA_PHYSICAL', 'Temporal-CNN-1D', 'Aryorithm AI Research Lab', 'Physical actuator kinematics tracker detecting Stuxnet-like micro-drift and frequency resonance.', 'Evaluates physical sensor feedback against commanded PLC states across Modbus, DNP3, and S7Comm. Detects subtle valve drift, pump speed anomalies, and fluid pressure manipulation before mechanical damage occurs.', '[1, 16, 64] (16 physical sensors across 64-step rolling window)', '[1, 1] (Physical Drift Anomaly Score [0.0 - 1.0])', '2026-10-10 17:24:05.865153', '2026-10-10 17:24:05.865157'), ('aryo-ja4-c2-transformer-v1', 'ja4-c2-transformer-v1', 'TLS JA4 C2 Beaconing Sequence Transformer', 'FOUNDATION', 'ENCRYPTED_TRAFFIC', 'Mini-Transformer-4L', 'Aryorithm AI Research Lab', 'Identifies Cobalt Strike, Mythic, and Sliver C2 beaconing over encrypted TLS without payload decryption.', 'Inspects TLS ClientHello extensions, cipher suite ordering, and inter-arrival packet jitter. Employs a 4-layer transformer backbone to identify malware beaconing patterns while preserving end-to-end payload encryption.', '[1, 32, 16] (Sequence of 32 TLS handshakes)', '[1, 4] (Classification: Clean, CobaltStrike, Sliver, CustomC2)', '2026-10-10 17:24:05.872483', '2026-10-10 17:24:05.872485');
 
+-- Table: hub_datasets
+DROP TABLE IF EXISTS `hub_datasets`;
+
+CREATE TABLE hub_datasets (
+	id VARCHAR(128) NOT NULL, 
+	slug VARCHAR(128) NOT NULL, 
+	name VARCHAR(256) NOT NULL, 
+	format ENUM('SLAB_BINARY','PCAP_RAW','PARQUET_COMPACT','NETFLOW_IPFIX') NOT NULL, 
+	tensor_dimension INTEGER NOT NULL, 
+	total_records INTEGER NOT NULL, 
+	normal_records_count INTEGER NOT NULL, 
+	anomalous_records_count INTEGER NOT NULL, 
+	normalization_method VARCHAR(64) NOT NULL, 
+	source_benchmark VARCHAR(128) NOT NULL, 
+	file_name VARCHAR(128) NOT NULL, 
+	file_size_bytes INTEGER NOT NULL, 
+	sha256_checksum VARCHAR(64) NOT NULL, 
+	doi_citation VARCHAR(128), 
+	paper_reference TEXT NOT NULL, 
+	streaming_throughput_eps VARCHAR(64), 
+	short_description TEXT NOT NULL, 
+	download_count INTEGER NOT NULL, 
+	artifact_path VARCHAR(512) NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id)
+) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX ix_hub_datasets_format ON hub_datasets (format);
+CREATE UNIQUE INDEX ix_hub_datasets_slug ON hub_datasets (slug);
+INSERT INTO `hub_datasets` (`id`, `slug`, `name`, `format`, `tensor_dimension`, `total_records`, `normal_records_count`, `anomalous_records_count`, `normalization_method`, `source_benchmark`, `file_name`, `file_size_bytes`, `sha256_checksum`, `doi_citation`, `paper_reference`, `streaming_throughput_eps`, `short_description`, `download_count`, `artifact_path`, `created_at`) VALUES ('slab-cicids2017-portscan', 'cicids2017-portscan', 'CIC-IDS-2017 PortScan Benchmark (SLAB Protocol)', 'SLAB_BINARY', 32, 286467, 127537, 158930, 'MinMax [0.0 - 1.0] (Quantized FP16)', 'Canadian Institute for Cybersecurity (CIC-IDS-2017)', 'cicids2017_portscan.slab', 8193, '5c50678dcf5b957c36d9f940809abd1f30e469249bb08db41ab941ce2cd3b258', '10.5281/zenodo.10892341', 'K. Saberifard, \'Deterministic Sub-Microsecond Active Cyber-Physical Defense via eBPF and Heterogeneous Edge Silicon\', IEEE Trans., 2026.', '65,000+ EPS (Zero-Copy Socket Stream)', 'Pre-normalized binary dataset in SLAB wire format designed for zero-copy line-rate evaluation on sentinel-lab.', 0, 'cicids2017_portscan/cicids2017_portscan.slab', '2026-10-14 14:26:55.951184'), ('slab-unsw-nb15-cps', 'unsw-nb15-cps', 'UNSW-NB15 Cyber-Physical Flows (SLAB Protocol)', 'SLAB_BINARY', 42, 420000, 250000, 170000, 'Z-score Standardized (Zero-Mean, Unit-Variance)', 'University of New South Wales (UNSW-NB15)', 'unsw_nb15_cps.slab', 8219, '897d54b19f8d6d7fcc5e0fa33fc7fad4b1e229e88cf8c831caae715a07a78a88', '10.5281/zenodo.10892341', 'K. Saberifard, \'Reproducible Benchmark Harness for Line-Rate AI-NIDS\', Zenodo, 2026.', '58,000+ EPS (Wire Speed)', 'Normalized 42-dimensional flow vectors covering reconnaissance, exploits, backdoors, and generic DOS vectors.', 0, 'unsw_nb15_cps/unsw_nb15_cps.slab', '2026-10-14 14:26:55.951187'), ('slab-swat-water-testbed', 'swat-water-testbed', 'Secure Water Treatment Physical Sensor Stream (iTrust SWaT)', 'SLAB_BINARY', 51, 449919, 395283, 54636, 'Physical Sensor Range Scaling (bar, L/min, pH)', 'Singapore University of Technology and Design (iTrust SWaT)', 'swat_water_physical.slab', 8192, '6348d2b34b9fcf825c01cc100ffb507e49fb6e4d6fa4073bfa4dcfae1a862e8d', '10.5281/zenodo.10892341', 'K. Saberifard, \'Physical Invariant Verification in Cyber-Physical Water Infrastructure\', 2026.', '72,000+ EPS (Sensor Array)', 'Continuous 51-sensor cyber-physical stream capturing motorized valves, water pumps, and chemical dosing setpoints.', 0, 'swat_water_physical/swat_water_physical.slab', '2026-10-14 14:26:55.951187');
+
+-- Table: hub_pcaps
+DROP TABLE IF EXISTS `hub_pcaps`;
+
+CREATE TABLE hub_pcaps (
+	id VARCHAR(128) NOT NULL, 
+	slug VARCHAR(128) NOT NULL, 
+	title VARCHAR(256) NOT NULL, 
+	category ENUM('SCADA_ICS','MALWARE_C2','EXPLOIT_DOS','HEALTHCARE_IOMT','AEROSPACE_UAV') NOT NULL, 
+	target_protocol VARCHAR(64) NOT NULL, 
+	attack_type VARCHAR(128) NOT NULL, 
+	source_origin VARCHAR(128) NOT NULL, 
+	packet_count INTEGER NOT NULL, 
+	duration_seconds FLOAT NOT NULL, 
+	file_name VARCHAR(128) NOT NULL, 
+	file_size_bytes INTEGER NOT NULL, 
+	sha256_checksum VARCHAR(64) NOT NULL, 
+	mitre_attack_ids JSON NOT NULL, 
+	recommended_spkg_id VARCHAR(128), 
+	short_description TEXT NOT NULL, 
+	technical_analysis TEXT NOT NULL, 
+	download_count INTEGER NOT NULL, 
+	artifact_path VARCHAR(512) NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id)
+) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX ix_hub_pcaps_category ON hub_pcaps (category);
+CREATE UNIQUE INDEX ix_hub_pcaps_slug ON hub_pcaps (slug);
+CREATE INDEX ix_hub_pcaps_target_protocol ON hub_pcaps (target_protocol);
+INSERT INTO `hub_pcaps` (`id`, `slug`, `title`, `category`, `target_protocol`, `attack_type`, `source_origin`, `packet_count`, `duration_seconds`, `file_name`, `file_size_bytes`, `sha256_checksum`, `mitre_attack_ids`, `recommended_spkg_id`, `short_description`, `technical_analysis`, `download_count`, `artifact_path`, `created_at`) VALUES ('pcap-industroyer2-iec104', 'industroyer2-iec104', 'Industroyer2 High-Voltage IEC-104 Breaker Trip Capture', 'SCADA_ICS', 'IEC_60870_5_104', 'Unauthorized Telecontrol Command Injection (ASDU Type 45)', 'CISA / ESET Ukraine Power Grid Investigation', 84210, 184.5, 'industroyer2_substation.pcap', 8193, '4d7569c847a3689abf7495fafbffbe45e9f76801ab924e5fbcc4d86bc3666f17', '["T0813", "T0855", "T0885"]', 'org.aryorithm.package.iec104_grid_shield', 'Byte-for-byte transmission capture of the Industroyer2 high-voltage circuit breaker disconnect attack.', 'Contains raw IEC 60870-5-104 APDU frames. The attacker sends ASDU Type 45 (C_SC_NA_1 Single Command) targeting Information Object Address (IOA) 101 with command state 0x01 (Execute / Trip Breaker). Used to test sub-microsecond in-kernel eBPF mitigation.', 0, 'industroyer2_substation/industroyer2_substation.pcap', '2026-10-14 14:26:55.944729'), ('pcap-triton-tristation', 'triton-tristation', 'TRITON / Trisis Safety Instrumented System (SIS) Firmware Override', 'SCADA_ICS', 'TRISTATION_1131', 'SIS Program Memory Injection & Ladder Logic Modification', 'Nozomi Networks & FireEye Petrochemical Audit', 31400, 92.1, 'triton_trisis_sis.pcap', 8223, '26c83de72da29b612b91df55ea46f86f6a798047180a8f4318a68d56d9c55fcd', '["T0843", "T0857", "T0880"]', 'org.aryorithm.package.triton_sis', 'Authentic capture of the TRITON malware injecting unauthorized firmware blocks into Triconex safety PLCs.', 'Dissects proprietary TriStation 1131 UDP frames on port 19999. Demonstrates Command 0x02 (Upload/Write Program Memory) targeting the emergency core shutdown controller in an industrial refinery.', 0, 'triton_trisis_sis/triton_trisis_sis.pcap', '2026-10-14 14:26:55.944732'), ('pcap-stuxnet-s7comm', 'stuxnet-s7comm', 'Siemens S7Comm Unauthorized PLC Ladder Logic Injection', 'SCADA_ICS', 'S7COMM', 'PLC CPU Stop & Block Download Tampering', 'CISA / ICS-CERT Official Repository', 112000, 240.0, 'stuxnet_s7comm_injected.pcap', 8220, 'b1d88674da7a861abd437041cb172a9df531505e38a576075f543d5aba117768', '["T0843", "T0803", "T0836"]', 'org.aryorithm.package.s7comm_safety_interlock', 'Clean Siemens S7Comm trace demonstrating rogue Function Code 0x29 (CPU STOP) and block overwrites.', 'Dissects ISO-on-TCP (TPKT), COTP, and Siemens S7Comm frames on TCP Port 102. Highlights the sequence leading to S7-1200/1500 controller halt and unauthorized ladder logic injection.', 1, 'stuxnet_s7comm_injected/stuxnet_s7comm_injected.pcap', '2026-10-14 14:26:55.944733'), ('pcap-modbus-coil-abuse', 'modbus-coil-abuse', 'Modbus TCP Actuator Oscillation & Coil Override Flood', 'SCADA_ICS', 'MODBUS_TCP', 'High-Frequency Coil Toggle (Actuator Wear Attack)', 'University of Illinois Urbana-Champaign SCADA Lab', 52100, 60.0, 'modbus_uiuc_scada_attack.pcap', 8223, '7c15a29a4d1691d4f10c201da57029679347f0ffa50b81edfaedb6a626903fba', '["T0855", "T0831", "T0836"]', 'org.aryorithm.package.modbus_actuator_guard', 'SCADA network trace replaying rapid-fire Modbus FC05 coil overrides designed to induce water hammer shocks.', 'Sends bursts of Modbus TCP Function Code 05 (Write Single Coil) and Function Code 15 (Write Multiple Coils) at > 150 Hz targeting critical cooling valves. Verified against Sentinel\'s 88 ns Native C++20 clamp.', 0, 'modbus_uiuc_scada_attack/modbus_uiuc_scada_attack.pcap', '2026-10-14 14:26:55.944734'), ('pcap-http2-rapid-reset', 'http2-rapid-reset', 'HTTP/2 Rapid Reset Stream Multiplexing DoS Flood (CVE-2023-44487)', 'EXPLOIT_DOS', 'HTTP2_TCP', 'RST_STREAM Cancellation Abuse Burst', 'Real Adversary Botnet Capture', 98400, 45.2, 'cve_2023_44487_rapid_reset.pcap', 8223, '74b1fbe63643a7eff215f4839376e6eff6fe455d9db83f641762095666761344', '["T1498", "T1499"]', 'org.aryorithm.package.http_rapid_reset', 'Traffic capture exhibiting the HTTP/2 Rapid Reset exploit delivering tens of thousands of stream cancellations/sec.', 'Exhibits clients opening HTTP/2 streams with HEADERS frames followed immediately by RST_STREAM frames with error code 0x08 (CANCEL), exhausting reverse-proxy worker threads.', 0, 'cve_2023_44487_rapid_reset/cve_2023_44487_rapid_reset.pcap', '2026-10-14 14:26:55.944734');
+
+-- Table: hub_scenarios
+DROP TABLE IF EXISTS `hub_scenarios`;
+
+CREATE TABLE hub_scenarios (
+	id VARCHAR(128) NOT NULL, 
+	slug VARCHAR(128) NOT NULL, 
+	name VARCHAR(256) NOT NULL, 
+	complexity ENUM('STARTER','INTERMEDIATE','ADVANCED_RED_TEAM') NOT NULL, 
+	target_sector VARCHAR(128) NOT NULL, 
+	network_subnet VARCHAR(32) NOT NULL, 
+	node_topology JSON NOT NULL, 
+	replayed_attacks JSON NOT NULL, 
+	expected_mitigation_sla VARCHAR(64) NOT NULL, 
+	file_name VARCHAR(128) NOT NULL, 
+	file_size_bytes INTEGER NOT NULL, 
+	sha256_checksum VARCHAR(64) NOT NULL, 
+	cli_pull_command VARCHAR(256) NOT NULL, 
+	short_description TEXT NOT NULL, 
+	technical_walkthrough TEXT NOT NULL, 
+	download_count INTEGER NOT NULL, 
+	artifact_path VARCHAR(512) NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id)
+) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX ix_hub_scenarios_complexity ON hub_scenarios (complexity);
+CREATE UNIQUE INDEX ix_hub_scenarios_slug ON hub_scenarios (slug);
+CREATE INDEX ix_hub_scenarios_target_sector ON hub_scenarios (target_sector);
+INSERT INTO `hub_scenarios` (`id`, `slug`, `name`, `complexity`, `target_sector`, `network_subnet`, `node_topology`, `replayed_attacks`, `expected_mitigation_sla`, `file_name`, `file_size_bytes`, `sha256_checksum`, `cli_pull_command`, `short_description`, `technical_walkthrough`, `download_count`, `artifact_path`, `created_at`) VALUES ('scenario-power-grid-blackout', 'power-grid-blackout', 'Power Substation Blackout & Breaker Trip Scenario', 'ADVANCED_RED_TEAM', 'Electrical Transmission & Substations', '10.240.0.0/24', '{"nexus_c2": {"ip": "10.240.0.10", "role": "Central Command Plane"}, "substation_edge": {"ip": "10.240.0.101", "role": "Substation Alpha (OpenVINO NPU)"}, "adversary_node": {"ip": "10.240.0.99", "role": "Red Team Adversary (mbpoll + nmap)"}}', '["Industroyer2 IEC-104 Single Command", "SYN Flood TCP/2404", "mbpoll Coil Override"]', '0.84 µs In-Kernel Drop + 38.4 ms Fleet Fanout', 'scenario_power_grid_blackout.tar.gz', 8197, 'e945496bec9972ae5f107ff37c1093b11383f9076aafeb36f260ac17700962ed', 'make scenario-pull NAME=power_grid_blackout', 'Complete digital twin reproducing an active power substation cyberattack with automated adversary automation.', 'Deploys a containerized high-voltage substation running Blackbox Sentinel. Container .99 fires real Industroyer2 APCI frames. Demonstrates in-kernel XDP dropping in 0.84 µs and immediate sub-50ms collective immunity rule propagation to other nodes.', 0, 'scenario_power_grid_blackout/scenario_power_grid_blackout.tar.gz', '2026-10-14 14:26:55.955804'), ('scenario-hospital-pacs-heist', 'hospital-pacs-heist', 'Hospital PACS Medical Imaging Exfiltration & Ransomware Scenario', 'INTERMEDIATE', 'Healthcare Facilities & IoMT', '10.240.0.0/24', '{"nexus_c2": {"ip": "10.240.0.10", "role": "Central Command Plane"}, "hospital_edge": {"ip": "10.240.0.102", "role": "Hospital Radiology PACS (TensorRT GPU)"}, "adversary_node": {"ip": "10.240.0.99", "role": "Exfiltration Agent"}}', '["DICOM PHI Exfiltration C-STORE", "High-Entropy Ransomware Stream (7.95 bits)"]', '2.0 µs Wasm DLP Drop + 0.84 µs eBPF Drop', 'scenario_hospital_pacs_heist.tar.gz', 8197, '4852fbe53f38134fee31be8d38a094247d1b600e11762eb4a0d549e9d37bcc47', 'make scenario-pull NAME=hospital_pacs_heist', 'Simulates patient record theft from clinical MRI/CT archives coupled with an active ransomware encryption burst.', 'Validates Subsystem 17 (iot_sec) and the dicom_phi_sanitizer.spkg plugin intercepting cleartext patient tags, while Subsystem 07 (epp_ngav) detects outbound high-entropy file writes.', 0, 'scenario_hospital_pacs_heist/scenario_hospital_pacs_heist.tar.gz', '2026-10-14 14:26:55.955807'), ('scenario-refinery-disaster-triton', 'refinery-disaster-triton', 'Refinery Emergency Shutdown (SIS) Controller Sabotage Scenario', 'ADVANCED_RED_TEAM', 'Oil Refineries, Chemical Fabs & Petrochemical', '10.240.0.0/24', '{"nexus_c2": {"ip": "10.240.0.10", "role": "Central Command Plane"}, "refinery_edge": {"ip": "10.240.0.103", "role": "Refinery Delta SIS (Rockchip RKNN)"}, "adversary_node": {"ip": "10.240.0.99", "role": "TRITON Injection Station"}}', '["TRITON / Trisis TriStation 1131 Ingestion", "Modbus Actuator Valve Jitter"]', '0.91 µs In-Kernel Drop + Emergency GPIO Relay Cut-off', 'scenario_refinery_disaster_triton.tar.gz', 8202, '46e0036cccfa7387835ba333d948581551352fef3a2737c669aa55c84b5613e6', 'make scenario-pull NAME=refinery_disaster_triton', 'Emulates an attack against Triconex safety instrumented systems with cross-modal thermal discrepancy fusion.', 'Fires genuine TRITON byte streams over virtual interfaces. Demonstrates Subsystem 18 (cps_sec) detecting physical valve limits, commanding eBPF driver drops, and tripping hardware GPIO safety relays.', 0, 'scenario_refinery_disaster_triton/scenario_refinery_disaster_triton.tar.gz', '2026-10-14 14:26:55.955807');
+
 -- Table: plan_entitlements
 DROP TABLE IF EXISTS `plan_entitlements`;
 

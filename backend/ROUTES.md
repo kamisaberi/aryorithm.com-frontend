@@ -293,6 +293,18 @@ Already covered before this pass: `tests/test_licenses.py` (subscribe/activate/p
 
 Tests: `tests/test_hub_packages.py` (8-record seed + field fidelity, filters, 404s, download headers/size/checksum). Full guide: `HUB_PACKAGES.md` (schema, TS interface, routes, hub display mapping).
 
+### 14b-i. Hub library: PCAP vault / SLAB datasets / twin scenarios
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/hub/pcaps` | none (public) | `?category=&protocol=&search=` (category must be a known enum else `400`) | `200` array ordered by slug (5 seeded) |
+| `GET /api/v1/hub/pcaps/{slug}` | none | — | `200` full metadata + MITRE ids + recommended spkg + relative `download_url`; `404` unknown |
+| `GET /api/v1/hub/pcaps/{slug}/download` | none | — | `200 application/octet-stream` + `Content-Disposition` + `X-Checksum-SHA256`; increments `download_count`; `404` unknown |
+| `GET /api/v1/hub/datasets` (+ slug, download) | none | `?format=&dimension=&search=` | same shape; 3 seeded (`format`/`dimension` validated, `400` otherwise) |
+| `GET /api/v1/hub/scenarios` (+ slug, download) | none | `?sector=&complexity=` | same shape; 3 seeded; detail includes `node_topology` + `cli_pull_command` |
+
+Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing rows). Artifacts are deterministic stand-ins on disk under `<HUB_PACKAGE_DIR>/{pcaps,datasets,scenarios}/<file-stem>/<file>`; `file_size_bytes`/`sha256_checksum` always describe the real bytes (brief placeholders ignored). Hub UI: `/pcaps`, `/datasets`, `/scenarios` catalogs + `[slug]` detail pages with downloads. Tests: `tests/test_hub_library.py`.
+
 ### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
 
 | Method & Path | Auth | Request | Response / Notes |

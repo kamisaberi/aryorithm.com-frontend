@@ -16,6 +16,9 @@ import {
 const NAV = [
   { label: "Explore", href: "/explore" },
   { label: "Models", href: "/models" },
+  { label: "PCAPs", href: "/pcaps" },
+  { label: "Datasets", href: "/datasets" },
+  { label: "Scenarios", href: "/scenarios" },
   { label: "Documentation & SDK", href: "/docs" },
   { label: "Publish", href: "/publish" },
 ];

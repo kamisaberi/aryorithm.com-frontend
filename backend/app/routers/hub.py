@@ -21,7 +21,7 @@ from typing import NamedTuple
 
 import yaml
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +35,9 @@ from app.schemas.hub import (
     CheckUpdatesOut,
     CheckUpdatesRequest,
     FacetsOut,
+    HubDatasetOut,
+    HubPcapOut,
+    HubScenarioOut,
     InstallTelemetryIn,
     ManifestOut,
     PluginActiveVersionOut,
@@ -1099,3 +1102,215 @@ async def download_package(slug: str, db: AsyncSession = Depends(get_db)):
             "X-Checksum-SHA256": digest,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# hub library: PCAP vault / SLAB datasets / twin scenarios (public, no auth)
+# ---------------------------------------------------------------------------
+pcaps_router = APIRouter(prefix="/hub/pcaps", tags=["Hub — PCAP Vault"])
+datasets_router = APIRouter(prefix="/hub/datasets", tags=["Hub — SLAB Datasets"])
+scenarios_router = APIRouter(prefix="/hub/scenarios", tags=["Hub — Twin Scenarios"])
+
+
+def _lib_download_url(kind: str, slug: str) -> str:
+    return f"/api/v1/hub/{kind}/{slug}/download"
+
+
+async def _get_pcap_or_404(db: AsyncSession, slug: str):
+    from app.models.hub import HubPcap
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    row = (await db.execute(select(HubPcap).where(HubPcap.slug == slug))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"PCAP '{slug}' not found")
+    return row
+
+
+async def _get_dataset_or_404(db: AsyncSession, slug: str):
+    from app.models.hub import HubDataset
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    row = (await db.execute(select(HubDataset).where(HubDataset.slug == slug))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dataset '{slug}' not found")
+    return row
+
+
+async def _get_scenario_or_404(db: AsyncSession, slug: str):
+    from app.models.hub import HubScenario
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    row = (await db.execute(select(HubScenario).where(HubScenario.slug == slug))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Scenario '{slug}' not found")
+    return row
+
+
+def _pcap_out(row) -> dict:
+    d = HubPcapOut.model_validate(row).model_dump()
+    d["category"] = row.category.value if hasattr(row.category, "value") else str(row.category)
+    d["download_url"] = _lib_download_url("pcaps", row.slug)
+    return d
+
+
+def _dataset_out(row) -> dict:
+    d = HubDatasetOut.model_validate(row).model_dump()
+    d["format"] = row.format.value if hasattr(row.format, "value") else str(row.format)
+    d["download_url"] = _lib_download_url("datasets", row.slug)
+    return d
+
+
+def _scenario_out(row) -> dict:
+    d = HubScenarioOut.model_validate(row).model_dump()
+    d["complexity"] = row.complexity.value if hasattr(row.complexity, "value") else str(row.complexity)
+    d["download_url"] = _lib_download_url("scenarios", row.slug)
+    return d
+
+
+async def _download_artifact(db: AsyncSession, kind: str, row, media: str = "application/octet-stream"):
+    from app.services import hub_library as lib
+
+    path, digest = await lib.resolve_artifact(db, kind, row)
+    row.download_count += 1
+    await db.flush()
+    return FileResponse(
+        path=str(path),
+        media_type=media,
+        filename=row.file_name,
+        headers={"X-Checksum-SHA256": digest},
+    )
+
+
+@pcaps_router.get("", response_model=list[HubPcapOut])
+@pcaps_router.get("/", response_model=list[HubPcapOut], include_in_schema=False)
+async def list_pcaps(
+    category: str | None = Query(default=None, description="Exact match: SCADA_ICS | MALWARE_C2 | EXPLOIT_DOS | HEALTHCARE_IOMT | AEROSPACE_UAV"),
+    protocol: str | None = Query(default=None, description="Case-insensitive substring match on target_protocol"),
+    search: str | None = Query(default=None, description="Match across title, slug, attack type, protocol"),
+    db: AsyncSession = Depends(get_db),
+):
+    """List certified malware PCAP captures with optional filters (public)."""
+    from sqlalchemy import or_
+
+    from app.models.hub import HubPcap
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    if category is not None and category not in lib.PCAP_CATEGORIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown category '{category}'. Use one of: {', '.join(lib.PCAP_CATEGORIES)}.",
+        )
+    stmt = select(HubPcap).order_by(HubPcap.slug)
+    if category is not None:
+        stmt = stmt.where(HubPcap.category == category)
+    if protocol is not None and protocol.strip():
+        stmt = stmt.where(HubPcap.target_protocol.ilike(f"%{protocol.strip()}%"))
+    if search is not None and search.strip():
+        needle = f"%{search.strip()}%"
+        stmt = stmt.where(or_(
+            HubPcap.title.ilike(needle),
+            HubPcap.slug.ilike(needle),
+            HubPcap.attack_type.ilike(needle),
+            HubPcap.target_protocol.ilike(needle),
+        ))
+    return [_pcap_out(r) for r in (await db.execute(stmt)).scalars().all()]
+
+
+@pcaps_router.get("/{slug}", response_model=HubPcapOut)
+async def get_pcap(slug: str, db: AsyncSession = Depends(get_db)):
+    """Full PCAP metadata, MITRE mappings and recommended package (public)."""
+    return _pcap_out(await _get_pcap_or_404(db, slug))
+
+
+@pcaps_router.get("/{slug}/download")
+async def download_pcap(slug: str, db: AsyncSession = Depends(get_db)):
+    """Stream the `.pcap` capture binary (public)."""
+    return await _download_artifact(db, "pcaps", await _get_pcap_or_404(db, slug))
+
+
+@datasets_router.get("", response_model=list[HubDatasetOut])
+@datasets_router.get("/", response_model=list[HubDatasetOut], include_in_schema=False)
+async def list_datasets(
+    format: str | None = Query(default=None, description="Exact match: SLAB_BINARY | PCAP_RAW | PARQUET_COMPACT | NETFLOW_IPFIX"),
+    dimension: int | None = Query(default=None, description="Exact match on tensor_dimension"),
+    search: str | None = Query(default=None, description="Match across name, slug, benchmark"),
+    db: AsyncSession = Depends(get_db),
+):
+    """List pre-converted SLAB research datasets with optional filters (public)."""
+    from sqlalchemy import or_
+
+    from app.models.hub import HubDataset
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    if format is not None and format not in lib.DATASET_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown format '{format}'. Use one of: {', '.join(lib.DATASET_FORMATS)}.",
+        )
+    stmt = select(HubDataset).order_by(HubDataset.slug)
+    if format is not None:
+        stmt = stmt.where(HubDataset.format == format)
+    if dimension is not None:
+        stmt = stmt.where(HubDataset.tensor_dimension == dimension)
+    if search is not None and search.strip():
+        needle = f"%{search.strip()}%"
+        stmt = stmt.where(or_(
+            HubDataset.name.ilike(needle),
+            HubDataset.slug.ilike(needle),
+            HubDataset.source_benchmark.ilike(needle),
+        ))
+    return [_dataset_out(r) for r in (await db.execute(stmt)).scalars().all()]
+
+
+@datasets_router.get("/{slug}", response_model=HubDatasetOut)
+async def get_dataset(slug: str, db: AsyncSession = Depends(get_db)):
+    """Full SLAB dataset metadata, tensor shapes and paper refs (public)."""
+    return _dataset_out(await _get_dataset_or_404(db, slug))
+
+
+@datasets_router.get("/{slug}/download")
+async def download_dataset(slug: str, db: AsyncSession = Depends(get_db)):
+    """Stream the `.slab` dataset binary (public)."""
+    return await _download_artifact(db, "datasets", await _get_dataset_or_404(db, slug))
+
+
+@scenarios_router.get("", response_model=list[HubScenarioOut])
+@scenarios_router.get("/", response_model=list[HubScenarioOut], include_in_schema=False)
+async def list_scenarios(
+    sector: str | None = Query(default=None, description="Case-insensitive substring match on target_sector"),
+    complexity: str | None = Query(default=None, description="Exact match: STARTER | INTERMEDIATE | ADVANCED_RED_TEAM"),
+    db: AsyncSession = Depends(get_db),
+):
+    """List downloadable digital-twin scenario bundles (public)."""
+    from app.models.hub import HubScenario
+    from app.services import hub_library as lib
+
+    await lib.ensure_seed(db)
+    if complexity is not None and complexity not in lib.SCENARIO_COMPLEXITIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown complexity '{complexity}'. Use one of: {', '.join(lib.SCENARIO_COMPLEXITIES)}.",
+        )
+    stmt = select(HubScenario).order_by(HubScenario.slug)
+    if complexity is not None:
+        stmt = stmt.where(HubScenario.complexity == complexity)
+    if sector is not None and sector.strip():
+        stmt = stmt.where(HubScenario.target_sector.ilike(f"%{sector.strip()}%"))
+    return [_scenario_out(r) for r in (await db.execute(stmt)).scalars().all()]
+
+
+@scenarios_router.get("/{slug}", response_model=HubScenarioOut)
+async def get_scenario(slug: str, db: AsyncSession = Depends(get_db)):
+    """Full scenario manifest: topology, attacks, SLA, pull command (public)."""
+    return _scenario_out(await _get_scenario_or_404(db, slug))
+
+
+@scenarios_router.get("/{slug}/download")
+async def download_scenario(slug: str, db: AsyncSession = Depends(get_db)):
+    """Stream the `.tar.gz` scenario bundle (public)."""
+    return await _download_artifact(db, "scenarios", await _get_scenario_or_404(db, slug))

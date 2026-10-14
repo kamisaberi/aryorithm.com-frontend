@@ -257,3 +257,78 @@ class SentinelPackageOut(BaseModel):
     install_command: str
     created_at: datetime
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# hub library: PCAP vault / SLAB datasets / twin scenarios (public catalogs)
+# ---------------------------------------------------------------------------
+class HubPcapOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    slug: str
+    title: str
+    category: str
+    target_protocol: str
+    attack_type: str
+    source_origin: str
+    packet_count: int
+    duration_seconds: float
+    file_name: str
+    file_size_bytes: int
+    sha256_checksum: str
+    download_url: str = ""  # built per-request by the router
+    mitre_attack_ids: list[str] = []
+    recommended_spkg_id: str | None = None
+    short_description: str
+    technical_analysis: str
+    download_count: int = 0
+    created_at: datetime
+
+
+class HubDatasetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    slug: str
+    name: str
+    format: str
+    tensor_dimension: int
+    total_records: int
+    normal_records_count: int
+    anomalous_records_count: int
+    normalization_method: str
+    source_benchmark: str
+    file_name: str
+    file_size_bytes: int
+    sha256_checksum: str
+    download_url: str = ""  # built per-request by the router
+    doi_citation: str | None = None
+    paper_reference: str = ""
+    streaming_throughput_eps: str | None = None
+    short_description: str
+    download_count: int = 0
+    created_at: datetime
+
+
+class HubScenarioOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    slug: str
+    name: str
+    complexity: str
+    target_sector: str
+    network_subnet: str
+    node_topology: dict = {}
+    replayed_attacks: list[str] = []
+    expected_mitigation_sla: str
+    file_name: str
+    file_size_bytes: int
+    sha256_checksum: str
+    download_url: str = ""  # built per-request by the router
+    cli_pull_command: str
+    short_description: str
+    technical_walkthrough: str
+    download_count: int = 0
+    created_at: datetime

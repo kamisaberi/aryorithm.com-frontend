@@ -338,3 +338,103 @@ export const vault = {
   },
   detail: (slug: string) => api.get<VaultModel>(`/model-vault/${encodeURIComponent(slug)}`),
 };
+
+/* ---------- Hub Library: PCAP vault / SLAB datasets / twin scenarios ---------- */
+export interface HubPcap {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  target_protocol: string;
+  attack_type: string;
+  source_origin: string;
+  packet_count: number;
+  duration_seconds: number;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  download_url: string;
+  mitre_attack_ids: string[];
+  recommended_spkg_id: string | null;
+  short_description: string;
+  technical_analysis: string;
+  download_count: number;
+  created_at: string;
+}
+
+export interface HubDataset {
+  id: string;
+  slug: string;
+  name: string;
+  format: string;
+  tensor_dimension: number;
+  total_records: number;
+  normal_records_count: number;
+  anomalous_records_count: number;
+  normalization_method: string;
+  source_benchmark: string;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  download_url: string;
+  doi_citation: string | null;
+  paper_reference: string;
+  streaming_throughput_eps: string | null;
+  short_description: string;
+  download_count: number;
+  created_at: string;
+}
+
+export interface HubScenario {
+  id: string;
+  slug: string;
+  name: string;
+  complexity: string;
+  target_sector: string;
+  network_subnet: string;
+  node_topology: Record<string, { ip: string; role: string }>;
+  replayed_attacks: string[];
+  expected_mitigation_sla: string;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  download_url: string;
+  cli_pull_command: string;
+  short_description: string;
+  technical_walkthrough: string;
+  download_count: number;
+  created_at: string;
+}
+
+export const PCAP_CATEGORIES = ["SCADA_ICS", "MALWARE_C2", "EXPLOIT_DOS", "HEALTHCARE_IOMT", "AEROSPACE_UAV"] as const;
+export const DATASET_FORMATS = ["SLAB_BINARY", "PCAP_RAW", "PARQUET_COMPACT", "NETFLOW_IPFIX"] as const;
+export const SCENARIO_COMPLEXITIES = ["STARTER", "INTERMEDIATE", "ADVANCED_RED_TEAM"] as const;
+
+export const library = {
+  pcaps: (params?: { category?: string; protocol?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.category) q.set("category", params.category);
+    if (params?.protocol) q.set("protocol", params.protocol);
+    if (params?.search) q.set("search", params.search);
+    const qs = q.toString();
+    return api.get<HubPcap[]>(`/hub/pcaps${qs ? `?${qs}` : ""}`);
+  },
+  pcap: (slug: string) => api.get<HubPcap>(`/hub/pcaps/${encodeURIComponent(slug)}`),
+  datasets: (params?: { format?: string; dimension?: number; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.format) q.set("format", params.format);
+    if (params?.dimension !== undefined) q.set("dimension", String(params.dimension));
+    if (params?.search) q.set("search", params.search);
+    const qs = q.toString();
+    return api.get<HubDataset[]>(`/hub/datasets${qs ? `?${qs}` : ""}`);
+  },
+  dataset: (slug: string) => api.get<HubDataset>(`/hub/datasets/${encodeURIComponent(slug)}`),
+  scenarios: (params?: { sector?: string; complexity?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.sector) q.set("sector", params.sector);
+    if (params?.complexity) q.set("complexity", params.complexity);
+    const qs = q.toString();
+    return api.get<HubScenario[]>(`/hub/scenarios${qs ? `?${qs}` : ""}`);
+  },
+  scenario: (slug: string) => api.get<HubScenario>(`/hub/scenarios/${encodeURIComponent(slug)}`),
+};
