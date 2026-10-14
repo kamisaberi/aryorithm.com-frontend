@@ -176,6 +176,10 @@ def build_dump(source_path: str) -> tuple[str, dict[str, int]]:
             ddl = str(CreateTable(table).compile(dialect=dialect)).rstrip()
             if not ddl.endswith(";"):
                 ddl += ";"
+            # Pin the charset explicitly: a database created with the server
+            # default (often latin1 on cPanel) would otherwise be inherited
+            # and reject non-ASCII rows (✔/▸/€) with MySQL error 1366.
+            ddl = ddl[:-1].rstrip() + " CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
             chunks.append(f"-- Table: {table.name}")
             chunks.append(f"DROP TABLE IF EXISTS `{table.name}`;")
             chunks.append(ddl)

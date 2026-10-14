@@ -302,9 +302,14 @@ async def run_installer(body: InstallRequest) -> dict:
     # 3. Create tables on the TARGET database (own engine — the global one
     #    still points at the old DATABASE_URL until the process restarts).
     import app.models  # noqa: F401  (register tables for create_all)
-    from app.database import Base
+    from app.database import Base, ensure_mysql_tables_utf8mb4
 
     engine = create_async_engine(database_url, pool_pre_ping=True)
+    # Self-heal databases created with a latin1 default (common on cPanel):
+    # fix the database default (fresh create_all inherits it) and convert
+    # non-utf8mb4 tables now, or the first non-ASCII seed row dies with
+    # MySQL error 1366 mid-install. No-op when already compliant.
+    charset_fix = await ensure_mysql_tables_utf8mb4(engine)
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -440,6 +445,8 @@ async def run_installer(body: InstallRequest) -> dict:
         "user_count": user_count,
         "seeded": seeded,
         "secret_generated": len(body.secret_key.strip()) < 32,
+        "charset_fixed_database": charset_fix["database"],
+        "charset_fixed_tables": charset_fix["tables"],
         "database_url_masked": database_url.replace(quote_plus(body.db_password), "***")
         if body.db_driver == "mysql" and body.db_password
         else database_url,

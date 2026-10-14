@@ -92,6 +92,16 @@ You need: the file `backend/aryorithm_mysql.sql` (regenerate anytime with
 2. Create database, e.g. `kami_aryorithm`. **Important:** set its collation to
    `utf8mb4_unicode_ci` (shown in the database list; change via phpMyAdmin
    → database → Operations → Collation if needed).
+   If you skipped this and the installer fails with
+   `DataError 1366 "Incorrect string value"` on the first non-ASCII row
+   (✔/▸/€): run these in phpMyAdmin → SQL (replace the DB name), then
+   re-run the installer — or just re-run it, newer versions self-heal:
+   ```sql
+   ALTER DATABASE kami_aryorithm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   -- then convert every existing table (safe, keeps all rows):
+   -- phpMyAdmin → database → Operations → Collation → utf8mb4_unicode_ci
+   -- (+ tick "Change all tables collations").
+   ```
 3. Create a MySQL user (strong password) and **Add User To Database** with
    **ALL PRIVILEGES**. Note the full names cPanel assigns
    (e.g. user `kami_appuser`, db `kami_aryorithm`).
