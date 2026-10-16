@@ -305,6 +305,15 @@ Tests: `tests/test_hub_packages.py` (8-record seed + field fidelity, filters, 40
 
 Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing rows). Artifacts are deterministic stand-ins on disk under `<HUB_PACKAGE_DIR>/{pcaps,datasets,scenarios}/<file-stem>/<file>`; `file_size_bytes`/`sha256_checksum` always describe the real bytes (brief placeholders ignored). Hub UI: `/pcaps`, `/datasets`, `/scenarios` catalogs + `[slug]` detail pages with downloads. Tests: `tests/test_hub_library.py`.
 
+### 14b-ii. Universal publish + hub model downloads
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201 {status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
+| `GET /api/v1/hub/models/{slug}/download` | none (public) | `?format=&precision=` (exact match wins, else first artifact) | `200 application/octet-stream` + `X-Aryorithm-SHA256` + `X-Aryorithm-Signature-Ed25519`; resolves the latest rollout version (highest stage, then version desc); `404` unknown slug/no match/missing file |
+
+Legacy `POST /api/v1/registry/publish` (`.splugin`-only, `ApiKey` scheme) is unchanged. Dev tokens: `tools/mint_dev_tokens.py --email …` (prints each raw key once). Tests: `tests/test_hub_publish.py`.
+
 ### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
 
 | Method & Path | Auth | Request | Response / Notes |

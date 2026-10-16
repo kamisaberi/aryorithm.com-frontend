@@ -332,3 +332,13 @@ class HubScenarioOut(BaseModel):
     technical_walkthrough: str
     download_count: int = 0
     created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# universal asset publishing (POST /hub/publish)
+# ---------------------------------------------------------------------------
+class UniversalPublishOut(BaseModel):
+    status: str = "success"
+    asset_id: str
+    download_url: str
+    published_at: str

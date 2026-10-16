@@ -17,6 +17,7 @@ import io
 import re
 import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import NamedTuple
 
 import yaml
@@ -53,6 +54,7 @@ from app.schemas.hub import (
     TokenCreateOut,
     TokenCreateRequest,
     TokenOut,
+    UniversalPublishOut,
     UpdateAvailableOut,
     ValidateOkOut,
     ValidateRequest,
@@ -1314,3 +1316,496 @@ async def get_scenario(slug: str, db: AsyncSession = Depends(get_db)):
 async def download_scenario(slug: str, db: AsyncSession = Depends(get_db)):
     """Stream the `.tar.gz` scenario bundle (public)."""
     return await _download_artifact(db, "scenarios", await _get_scenario_or_404(db, slug))
+
+
+# ---------------------------------------------------------------------------
+# universal asset publishing (POST /hub/publish) + model downloads
+# ---------------------------------------------------------------------------
+publish_router = APIRouter(prefix="/hub/publish", tags=["Hub — Universal Publish"])
+hub_models_router = APIRouter(prefix="/hub/models", tags=["Hub — Model Downloads"])
+
+ASSET_TYPES = ("package", "pcap", "dataset", "model")
+
+_TIER_DISPLAY = {
+    "native": "Tier A (Native C++20)",
+    "wasm": "Tier B (Rust WebAssembly)",
+    "lua": "Tier C (LuaJIT Dynamic)",
+}
+
+
+async def get_developer_identity(request: Request, db: AsyncSession = Depends(get_db)) -> HubIdentity:
+    """Bearer developer auth for universal publishing.
+
+    Accepts a repo JWT (full developer rights, same as the registry) or a
+    persistent CLI token (``Authorization: Bearer <key>``, minted via
+    ``POST /registry/tokens``). Scope checks happen per endpoint.
+    """
+    from app.utils.security import decode_token
+
+    raw = request.headers.get("authorization", "")
+    scheme, _, credential = raw.partition(" ")
+    credential = credential.strip()
+    if scheme != "Bearer" or not credential:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated (expected 'Bearer <developer API token>')",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user_id = decode_token(credential, expected_type="access")
+    if user_id:
+        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        if user is not None and user.is_active:
+            return HubIdentity(user=user, token=None)
+    digest = hashlib.sha256(credential.encode()).hexdigest()
+    token = (
+        await db.execute(select(HubApiToken).where(HubApiToken.key_hash == digest))
+    ).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    exp = token.expires_at if token else None
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if token is None or token.revoked or (exp is not None and exp < now):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired API token")
+    user = await db.get(User, token.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token owner inactive")
+    token.last_used = now
+    await db.flush()
+    return HubIdentity(user=user, token=token)
+
+
+def _parse_manifest(raw: str) -> dict:
+    import json as _json
+
+    try:
+        data = _json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="manifest is not valid JSON",
+        )
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="manifest must be a JSON object",
+        )
+    return data
+
+
+def _require_manifest_fields(manifest: dict, fields: list[str]) -> None:
+    missing = [f for f in fields if not manifest.get(f)]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"manifest missing required fields: {', '.join(missing)}",
+        )
+
+
+async def _verified_author(db: AsyncSession, ident: HubIdentity, manifest: dict, file_bytes: bytes, signature: str):
+    """Enroll-or-verify the Ed25519 author key against the file signature."""
+    author = await _author_for_identity(db, ident)
+    presented = str(manifest.get("author_public_key") or "").strip()
+    if author.public_key and presented and presented != author.public_key:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Presented public key does not match the author's enrolled key",
+        )
+    pubkey = author.public_key or presented
+    if not pubkey:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No enrolled public key — include author_public_key in the manifest once to enroll it",
+        )
+    try:
+        hub.decode_key_material(presented or pubkey, 32, "author public key")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    if not author.public_key:
+        author.public_key = pubkey
+        await db.flush()
+    if not hub.verify_ed25519(pubkey, signature, file_bytes):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ed25519 signature does not verify against the file bytes",
+        )
+    return author
+
+
+def _check_duplicate(rows: list, label: str) -> None:
+    if rows:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{label} already exists",
+        )
+
+
+@publish_router.post("", response_model=UniversalPublishOut, status_code=status.HTTP_201_CREATED)
+@publish_router.post("/", response_model=UniversalPublishOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+async def universal_publish(
+    asset_type: str = Form(...),
+    file: UploadFile = File(...),
+    manifest: str = Form(...),
+    signature: str = Form(...),
+    ident: HubIdentity = Depends(get_developer_identity),
+    db: AsyncSession = Depends(get_db),
+):
+    """Publish any hub asset: package (.spkg), pcap, dataset (.slab) or model.
+
+    Auth: ``Authorization: Bearer <developer API token>`` (CLI tokens need
+    the ``packages:publish`` scope; repo JWTs carry full developer rights).
+    The Ed25519 ``signature`` must verify over the raw file bytes with the
+    author's enrolled key (enrolled from ``manifest.author_public_key`` on
+    first publish).
+    """
+    require_publish_scope(ident)
+    kind = (asset_type or "").strip().lower()
+    if kind not in ASSET_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown asset_type '{asset_type}'. Use one of: {', '.join(ASSET_TYPES)}.",
+        )
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="file is empty",
+        )
+    if len(file_bytes) > settings.HUB_MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds HUB_MAX_UPLOAD_BYTES ({settings.HUB_MAX_UPLOAD_BYTES})",
+        )
+    meta = _parse_manifest(manifest)
+    sig = (signature or "").strip()
+    if len(sig) not in (128, 130):  # 64-byte hex, optional 0x prefix
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="signature must be a 64-byte Ed25519 hex string",
+        )
+    author = await _verified_author(db, ident, meta, file_bytes, sig)
+    now = datetime.now(timezone.utc)
+
+    if kind == "package":
+        asset_id, dl_path = await _publish_package(db, author, file, file_bytes, meta)
+    elif kind == "pcap":
+        asset_id, dl_path = await _publish_pcap(db, file, file_bytes, meta)
+    elif kind == "dataset":
+        asset_id, dl_path = await _publish_dataset(db, file, file_bytes, meta)
+    else:
+        asset_id, dl_path = await _publish_model(db, file, file_bytes, meta, sig)
+
+    return UniversalPublishOut(
+        status="success",
+        asset_id=asset_id,
+        download_url=f"{settings.HUB_PUBLIC_BASE}{dl_path}",
+        published_at=hub.to_zulu(now),
+    )
+
+
+async def _publish_package(db, author, file: UploadFile, file_bytes: bytes, meta: dict) -> tuple[str, str]:
+    _require_manifest_fields(meta, ["slug", "name"])
+    tier = str(meta.get("tier") or "lua").strip().lower()
+    if tier not in ("native", "wasm", "lua"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="manifest.tier must be one of: native, wasm, lua",
+        )
+    slug = str(meta["slug"]).strip()
+    _check_duplicate(
+        (await db.execute(select(SentinelPackage).where(SentinelPackage.slug == slug))).scalars().all(),
+        f"Package '{slug}'",
+    )
+    version = str(meta.get("version") or "1.0.0")
+    file_name = file.filename or f"{slug}.spkg"
+    dest = Path(settings.HUB_PACKAGE_DIR) / "sentinel" / slug / file_name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    row = SentinelPackage(
+        id=str(meta.get("id") or f"org.aryorithm.package.{slug}"),
+        slug=slug,
+        name=str(meta["name"]),
+        version=version,
+        tier=tier,
+        tier_display=str(meta.get("tier_display") or _TIER_DISPLAY[tier]),
+        language=str(meta.get("language") or "Universal"),
+        author=author.name or "Hub Developer",
+        verified=True,
+        sector=str(meta.get("sector") or ""),
+        target_protocol=str(meta.get("target_protocol") or "RAW_TCP"),
+        default_port=int(meta.get("default_port") or 0),
+        latency_sla_ns=int(meta.get("latency_sla_ns") or 0),
+        latency_display=str(meta.get("latency_display") or ""),
+        mitigation_action=str(meta.get("mitigation_action") or "KERNEL_DROP"),
+        compliance_tags=list(meta.get("compliance_tags") or []),
+        short_description=str(meta.get("short_description") or ""),
+        technical_details=str(meta.get("technical_details") or ""),
+        package_file_name=file_name,
+        package_file_size_bytes=len(file_bytes),
+        signature_algorithm="Ed25519",
+        install_command=str(meta.get("install_command") or f"sentinel plugin install {slug}:{version}"),
+        artifact_path=str(dest.relative_to(Path(settings.HUB_PACKAGE_DIR))),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    await db.flush()
+    return row.id, f"/api/v1/hub/packages/{slug}/download"
+
+
+async def _publish_pcap(db, file: UploadFile, file_bytes: bytes, meta: dict) -> tuple[str, str]:
+    from app.models.hub import HubPcap
+    from app.services import hub_library as lib
+
+    _require_manifest_fields(meta, ["slug", "title", "category"])
+    category = str(meta["category"]).strip()
+    if category not in lib.PCAP_CATEGORIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"manifest.category must be one of: {', '.join(lib.PCAP_CATEGORIES)}",
+        )
+    slug = str(meta["slug"]).strip()
+    _check_duplicate(
+        (await db.execute(select(HubPcap).where(HubPcap.slug == slug))).scalars().all(),
+        f"PCAP '{slug}'",
+    )
+    file_name = file.filename or f"{slug}.pcap"
+    dest = lib.vault_root("pcaps") / slug / file_name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    row = HubPcap(
+        id=str(meta.get("id") or f"pcap-{slug}"),
+        slug=slug,
+        title=str(meta["title"]),
+        category=category,
+        target_protocol=str(meta.get("target_protocol") or ""),
+        attack_type=str(meta.get("attack_type") or ""),
+        source_origin=str(meta.get("source_origin") or ""),
+        packet_count=int(meta.get("packet_count") or 0),
+        duration_seconds=float(meta.get("duration_seconds") or 0.0),
+        file_name=file_name,
+        file_size_bytes=len(file_bytes),
+        sha256_checksum=hashlib.sha256(file_bytes).hexdigest(),
+        mitre_attack_ids=list(meta.get("mitre_attack_ids") or []),
+        recommended_spkg_id=meta.get("recommended_spkg_id"),
+        short_description=str(meta.get("short_description") or ""),
+        technical_analysis=str(meta.get("technical_analysis") or ""),
+        artifact_path=str(dest.relative_to(lib.vault_root("pcaps").parent)),
+    )
+    db.add(row)
+    await db.flush()
+    return row.id, f"/api/v1/hub/pcaps/{slug}/download"
+
+
+async def _publish_dataset(db, file: UploadFile, file_bytes: bytes, meta: dict) -> tuple[str, str]:
+    from app.models.hub import HubDataset
+    from app.services import hub_library as lib
+
+    _require_manifest_fields(meta, ["slug", "name", "format"])
+    fmt = str(meta["format"]).strip()
+    if fmt not in lib.DATASET_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"manifest.format must be one of: {', '.join(lib.DATASET_FORMATS)}",
+        )
+    slug = str(meta["slug"]).strip()
+    _check_duplicate(
+        (await db.execute(select(HubDataset).where(HubDataset.slug == slug))).scalars().all(),
+        f"Dataset '{slug}'",
+    )
+    file_name = file.filename or f"{slug}.slab"
+    dest = lib.vault_root("datasets") / slug / file_name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    row = HubDataset(
+        id=str(meta.get("id") or f"slab-{slug}"),
+        slug=slug,
+        name=str(meta["name"]),
+        format=fmt,
+        tensor_dimension=int(meta.get("tensor_dimension") or 0),
+        total_records=int(meta.get("total_records") or 0),
+        normal_records_count=int(meta.get("normal_records_count") or 0),
+        anomalous_records_count=int(meta.get("anomalous_records_count") or 0),
+        normalization_method=str(meta.get("normalization_method") or ""),
+        source_benchmark=str(meta.get("source_benchmark") or ""),
+        file_name=file_name,
+        file_size_bytes=len(file_bytes),
+        sha256_checksum=hashlib.sha256(file_bytes).hexdigest(),
+        doi_citation=meta.get("doi_citation"),
+        paper_reference=str(meta.get("paper_reference") or ""),
+        streaming_throughput_eps=meta.get("streaming_throughput_eps"),
+        short_description=str(meta.get("short_description") or ""),
+        artifact_path=str(dest.relative_to(lib.vault_root("datasets").parent)),
+    )
+    db.add(row)
+    await db.flush()
+    return row.id, f"/api/v1/hub/datasets/{slug}/download"
+
+
+async def _publish_model(db, file: UploadFile, file_bytes: bytes, meta: dict, sig: str) -> tuple[str, str]:
+    from app.models.modelvault import AIModel, AIModelArtifact, AIModelVersion, ModelPrecision
+    from app.services import model_vault as vault
+
+    _require_manifest_fields(meta, ["slug", "format"])
+    fmt = str(meta["format"]).strip()
+    if fmt not in vault.MODEL_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"manifest.format must be one of: {', '.join(vault.MODEL_FORMATS)}",
+        )
+    precision = str(meta.get("precision") or "FP32").strip()
+    if precision not in vault.MODEL_PRECISIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"manifest.precision must be one of: {', '.join(vault.MODEL_PRECISIONS)}",
+        )
+    file_name = file.filename or f"{meta['slug']}.onnx"
+    ext = "." + file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+    if ext in vault.FORBIDDEN_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Refusing pickle artifact '{ext}' (remote-code risk); publish ONNX/SafeTensors instead",
+        )
+    allowed = vault.FORMAT_EXTENSIONS.get(fmt, ())
+    if allowed and ext not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"File extension '{ext}' does not match format {fmt} (expected one of: {', '.join(allowed)})",
+        )
+    slug = str(meta["slug"]).strip()
+    version = str(meta.get("version") or "v0.1.0")
+    model = (await db.execute(select(AIModel).where(AIModel.slug == slug))).scalar_one_or_none()
+    if model is None:
+        model = AIModel(
+            id=str(meta.get("id") or f"aryo-{slug}"),
+            slug=slug,
+            name=str(meta.get("name") or slug),
+            tier="COMMUNITY",
+            domain=str(meta.get("domain") or "CUSTOM"),
+            architecture=str(meta.get("architecture") or "Custom"),
+            author=str(meta.get("author") or "Hub Developer"),
+            short_description=str(meta.get("short_description") or ""),
+            technical_description=str(meta.get("technical_description") or ""),
+            input_tensor_shape=str(meta.get("input_tensor_shape") or ""),
+            output_tensor_shape=str(meta.get("output_tensor_shape") or ""),
+        )
+        db.add(model)
+        await db.flush()
+    ver = (
+        await db.execute(
+            select(AIModelVersion).where(AIModelVersion.model_id == model.id, AIModelVersion.version == version)
+        )
+    ).scalar_one_or_none()
+    if ver is None:
+        ver = AIModelVersion(
+            model_id=model.id,
+            version=version,
+            rollout_stage="DEVELOPMENT",
+            golden_safety_verified=False,
+            golden_recall_score=0.0,
+            base_accuracy=float(meta.get("base_accuracy") or 0.0),
+            p99_latency_ns=int(meta.get("p99_latency_ns") or 0),
+            training_dataset_summary=str(meta.get("training_dataset_summary") or ""),
+            release_notes=str(meta.get("release_notes") or ""),
+        )
+        db.add(ver)
+        await db.flush()
+    target_hw = str(meta.get("target_hardware") or "UNIVERSAL")
+    dup = (
+        await db.execute(
+            select(AIModelArtifact).where(
+                AIModelArtifact.version_id == ver.id,
+                AIModelArtifact.format == fmt,
+                AIModelArtifact.precision == ModelPrecision(precision),
+                AIModelArtifact.target_hardware == target_hw,
+            )
+        )
+    ).scalar_one_or_none()
+    if dup is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Artifact {fmt}/{precision}/{target_hw} already published for {slug} {version}",
+        )
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    rel = vault.artifact_relpath(slug, version, fmt, file_name)
+    dest = vault.vault_root() / rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    (dest.parent / f"{file_name}.sig").write_text(sig + "\n", encoding="utf-8")
+    db.add(AIModelArtifact(
+        version_id=ver.id,
+        format=fmt,
+        precision=precision,
+        file_name=file_name,
+        file_size_bytes=len(file_bytes),
+        s3_storage_key=str(rel),
+        sha256_checksum=digest,
+        signature_ed25519=sig,
+        target_hardware=target_hw,
+    ))
+    await db.flush()
+    return model.id, f"/api/v1/hub/models/{slug}/download"
+
+
+@hub_models_router.get("/{slug}/download")
+async def download_hub_model(
+    slug: str,
+    format: str | None = Query(default=None, description="Exact match, e.g. ONNX"),
+    precision: str | None = Query(default=None, description="Exact match, e.g. INT8"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download a model artifact by slug (public, developer channel).
+
+    Resolves the latest rollout version (highest stage, then version string)
+    and serves the first artifact matching ``format``/``precision`` (or the
+    first recorded artifact). Unlike the edge ``/model-vault`` channel this
+    serves DEVELOPMENT versions too — it is the developer-distribution
+    endpoint, not the fleet rollout gate.
+    """
+    from app.models.modelvault import AIModel, AIModelArtifact, AIModelVersion
+    from app.services import model_vault as vault
+    from fastapi.responses import FileResponse as _FileResponse
+
+    await vault.ensure_seed(db)
+    model = (
+        await db.execute(select(AIModel).where(AIModel.slug == slug))
+    ).scalar_one_or_none()
+    if model is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Model '{slug}' not found")
+    versions = (
+        await db.execute(select(AIModelVersion).where(AIModelVersion.model_id == model.id))
+    ).scalars().all()
+    latest = vault.latest_of(list(versions))
+    if latest is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Model '{slug}' has no versions")
+    arts = (
+        await db.execute(
+            select(AIModelArtifact).where(AIModelArtifact.version_id == latest.id).order_by(AIModelArtifact.file_name)
+        )
+    ).scalars().all()
+    picked = None
+    for a in arts:
+        f = str(getattr(a.format, "value", a.format))
+        p = str(getattr(a.precision, "value", a.precision))
+        if format and f != format:
+            continue
+        if precision and p != precision:
+            continue
+        picked = a
+        break
+    if picked is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No artifact matches the selectors")
+    local = vault.vault_root() / picked.s3_storage_key
+    if not local.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact file missing from vault")
+    picked.download_count += 1
+    await db.flush()
+    return _FileResponse(
+        path=str(local),
+        media_type="application/octet-stream",
+        filename=picked.file_name,
+        headers={
+            "X-Aryorithm-SHA256": picked.sha256_checksum,
+            "X-Aryorithm-Signature-Ed25519": picked.signature_ed25519,
+        },
+    )
