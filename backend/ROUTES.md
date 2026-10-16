@@ -281,7 +281,57 @@ Tests: `tests/test_soc.py` (message flow incl. 400/404 branches, dispatch + hist
 
 ## 14. Licensing & Hub
 
-Already covered before this pass: `tests/test_licenses.py` (subscribe/activate/portal-download/verify/revoke + legacy aliases) and `tests/test_hub.py` (catalog, facets, versions, download/security headers, validate/publish/yank, tokens, star, telemetry, check-updates, airgap bundle).
+### 14a. Licensing — `app/routers/licenses.py`
+
+Ed25519-signed license envelopes (community + commercial). Appliances fail
+closed on revoked/expired envelopes; `verify` re-checks signatures locally.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `POST /api/v1/licenses/subscribe` | user | `{plan_slug=community\|enterprise\|critical\|sovereign, hardware_token!, hostname, customer_name?}` | `201` signed envelope `{license_id, envelope, signature}` bound to the caller's tenant |
+| `POST /api/v1/licenses/activate` | user | `{hardware_token!, hostname?}` (appliance boot call) | `200` fresh/renewed envelope for known hardware; `404` unknown token |
+| `POST /api/v1/licenses/portal-download` | user | `{hardware_token!, days_valid=365}` | `200 application/octet-stream` 1-year offline `.lic` file for USB transfer to air-gapped nodes |
+| `GET /api/v1/licenses/public-key` | none (public) | — | master Ed25519 verify key (base64) for offline appliance checks |
+| `GET /api/v1/licenses` | user | `?status=all\|active\|expired(+revoked)&kind=all\|free\|commercial&plan&scope=tenant\|all (super_admin only)` | tenant licenses (own tenant; `scope=all` lists everything for `super_admin`) |
+| `GET /api/v1/licenses/verify/{license_ref}` | user | — | re-verifies the stored envelope signature `{signature_valid, status}`; `404` unknown ref |
+| `GET /api/v1/licenses/{license_ref}` | user | — | full detail incl. the signed envelope; `404` unknown ref |
+| `POST /api/v1/licenses/{license_ref}/revoke` | admin | — | `{status:"REVOKED"}`; appliances fail closed; `404` unknown ref |
+| `POST /api/v1/license/activate`, `POST /api/v1/license/portal-download` | user | same as above | legacy firmware-compat aliases (identical behavior) |
+
+Tests: `tests/test_licenses.py` (subscribe/activate/portal-download/verify/revoke + legacy aliases).
+
+### 14b. Plugin catalog core — `app/routers/hub.py::plugins_router`
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/plugins` | none (public) | `?q=&category=all&runtime=all&silicon=all&tier=all&sort=popular&page=1&limit=20 (≤100)` | `200 {total, plugins[]}` faceted search, auto-seeds the registry on first call |
+| `GET /api/v1/plugins/featured` | none (public) | — | up to 4 spotlight plugins for the carousel |
+| `GET /api/v1/plugins/facets` | none (public) | — | sidebar aggregate counts (categories, runtimes, tiers) |
+| `GET /api/v1/plugins/{slug}` | none (public) | — | full extension detail; `404` unknown slug |
+| `GET /api/v1/plugins/{slug}/readme` | none (public) | `?version=` (default latest) | rendered markdown doc; `404` unknown slug/version or no versions yet |
+| `GET /api/v1/plugins/{slug}/manifest` | none (public) | `?version=` (default latest) | raw `splugin.yaml` + parsed JSON; `404` as above |
+
+Remainder (versions, download, security, star, publish, yank, tokens) in full:
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/plugins/{slug}/versions` | none (public) | — | version history + changelogs, newest first (semver); `404` unknown slug |
+| `GET /api/v1/plugins/{slug}/versions/{version}` | none (public) | — | version metadata + dependencies; `404` unknown slug/version |
+| `GET /api/v1/plugins/{slug}/versions/{version}/download` | none (public) | — | signed `.splugin` bytes + checksum headers (yanked versions stay downloadable for history) |
+| `GET /api/v1/plugins/{slug}/versions/{version}/security` | none (public) | — | audit privileges, eBPF maps, provenance envelope |
+| `POST /api/v1/plugins/{slug}/star` | user (JWT) | — | star/unstar toggle `{starred, total_stars}` |
+| `POST /api/v1/registry/publish` | JWT or `ApiKey` + `packages:publish` | multipart `package_file!` + `manifest_file!` (splugin.yaml) + `signature_file!` + optional `title/short_description/category/tags/ports/silicon/author_public_key…` | `201` published version; `422` spec-shaped lint/arch/key errors; author key enrolled on first publish |
+| `DELETE /api/v1/registry/{slug}/versions/{version}` | author or admin (JWT or ApiKey) | — | yank: hides from fresh installs, history stays downloadable; `404` unknown |
+| `POST /api/v1/registry/tokens` | user (JWT) | `{name!, scopes=[packages:publish, packages:validate], expires_in_days=365?}` | `201` + raw `api_key` **shown once** (only the hash is stored) |
+| `GET /api/v1/registry/tokens` | user (JWT) | — | caller's tokens (secrets never returned) |
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `POST /api/v1/registry/validate` | none (public) | `{manifest_yaml!}` | `200 {valid:true}` or spec-shaped `422 {valid:false, errors[]}` |
+| `DELETE /api/v1/registry/tokens/{token_id}` | user (JWT, owner or admin) | — | revokes the CLI token; `404` unknown id |
+| `POST /api/v1/sync/check-updates` | none (public, edge polling) | `{sentinel_version, installed_plugins:[{slug, current_version}]}` | `{updates_available:[{slug, current_version, latest_version}]}` |
+| `POST /api/v1/sync/airgap-bundle` | none (public) | `{requested_plugins:[{slug, version?}], target_silicon?}` | `.tar.gz` sneakernet archive for air-gapped sites |
+| `POST /api/v1/telemetry/install` | none (public, fire-and-forget) | `{slug, version, silicon_target}` | `202` accepted; bumps the plugin `install_count` |
 
 ### 14b. Verified sentinel packages — `app/routers/hub.py::packages_router`
 
@@ -300,8 +350,12 @@ Tests: `tests/test_hub_packages.py` (8-record seed + field fidelity, filters, 40
 | `GET /api/v1/hub/pcaps` | none (public) | `?category=&protocol=&search=` (category must be a known enum else `400`) | `200` array ordered by slug (5 seeded) |
 | `GET /api/v1/hub/pcaps/{slug}` | none | — | `200` full metadata + MITRE ids + recommended spkg + relative `download_url`; `404` unknown |
 | `GET /api/v1/hub/pcaps/{slug}/download` | none | — | `200 application/octet-stream` + `Content-Disposition` + `X-Checksum-SHA256`; increments `download_count`; `404` unknown |
-| `GET /api/v1/hub/datasets` (+ slug, download) | none | `?format=&dimension=&search=` | same shape; 3 seeded (`format`/`dimension` validated, `400` otherwise) |
-| `GET /api/v1/hub/scenarios` (+ slug, download) | none | `?sector=&complexity=` | same shape; 3 seeded; detail includes `node_topology` + `cli_pull_command` |
+| `GET /api/v1/hub/datasets` | none (public) | `?format=&dimension=&search=` (`format`/`dimension` validated, `400` otherwise) | `200` array ordered by slug (3 seeded) |
+| `GET /api/v1/hub/datasets/{slug}` | none (public) | — | `200` full metadata (tensor shapes, DOI, paper, throughput) + relative `download_url`; `404` unknown |
+| `GET /api/v1/hub/datasets/{slug}/download` | none (public) | — | `200 application/octet-stream` + `Content-Disposition` + `X-Checksum-SHA256`; increments `download_count`; `404` unknown |
+| `GET /api/v1/hub/scenarios` | none (public) | `?sector=&complexity=` (`complexity` validated, `400` otherwise) | `200` array ordered by slug (3 seeded) |
+| `GET /api/v1/hub/scenarios/{slug}` | none (public) | — | `200` full manifest (`node_topology`, `replayed_attacks`, `cli_pull_command`) + relative `download_url`; `404` unknown |
+| `GET /api/v1/hub/scenarios/{slug}/download` | none (public) | — | `200 application/octet-stream` + `Content-Disposition` + `X-Checksum-SHA256`; increments `download_count`; `404` unknown |
 
 Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing rows). Artifacts are deterministic stand-ins on disk under `<HUB_PACKAGE_DIR>/{pcaps,datasets,scenarios}/<file-stem>/<file>`; `file_size_bytes`/`sha256_checksum` always describe the real bytes (brief placeholders ignored). Hub UI: `/pcaps`, `/datasets`, `/scenarios` catalogs + `[slug]` detail pages with downloads. Tests: `tests/test_hub_library.py`.
 
