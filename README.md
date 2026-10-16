@@ -70,3 +70,11 @@ restart. Tables also self-create on boot.
 - [`backend/CPANEL_MYSQL.md`](./backend/CPANEL_MYSQL.md) — MySQL setup, transfer guide, 1366 fix
 - [`backend/HUB_PACKAGES.md`](./backend/HUB_PACKAGES.md) — `.spkg` catalog schema & display mapping
 - Project READMEs: [`backend/`](./backend/README.md) · [`dashboard/`](./dashboard/README.md) · [`hub/`](./hub/README.md) · [`main/`](./main/README.md) · [`downloader/`](./downloader/README.md)
+
+
+---
+
+### Commnds : 
+- /bin/bash /home/aryorit4/backend.aryorithm.com/run_backend.sh
+- pkill -f "uvicorn.*21527"
+
