@@ -227,3 +227,34 @@ async def test_activate_and_portal_download_and_legacy(client):
     assert r.status_code == 200
     r = await ac.get("/api/v1/licenses/public-key")
     assert r.status_code == 200 and r.json()["algorithm"] == "ED25519"
+
+
+@needs_db
+async def test_legacy_portal_download_alias(client):
+    ac, factory = client
+    token, _, _ = await _make_user(factory, email="ops4@example.com")
+
+    # gated like the canonical route
+    r = await ac.post(
+        "/api/v1/license/portal-download",
+        json={"hardware_token": "ARY-HW-legacy07"},
+    )
+    assert r.status_code == 401
+
+    # bootstrap via the legacy activate alias, then fetch the .lic attachment
+    r = await ac.post(
+        "/api/v1/license/activate",
+        json={"hardware_token": "ARY-HW-legacy07"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+
+    r = await ac.post(
+        "/api/v1/license/portal-download",
+        json={"hardware_token": "ARY-HW-legacy07"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert "attachment" in r.headers["content-disposition"]
+    assert r.headers["content-disposition"].endswith(".lic")
+    assert lic.verify_envelope(r.json()) is True

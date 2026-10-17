@@ -70,6 +70,39 @@ async def test_sse_streams_emit_events(client):
 
 
 @needs_db
+async def test_sse_streams_http_surface(client, monkeypatch):
+    """HTTP-level coverage for the SSE routes (path, auth, headers).
+
+    The production generator is infinite and ``ASGITransport`` buffers whole
+    bodies, so swap in a finite generator — the live one's event format is
+    asserted in ``test_sse_streams_emit_events`` above — and exercise the
+    real routing, auth dependency, and response headers over HTTP.
+    """
+    from app.routers import stream as stream_router
+
+    async def finite_events():
+        yield 'event: heartbeat_sync\ndata: {"timestamp": "2026-09-29T10:30:00Z"}\n\n'
+        yield 'event: drop_event\ndata: {"ip": "198.51.100.45", "node": "NODE-01"}\n\n'
+
+    monkeypatch.setattr(stream_router, "event_generator", finite_events)
+
+    ac, factory = client
+    token, _, _ = await make_user(factory)
+    h = auth_headers(token)
+
+    for path in ("/api/v1/stream/telemetry", "/api/v1/stream/threats"):
+        r = await ac.get(path)
+        assert r.status_code == 401, path
+        r = await ac.get(path, headers=h)
+        assert r.status_code == 200, (path, r.text)
+        assert r.headers["content-type"].startswith("text/event-stream")
+        assert r.headers["cache-control"] == "no-cache"
+        assert r.headers["x-accel-buffering"] == "no"
+        assert r.text.startswith("event: heartbeat_sync\ndata: ")
+        assert "event: drop_event" in r.text
+
+
+@needs_db
 async def test_tenant_pending_commands(client):
     ac, factory = client
     token, _, tenant_id = await make_user(factory)

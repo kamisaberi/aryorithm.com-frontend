@@ -3,7 +3,8 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (56 tests, all routes covered).
+Companion test suite: `tests/test_*.py` (102 tests — 99 pass + 3 opt-in
+skips; every served route covered).
 Run it with:
 
 ```bash
@@ -224,10 +225,11 @@ Tests: `tests/test_settings.py` (stubs, validation 422s, admin gates).
 | `GET /api/v1/stream/threats` | user | — | same SSE generator, alerts flavor |
 | `GET /api/v1/tenants/{tenant_id}/commands/pending` | JWT or X-API-Key | — | always `[]` (nexus polls every ~10 s) |
 
-Tests: `tests/test_overview.py`. SSE note: httpx's ASGI transport
-buffers the whole body, so infinite streams can never be read over HTTP
-in-process — the test calls the route functions directly and asserts
-media type, headers, and first yielded frames instead.
+Tests: `tests/test_overview.py`. SSE note: httpx's ASGI transport buffers
+the whole body, so infinite streams can never be read over HTTP
+in-process — one test calls the route functions directly and asserts
+media type, headers, and first yielded frames; another exercises the real
+HTTP surface (path, auth gate, headers) with a finite stub generator.
 
 ---
 
@@ -403,7 +405,9 @@ After install **restart** the backend so the new `DATABASE_URL` loads
 
 ## 16. Test quirks worth knowing
 
-- `Telemetry`/`stream` SSE routes can't be read over `ASGITransport` (it buffers infinite bodies); tests invoke the route functions directly.
+- `Telemetry`/`stream` SSE routes can't be read over `ASGITransport` (it buffers infinite bodies); tests invoke the route functions directly and cover the HTTP surface with a finite stub generator.
+- Trailing-slash collection aliases (`GET /api/v1/plans/`, `POST /api/v1/hub/publish/`, …) are real `include_in_schema=False` routes, not redirects; payload parity with their canonical twins is enforced by `tests/test_route_aliases.py`.
+- Non-`/api/v1` system routes (`GET /health`, `GET /`, the public `/v1/models` stub) are covered by `tests/test_system.py`.
 - Schema bootstrapping (`create_all` + add-column migrations) always runs on
   the **request session's bind** (`db.bind` via `run_schema_ddl`) — never the
   process-global engine. Under test override that is the isolated test engine,
