@@ -14,7 +14,7 @@ import {
 } from "@/lib/session";
 
 const NAV = [
-  { label: "Explore", href: "/explore" },
+  { label: "Packages", href: "/explore" },
   { label: "Models", href: "/models" },
   { label: "PCAPs", href: "/pcaps" },
   { label: "Datasets", href: "/datasets" },
