@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import shutil
 
 import pytest
 from sqlalchemy import select
@@ -158,3 +159,54 @@ async def test_hub_model_download(client):
                      params={"format": "RKNN"})
     assert r.status_code == 404
     assert (await ac.get("/api/v1/hub/models/nope/download")).status_code == 404
+
+
+@needs_db
+async def test_client_publish_token_chain(client):
+    """Documented web-app flow: credentials -> JWT -> API token -> publish."""
+    ac, _factory = client
+
+    # 1) credentials -> JWT (register creates the account, login issues the token)
+    creds = {"name": "Web Client", "email": "webclient@example.com", "password": "supersecret1"}
+    r = await ac.post("/api/v1/auth/register", json=creds)
+    assert r.status_code == 201, r.text
+    r = await ac.post("/api/v1/auth/login",
+                      json={"email": creds["email"], "password": creds["password"]})
+    assert r.status_code == 200, r.text
+    jwt = r.json()["access_token"]
+
+    # 2) JWT -> long-lived API token (raw key returned once, hash stored)
+    r = await ac.post("/api/v1/registry/tokens",
+                      json={"name": "web-client", "scopes": ["packages:publish"],
+                            "expires_in_days": 30},
+                      headers={"Authorization": f"Bearer {jwt}"})
+    assert r.status_code == 201, r.text
+    api_key = r.json()["api_key"]
+    assert api_key.startswith("ary_hub_")
+
+    # 3) publish with the API token
+    from app.services import hub_library as lib
+
+    priv, pub = _ed25519_keypair()
+    blob = b"CHAIN1:pcap\n" + b"\x00" * 32
+    artifact_dir = lib.vault_root("pcaps") / "chain-verify"
+    try:
+        r = await _publish(ac, api_key, "pcap", "chain.pcap", blob, {
+            "slug": "chain-verify", "title": "Chain Verify", "category": "SCADA_ICS",
+            "target_protocol": "MODBUS_TCP", "attack_type": "RECON", "source_origin": "TEST",
+            "short_description": "e2e", "technical_analysis": "e2e", "author_public_key": pub,
+        }, priv.sign(blob).hex())
+        assert r.status_code == 201, r.text
+        assert r.json()["asset_id"] == "pcap-chain-verify"
+
+        # the ApiKey scheme is legacy-only: /hub/publish accepts Bearer only
+        r = await ac.post(
+            "/api/v1/hub/publish",
+            headers={"Authorization": f"ApiKey {api_key}"},
+            files={"asset_type": (None, "pcap"), "file": ("chain.pcap", blob),
+                   "manifest": (None, "{}"), "signature": (None, "0" * 128)},
+        )
+        assert r.status_code == 401
+    finally:
+        # keep the repo clean: this slug exists only for this test
+        shutil.rmtree(lib.vault_root("pcaps") / "chain-verify", ignore_errors=True)

@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (104 tests — 101 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (105 tests — 102 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -370,7 +370,50 @@ Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing r
 | `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201 {status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
 | `GET /api/v1/hub/models/{slug}/download` | none (public) | `?format=&precision=` (exact match wins, else first artifact) | `200 application/octet-stream` + `X-Aryorithm-SHA256` + `X-Aryorithm-Signature-Ed25519`; resolves the latest rollout version (highest stage, then version desc); `404` unknown slug/no match/missing file |
 
-Legacy `POST /api/v1/registry/publish` (`.splugin`-only, `ApiKey` scheme) is unchanged. Dev tokens: `tools/mint_dev_tokens.py --email …` (prints each raw key once). Tests: `tests/test_hub_publish.py`.
+Legacy `POST /api/v1/registry/publish` (`.splugin`-only, `ApiKey` scheme) is unchanged. Dev tokens: `tools/mint_dev_tokens.py --email …` (prints each raw key once). Tests: `tests/test_hub_publish.py`, `tests/test_hub.py`.
+
+#### Client publish-token flow (web app → JWT → API token → publish)
+
+The dashboard/web client does **not** need a new endpoint: a logged-in user
+exchanges credentials for a JWT, mints a long-lived API token with that JWT,
+then publishes with the API token.
+
+| Step | Call | Auth | Result |
+|---|---|---|---|
+| 1. credentials → JWT | `POST /api/v1/auth/login` (or `POST /api/v1/auth/register` on first run) | none | `access_token` (+ SSO cookies) |
+| 2. JWT → API token | `POST /api/v1/registry/tokens` `{name, scopes, expires_in_days}` | `Authorization: Bearer <jwt>` | `api_key` (`ary_hub_live_…`) **shown once**; only its SHA-256 hash is stored |
+| 3. publish | `POST /api/v1/hub/publish` (multipart `asset_type!`, `file!`, `manifest!`, `signature!`) | `Authorization: Bearer <api_key>` | `201 {status, asset_id, download_url, published_at}` |
+
+```bash
+BASE=http://localhost:8000
+
+# 1) credentials -> JWT
+JWT=$(curl -s $BASE/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"me@example.com","password":"supersecret1"}' | jq -r .access_token)
+
+# 2) JWT -> API token (scopes default to packages:publish + packages:validate;
+#    expires_in_days: null = never expires)
+API_KEY=$(curl -s $BASE/api/v1/registry/tokens \
+  -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+  -d '{"name":"web-client","scopes":["packages:publish"],"expires_in_days":30}' \
+  | jq -r .api_key)
+
+# 3) publish with the API token (signature = Ed25519 hex over the raw file bytes)
+curl -s $BASE/api/v1/hub/publish -H "Authorization: Bearer $API_KEY" \
+  -F asset_type=pcap -F file=@capture.pcap \
+  -F manifest='{"slug":"my-capture","title":"My Capture","category":"SCADA_ICS",
+      "target_protocol":"MODBUS_TCP","attack_type":"RECON","source_origin":"WEB",
+      "short_description":"…","technical_analysis":"…","author_public_key":"<ed25519-pubkey-hex>"}' \
+  -F signature=<ed25519-hex-over-file-bytes>
+```
+
+> `POST /api/v1/hub/publish` accepts **only** the `Bearer <api_key>` scheme
+> (`401` otherwise) — the `ApiKey <key>` scheme belongs to legacy
+> `POST /api/v1/registry/publish` and to the read/CLI surface. Token
+> management: `GET /api/v1/registry/tokens` (list, secrets never returned),
+> `DELETE /api/v1/registry/tokens/{token_id}` (revoke).
+>
+> This exact chain is locked by `tests/test_hub_publish.py::test_client_publish_token_chain`.
 
 ### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
 
