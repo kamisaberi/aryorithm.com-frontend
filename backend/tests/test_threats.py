@@ -87,3 +87,27 @@ async def test_scada_and_ransomware_from_db(client):
 
     r = await ac.get("/api/v1/threats/ransomware-hashes", headers=h)
     assert r.status_code == 200 and len(r.json()) == 2
+
+
+@needs_db
+async def test_grid_overview(client):
+    ac, factory = client
+    token, _, _ = await make_user(factory)
+    r = await ac.get("/api/v1/threats/grid")
+    assert r.status_code == 401
+
+    r = await ac.get("/api/v1/threats/grid", headers=auth_headers(token))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["grid_id"] == "GRD-COLLECTIVE-01"
+    assert len(body["peers"]) == 5
+    assert body["peers_online"] == sum(p["status"] == "ONLINE" for p in body["peers"])
+    assert body["sla_target_ms"] == 50.0
+    assert body["active_indicators"] == 0
+
+    # a fresh broadcast becomes a live (unexpired) grid indicator
+    r = await ac.post("/api/v1/threats/broadcast", json={"ip": "198.51.100.77"},
+                      headers=auth_headers(token))
+    assert r.status_code == 200
+    r = await ac.get("/api/v1/threats/grid", headers=auth_headers(token))
+    assert r.json()["active_indicators"] == 1

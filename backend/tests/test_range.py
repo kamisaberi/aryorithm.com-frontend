@@ -83,3 +83,28 @@ async def test_resilience_and_certify(client):
     assert r.status_code == 200
     assert r.headers["content-type"] == "application/pdf"
     assert "resilience_certificate.pdf" in r.headers["content-disposition"]
+
+
+@needs_db
+async def test_lab_bench(client):
+    ac, factory = client
+    token, _, _ = await make_user(factory)
+    h = auth_headers(token)
+
+    r = await ac.get("/api/v1/range/lab-bench")
+    assert r.status_code == 401
+
+    r = await ac.get("/api/v1/range/lab-bench", headers=h)
+    assert r.status_code == 200
+    body = r.json()
+    metrics = body["metrics"]
+    assert body["suite"] == "sentinel_lab"
+    assert len(metrics) == 14
+    assert body["domains"] == ["EVT", "PMU", "CBF", "HIL", "PQC"]
+    assert {m["domain"] for m in metrics} == set(body["domains"])
+    assert len({m["key"] for m in metrics}) == 14
+    assert body["passed"] == sum(1 for m in metrics if m["status"] == "PASS")
+    assert body["overall_score"] == round(100 * body["passed"] / 14, 1)
+    for m in metrics:
+        inside = m["value"] <= m["target"] if m["direction"] == "lower" else m["value"] >= m["target"]
+        assert m["status"] == ("PASS" if inside else "WATCH")

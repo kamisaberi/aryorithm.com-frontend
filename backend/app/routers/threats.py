@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -17,6 +17,8 @@ from app.schemas.threat import (
     ThreatBroadcastRequest,
     ThreatBroadcastResponse,
     CollectiveBusResponse,
+    GridPeerOut,
+    ThreatGridResponse,
     MitreHitResponse,
     ScadaResponse,
     IdentityBotResponse,
@@ -108,6 +110,47 @@ async def list_collective_bus(
         CollectiveBusResponse(rule_id="RULE-441", origin_node="NODE-01", fanout_latency_ms=38.4),
         CollectiveBusResponse(rule_id="RULE-442", origin_node="NODE-02", fanout_latency_ms=41.2),
     ]
+
+
+@router.get("/grid", response_model=ThreatGridResponse)
+async def get_threat_grid(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Collective grid overview — gRPC mesh peers + threat-bus statistics.
+
+    Peer/bus figures are static reference values (same contract style as
+    ``/threats/collective-bus``); ``active_indicators`` counts live unexpired
+    rows in the central ``global_threats`` feed (Service 7), so it moves with
+    ``POST /threats/broadcast`` traffic.
+    """
+    now = datetime.now(timezone.utc)
+    peers = [
+        GridPeerOut(node_id="NEXUS-FRA-01", site="Frankfurt Enclave", status="ONLINE", rules_synced=1284, rtt_ms=4.2),
+        GridPeerOut(node_id="NEXUS-IAD-02", site="Ashburn Enclave", status="ONLINE", rules_synced=1284, rtt_ms=6.1),
+        GridPeerOut(node_id="NEXUS-SIN-03", site="Singapore Enclave", status="ONLINE", rules_synced=1279, rtt_ms=11.7),
+        GridPeerOut(node_id="NEXUS-GRU-04", site="Sao Paulo Enclave", status="DEGRADED", rules_synced=1241, rtt_ms=28.4),
+        GridPeerOut(node_id="NEXUS-SYD-05", site="Sydney Enclave", status="ONLINE", rules_synced=1284, rtt_ms=9.8),
+    ]
+    active = (
+        await db.execute(
+            select(func.count())
+            .select_from(GlobalThreat)
+            .where(GlobalThreat.expires_at > now)
+        )
+    ).scalar_one()
+    return ThreatGridResponse(
+        grid_id="GRD-COLLECTIVE-01",
+        peers=peers,
+        peers_online=sum(1 for p in peers if p.status == "ONLINE"),
+        bus_rules_active=12,
+        p50_fanout_ms=2.4,
+        p99_fanout_ms=4.7,
+        sla_target_ms=50.0,
+        throughput_msgs_s=1840.0,
+        active_indicators=active,
+        last_sync_timestamp=int(now.timestamp()),
+    )
 
 
 @router.get("/mitre", response_model=list[MitreHitResponse])

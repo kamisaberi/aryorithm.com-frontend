@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (102 tests — 99 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (104 tests — 101 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -110,6 +110,7 @@ Tests: `tests/test_fleet.py` (JWT + API-key sync, topology/nodes after sync, res
 | `GET /api/v1/threats/events` | user | `?limit=50 (1–200)&tactic` (tactic accepted, ignored) | 2 static events |
 | `POST /api/v1/threats/broadcast` | user | `{ip!, attributions: [{}…]}` | `{status:"broadcast_dispatched"}` + writes expiring (24 h) `GlobalThreat` row picked up by the feed |
 | `GET /api/v1/threats/collective-bus` | user | `?limit=20 (1–100)` | 2 static bus entries |
+| `GET /api/v1/threats/grid` | user | — | 5 static gRPC mesh peers + bus stats; `active_indicators` = live unexpired `global_threats` rows |
 | `GET /api/v1/threats/mitre` | user | — | 3 static technique hits |
 | `GET /api/v1/threats/scada` | user | `?protocol` (uppercased match) | live DB summary + last 50 tenant events |
 | `GET /api/v1/threats/ransomware-hashes` | user | — | global (tenant NULL) + own-tenant rows |
@@ -117,7 +118,7 @@ Tests: `tests/test_fleet.py` (JWT + API-key sync, topology/nodes after sync, res
 | `GET /api/v1/threats/global-feed` | JWT or X-API-Key | `?verbose` | bare `[{ip}]` list by default; `verbose=true` → rich 24 h rows |
 | `GET /api/v1/threats/xai` | user | — | stored attributions or 2 reference vectors |
 
-Tests: `tests/test_threats.py` (broadcast→verbose-feed round-trip, DB-seeded SCADA/ransomware, validation 422s, API-key + 401 matrix).
+Tests: `tests/test_threats.py` (broadcast→verbose-feed round-trip, grid overview with broadcast→indicator round-trip, DB-seeded SCADA/ransomware, validation 422s, API-key + 401 matrix).
 
 ---
 
@@ -191,8 +192,9 @@ Tests: `tests/test_dfir.py` (real zip with macro stripped, credential finding, f
 | `DELETE /api/v1/range/instances/{id}` | admin | — | marks `TERMINATED` (row kept); `404` unknown |
 | `GET /api/v1/range/resilience/bench` | user | — | score/tier/metrics from live node latencies + appends history |
 | `POST /api/v1/range/resilience/certify` | admin | — | `resilience_certificate.pdf` download (appends history) |
+| `GET /api/v1/range/lab-bench` | user | — | `sentinel_lab` suite: exactly 14 metrics over EVT/PMU/CBF/HIL/PQC + `passed`/`overall_score` |
 
-Tests: `tests/test_range.py` (full provision→pause→resume→terminate lifecycle with 404 branches, history growth, PDF headers).
+Tests: `tests/test_range.py` (full provision→pause→resume→terminate lifecycle with 404 branches, history growth, PDF headers, lab-bench 14-metric shape + status derivation).
 
 ---
 

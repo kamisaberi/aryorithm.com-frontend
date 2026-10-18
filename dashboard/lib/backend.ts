@@ -194,6 +194,25 @@ export interface CollectiveBusEntry {
   origin_node: string;
   fanout_latency_ms: number;
 }
+export interface GridPeer {
+  node_id: string;
+  site: string;
+  status: string;
+  rules_synced: number;
+  rtt_ms: number;
+}
+export interface ThreatGrid {
+  grid_id: string;
+  peers: GridPeer[];
+  peers_online: number;
+  bus_rules_active: number;
+  p50_fanout_ms: number;
+  p99_fanout_ms: number;
+  sla_target_ms: number;
+  throughput_msgs_s: number;
+  active_indicators: number;
+  last_sync_timestamp: number;
+}
 export interface MitreHit {
   technique_id: string;
   name: string;
@@ -282,6 +301,24 @@ export interface ResilienceBench {
   };
   tested_malware_profiles: string[];
   last_evaluation_timestamp: number;
+}
+export interface LabMetric {
+  key: string;
+  label: string;
+  domain: string;
+  value: number;
+  unit: string;
+  target: number;
+  direction: "lower" | "higher";
+  status: "PASS" | "WATCH";
+}
+export interface LabBench {
+  suite: string;
+  metrics: LabMetric[];
+  domains: string[];
+  passed: number;
+  overall_score: number;
+  last_run_timestamp: number;
 }
 export interface MDRIncident {
   incident_id: string;
@@ -617,6 +654,77 @@ export interface LicenseEnvelopeResult {
   envelope: { payload_b64: string; signature_b64: string; signature_algorithm: string };
 }
 
+/** Sentinel-Hub public storefront records (`/hub/*` routers). */
+export interface SpkgPackage {
+  id: string;
+  slug: string;
+  name: string;
+  version: string;
+  tier: string;
+  tier_display: string;
+  language: string;
+  author: string;
+  verified: boolean;
+  sector: string;
+  target_protocol: string;
+  default_port: number;
+  latency_sla_ns: number;
+  latency_display: string;
+  mitigation_action: string;
+  compliance_tags: string[];
+  short_description: string;
+  technical_details: string;
+  package_file_name: string;
+  package_file_size_bytes: number;
+  signature_algorithm: string;
+  install_command: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface HubPcap {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  target_protocol: string;
+  attack_type: string;
+  source_origin: string;
+  packet_count: number;
+  duration_seconds: number;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  download_url: string;
+  mitre_attack_ids: string[];
+  recommended_spkg_id: string | null;
+  short_description: string;
+  technical_analysis: string;
+  download_count: number;
+  created_at: string;
+}
+export interface HubDataset {
+  id: string;
+  slug: string;
+  name: string;
+  format: string;
+  tensor_dimension: number;
+  total_records: number;
+  normal_records_count: number;
+  anomalous_records_count: number;
+  normalization_method: string;
+  source_benchmark: string;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  download_url: string;
+  doi_citation: string | null;
+  paper_reference: string;
+  streaming_throughput_eps: string | null;
+  short_description: string;
+  download_count: number;
+  created_at: string;
+}
+
 const get = <T>(endpoint: string, token: string | null) =>
   api.get<T>(endpoint, token);
 
@@ -662,11 +770,21 @@ export const backend = {
       t
     ),
 
+  // Sentinel-Hub Store (public catalogs)
+  hubPackages: (t: string | null) =>
+    get<SpkgPackage[]>("/hub/packages", t),
+  hubPcaps: (t: string | null) =>
+    get<HubPcap[]>("/hub/pcaps", t),
+  hubDatasets: (t: string | null) =>
+    get<HubDataset[]>("/hub/datasets", t),
+
   // Threats
   threatEvents: (t: string | null) =>
     get<ThreatEvent[]>("/threats/events?limit=50", t),
   collectiveBus: (t: string | null) =>
     get<CollectiveBusEntry[]>("/threats/collective-bus?limit=20", t),
+  threatGrid: (t: string | null) =>
+    get<ThreatGrid>("/threats/grid", t),
   globalFeed: (t: string | null) =>
     api.get<GlobalFeedItem[]>("/threats/global-feed", t, {
       apiKey: NEXUS_API_KEY,
@@ -710,6 +828,8 @@ export const backend = {
     get<ResilienceBench>("/range/resilience/score", t),
   resilienceHistory: (t: string | null) =>
     get<{ score: number; evaluated_at: number }[]>("/range/resilience/history", t),
+  labBench: (t: string | null) =>
+    get<LabBench>("/range/lab-bench", t),
   mdrIncidents: (t: string | null) =>
     get<MDRIncident[]>("/soc/incidents", t),
   mdrIncident: (incidentId: string, t: string | null) =>

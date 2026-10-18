@@ -30,17 +30,17 @@ export default function AdminSidebar() {
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Admin">
         <ul className="space-y-1">
           {ADMIN_NAV.map((group) => (
-            <li key={group.label}>
+            <li key={group.group}>
               <p className="mb-2 mt-4 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted/60 first:mt-0">
-                {group.label}
+                {group.group}
               </p>
               <ul className="space-y-0.5">
                 {group.items.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const isActive = pathname === item.url || pathname.startsWith(item.url + "/");
                   return (
-                    <li key={item.href}>
+                    <li key={item.url}>
                       <Link
-                        href={item.href}
+                        href={item.url}
                         className={`admin-sidebar-link ${isActive ? "active" : ""}`}
                       >
                         <span className="flex h-5 w-5 items-center justify-center text-[14px]" aria-hidden="true">
@@ -51,7 +51,7 @@ export default function AdminSidebar() {
                           : item.highlight === "red" ? "text-threat"
                           : item.highlight === "orange" ? "text-[#FF8C1A]"
                           : item.highlight ? "text-telemetry" : undefined
-                        }>{item.label}</span>
+                        }>{item.title}</span>
                         {item.badge && (
                           <span className="ml-auto rounded-full bg-cyan/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan">
                             {item.badge}

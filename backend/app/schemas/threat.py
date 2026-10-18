@@ -29,6 +29,27 @@ class CollectiveBusResponse(BaseModel):
     fanout_latency_ms: float
 
 
+class GridPeerOut(BaseModel):
+    node_id: str
+    site: str
+    status: str
+    rules_synced: int
+    rtt_ms: float
+
+
+class ThreatGridResponse(BaseModel):
+    grid_id: str
+    peers: list[GridPeerOut]
+    peers_online: int
+    bus_rules_active: int
+    p50_fanout_ms: float
+    p99_fanout_ms: float
+    sla_target_ms: float
+    throughput_msgs_s: float
+    active_indicators: int
+    last_sync_timestamp: int
+
+
 class MitreHitResponse(BaseModel):
     technique_id: str
     name: str

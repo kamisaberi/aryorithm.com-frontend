@@ -93,3 +93,23 @@ class ResilienceBenchResponse(BaseModel):
     mttfi_ms: float = 0.0
     rollback_guard_ms: float = 0.0
     score: float = 0.0
+
+
+class LabMetricOut(BaseModel):
+    key: str
+    label: str
+    domain: str
+    value: float
+    unit: str
+    target: float
+    direction: str
+    status: str
+
+
+class LabBenchResponse(BaseModel):
+    suite: str
+    metrics: list[LabMetricOut]
+    domains: list[str]
+    passed: int
+    overall_score: float
+    last_run_timestamp: int
