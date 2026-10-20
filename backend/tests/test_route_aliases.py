@@ -47,6 +47,7 @@ async def test_get_alias_routes_match_canonical(client):
         ("/api/v1/model-vault", None),                      # public model vault
         ("/api/v1/plans", None),                            # public pricing matrix
         ("/api/v1/licenses", h),                            # tenant licenses
+        ("/api/v1/blueprints", h),                          # visual threat blueprints
         ("/api/v1/models", {**h, TENANT_HDR: tenant_id}),   # needs tenant header
     ]
     for path, headers in cases:

@@ -170,6 +170,12 @@ def build_dump(source_path: str) -> tuple[str, dict[str, int]]:
         "",
     ]
     with src.connect() as conn:
+        # Older dev SQLite files may predate newly added ORM models. Emit the
+        # table DDL anyway (the target schema is authoritative) with zero rows
+        # instead of failing on a missing source table.
+        from sqlalchemy import inspect
+
+        existing_tables = set(inspect(conn).get_table_names())
         for table in Base.metadata.sorted_tables:
             if table.name in TABLE_EXCLUDE:
                 continue
@@ -192,6 +198,10 @@ def build_dump(source_path: str) -> tuple[str, dict[str, int]]:
                 if not idx_ddl.endswith(";"):
                     idx_ddl += ";"
                 chunks.append(idx_ddl)
+            if table.name not in existing_tables:
+                counts[table.name] = 0
+                chunks.append("")
+                continue
             rows = list(iter_table_rows_sync(conn, table))
             counts[table.name] = len(rows)
             for stmt in dump_table_inserts(table, rows):
@@ -222,8 +232,15 @@ async def direct_copy(source_path: str, target_url: str) -> dict[str, int]:
     async with dst.connect() as conn:
         await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
         with src.connect() as sconn:
+            from sqlalchemy import inspect
+
+            existing_tables = set(inspect(sconn).get_table_names())
             for table in Base.metadata.sorted_tables:
                 if table.name in TABLE_EXCLUDE:
+                    continue
+                if table.name not in existing_tables:
+                    # Newly added model not present in the source DB yet.
+                    counts[table.name] = 0
                     continue
                 rows = list(iter_table_rows_sync(sconn, table))
                 counts[table.name] = len(rows)

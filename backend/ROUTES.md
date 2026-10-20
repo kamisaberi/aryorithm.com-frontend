@@ -103,6 +103,36 @@ Tests: `tests/test_fleet.py` (JWT + API-key sync, topology/nodes after sync, res
 
 ---
 
+## 3a. Visual Threat Blueprints — `app/routers/blueprints.py`
+
+Powering the `app.aryorithm.com/ai/threat-blueprints` Visual Threat Blueprint
+Editor. Graphs are tenant-scoped JSON; compile validates sockets/topology and
+emits `model_routes.yaml`; deploy recompiles (never deploys a stale artefact)
+and simulates the sub-50 ms sentinel-nexus gRPC broadcast.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/blueprints` | user | — | tenant blueprint metadata list (`node_count`, `edge_count`, `status`, `last_deployed_at`); no graph payload |
+| `GET /api/v1/blueprints/{id}` | user | — | full `nodes` + `edges` + compiled YAML; `404` unknown/other tenant |
+| `POST /api/v1/blueprints` | admin | sample graph: `{blueprint_id?, name!, description, target_sites[], nodes[], edges[]}` | `201` new / `200` update; id omitted → `bp_<random>`; saving resets status to `DRAFT` and clears compiled YAML; `400` blank name |
+| `DELETE /api/v1/blueprints/{id}` | admin | — | `{status:"DELETED", blueprint_id}`; `404` unknown/other tenant |
+| `GET /api/v1/blueprints/node-catalog` | user | — | 16 palette entries in 5 stages + 5 socket types, defaults and latency SLA hints; declared before `/{id}` |
+| `POST /api/v1/blueprints/{id}/compile` | admin | — | validates required inputs, ports, socket compatibility and cycles; `200 {status:"VALIDATED", valid:true, compiled_yaml, estimated_latency_ns}`; `400 detail={status:"INVALID_GRAPH", errors[], warnings[]}` |
+| `POST /api/v1/blueprints/{id}/deploy` | admin | — | auto-compiles, marks `DEPLOYED`; `200 {status:"DEPLOYED", target_sites, nodes_targeted, broadcast_latency_ms<50, grpc_status, fleet_health, config_sha256}`; `400` invalid graph |
+
+Socket compatibility: `PACKET_STREAM→PACKET_STREAM`, `FEATURE_TENSOR→{FEATURE_TENSOR,PASS}`,
+`PASS→{PASS,FEATURE_TENSOR,PACKET_STREAM}`, `MITIGATION→MITIGATION`,
+`PHYSICAL_TELEMETRY→PHYSICAL_TELEMETRY`. Fusion `physical_in` is optional
+(ambient probe telemetry); every other input is required. Graph edits after a
+compile invalidate both `VALIDATED` and `DEPLOYED` state.
+
+Tests: `tests/test_blueprints.py` (CRUD/id generation/aliases, catalog shape,
+YAML compilation of the Substation Alpha graph, empty/unknown-type/missing-input/
+type-mismatch/bad-port/cycle rejection, edit invalidation, deploy idempotency,
+RBAC and cross-tenant isolation).
+
+---
+
 ## 4. Threats — `app/routers/threats.py`
 
 | Method & Path | Auth | Request | Response / Notes |

@@ -17,6 +17,7 @@ from app.models.hub import HubAuthor, HubPlugin, HubPluginVersion, HubStar, HubA
 from app.models.hub import PcapCategory, DatasetFormat, ScenarioComplexity, HubPcap, HubDataset, HubScenario
 from app.models.modelvault import AIModel, AIModelVersion, AIModelArtifact
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
+from app.models.blueprint import ThreatBlueprint, BlueprintStatus
 
 __all__ = [
     "User", "Tenant", "RefreshToken",
@@ -35,4 +36,5 @@ __all__ = [
     "HubPcap", "HubDataset", "HubScenario",
     "AIModel", "AIModelVersion", "AIModelArtifact",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",
+    "ThreatBlueprint", "BlueprintStatus",
 ]
