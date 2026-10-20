@@ -50,6 +50,20 @@ function parseErrorMessage(errorData: unknown, status: number): { code: string; 
         first && typeof first.msg === "string" ? first.msg : `Request failed with status ${status}`;
       return { code: `HTTP_${status}`, message, details: { errors: data.detail } };
     }
+    // Domain-specific detail object: { status, errors: [...], ... }
+    if (typeof data.detail === "object" && data.detail !== null) {
+      const detail = data.detail as Record<string, unknown>;
+      const domainErrors = Array.isArray(detail.errors)
+        ? detail.errors.filter((item): item is string => typeof item === "string")
+        : [];
+      const code =
+        typeof detail.status === "string" ? detail.status : `HTTP_${status}`;
+      const message =
+        typeof detail.message === "string"
+          ? detail.message
+          : domainErrors[0] ?? `Request failed with status ${status}`;
+      return { code, message, details: detail };
+    }
     if (typeof data.message === "string") {
       return { code: "UNKNOWN_ERROR", message: data.message, details: {} };
     }

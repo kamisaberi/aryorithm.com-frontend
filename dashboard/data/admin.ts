@@ -31,6 +31,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { title: "Model Repository & Forge", url: "/model-hub", icon: "⬡" },
       { title: "Silicon Compiler & TRiSM", url: "/ai/silicon-compiler", icon: "⟨⟩" },
+      { title: "Visual Threat Blueprints", url: "/ai/threat-blueprints", icon: "⌗", badge: "YAML", highlight: "green" },
       { title: "Sentinel-Hub Package Store", url: "/hub/store", icon: "✦", badge: "SPKG", highlight: "green" },
     ],
   },

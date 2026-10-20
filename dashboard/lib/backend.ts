@@ -725,6 +725,107 @@ export interface HubDataset {
   created_at: string;
 }
 
+/* ---------- Visual Threat Blueprints ---------- */
+export interface BlueprintPosition {
+  x: number;
+  y: number;
+  [key: string]: number;
+}
+export interface BlueprintNode {
+  id: string;
+  type: string;
+  label: string;
+  position: BlueprintPosition;
+  config: Record<string, unknown>;
+}
+export interface BlueprintEdge {
+  id: string;
+  source_node: string;
+  source_port: string;
+  target_node: string;
+  target_port: string;
+}
+export interface BlueprintSummary {
+  blueprint_id: string;
+  name: string;
+  description: string;
+  target_sites: string[];
+  status: string;
+  node_count: number;
+  edge_count: number;
+  last_deployed_at: string | null;
+  compiled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface BlueprintDetail extends BlueprintSummary {
+  nodes: BlueprintNode[];
+  edges: BlueprintEdge[];
+  compiled_yaml: string | null;
+}
+export interface CatalogSocket {
+  name: string;
+  socket_type: string;
+  color: string;
+  required: boolean;
+  accepts: string[];
+}
+export interface CatalogNode {
+  catalog_id: string;
+  type: string;
+  stage: number;
+  category: string;
+  label: string;
+  description: string;
+  default_config: Record<string, unknown>;
+  inputs: CatalogSocket[];
+  outputs: CatalogSocket[];
+  latency_sla_ns: number | null;
+}
+export interface CatalogStage {
+  stage: number;
+  name: string;
+  color: string;
+  nodes: CatalogNode[];
+}
+export interface NodeCatalog {
+  version: string;
+  socket_types: Record<string, { label: string; color: string }>;
+  stages: CatalogStage[];
+  nodes: CatalogNode[];
+}
+export interface BlueprintSavePayload {
+  blueprint_id?: string;
+  name: string;
+  description: string;
+  target_sites: string[];
+  nodes: BlueprintNode[];
+  edges: BlueprintEdge[];
+}
+export interface BlueprintCompileResult {
+  blueprint_id: string;
+  status: string;
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  node_count: number;
+  edge_count: number;
+  estimated_latency_ns: number;
+  compiled_yaml: string | null;
+  compiled_at: string | null;
+}
+export interface BlueprintDeployResult {
+  status: string;
+  blueprint_id: string;
+  deployed_at: string;
+  target_sites: string[];
+  nodes_targeted: number;
+  broadcast_latency_ms: number;
+  grpc_status: string;
+  fleet_health: string;
+  config_sha256: string;
+}
+
 const get = <T>(endpoint: string, token: string | null) =>
   api.get<T>(endpoint, token);
 
@@ -886,6 +987,33 @@ export const backend = {
     api.postForm<CompileTask>("/ai/compiler/compile", form, t),
   compileTask: (taskId: string, t: string | null) =>
     get<CompileTask>(`/ai/compiler/tasks/${taskId}`, t),
+
+  // Visual Threat Blueprint Editor
+  blueprints: (t: string | null) => get<BlueprintSummary[]>("/blueprints", t),
+  blueprint: (blueprintId: string, t: string | null) =>
+    get<BlueprintDetail>(`/blueprints/${encodeURIComponent(blueprintId)}`, t),
+  blueprintNodeCatalog: (t: string | null) =>
+    get<NodeCatalog>("/blueprints/node-catalog", t),
+  saveBlueprint: (body: BlueprintSavePayload, t: string | null) =>
+    api.post<BlueprintDetail>("/blueprints", body, t),
+  deleteBlueprint: (blueprintId: string, t: string | null) =>
+    api.delete<{ status: string; blueprint_id: string }>(
+      `/blueprints/${encodeURIComponent(blueprintId)}`,
+      t
+    ),
+  compileBlueprint: (blueprintId: string, t: string | null) =>
+    api.post<BlueprintCompileResult>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/compile`,
+      {},
+      t
+    ),
+  deployBlueprint: (blueprintId: string, t: string | null) =>
+    api.post<BlueprintDeployResult>(
+      `/blueprints/${encodeURIComponent(blueprintId)}/deploy`,
+      {},
+      t
+    ),
+
   trismEvaluate: (body: { prompt_text: string; user_id?: string; sanitize_pii?: boolean }, t: string | null) =>
     api.post<TrismResult>("/ai/trism/evaluate", body, t),
   exportCompliance: (body: { framework: string; format: string; include_sla_proofs?: boolean; reporting_period_days?: number }, t: string | null) =>

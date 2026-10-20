@@ -5,7 +5,7 @@ Left-hand navigation of the admin dashboard (`localhost:3001` in dev,
 
 - **Source of truth:** the `ADMIN_NAV` array in [`data/admin.ts`](./data/admin.ts),
   rendered by [`components/layout/AdminSidebar.tsx`](./components/layout/AdminSidebar.tsx).
-- **Items:** 19 across 6 groups, listed below in display order.
+- **Items:** 20 across 6 groups, listed below in display order.
 - **URLs:** app-relative paths (prefix with the dashboard origin to get the full address).
 - **Badges:** optional pills rendered right of the item (LIVE / SPKG / 14D).
 - **Active state:** an item is highlighted when the route equals its URL or starts with `URL + "/"`.
@@ -43,6 +43,7 @@ Left-hand navigation of the admin dashboard (`localhost:3001` in dev,
 | --- | --- | --- |
 | Model Repository & Forge | `/model-hub` | — |
 | Silicon Compiler & TRiSM | `/ai/silicon-compiler` | — |
+| Visual Threat Blueprints | `/ai/threat-blueprints` | YAML |
 | Sentinel-Hub Package Store | `/hub/store` | SPKG |
 
 ## Digital Forensics & Range

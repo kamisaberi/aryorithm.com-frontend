@@ -248,6 +248,60 @@ body {
   @apply border-b border-hairline/60 px-4 py-3 text-[13px] text-ink;
 }
 
+/* --- Visual Threat Blueprint Editor ----------------------- */
+.blueprint-canvas {
+  background-color: #06090e;
+  background-image:
+    radial-gradient(circle at 50% 45%, rgba(0, 229, 255, 0.055), transparent 55%),
+    linear-gradient(rgba(26, 34, 50, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 34, 50, 0.35) 1px, transparent 1px);
+  background-size:
+    auto,
+    24px 24px,
+    24px 24px;
+}
+
+.blueprint-stage {
+  background-image: radial-gradient(circle, rgba(138, 153, 173, 0.14) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.blueprint-wire {
+  stroke-dasharray: 5 7;
+  animation: blueprint-wire-flow 1.6s linear infinite;
+}
+
+@keyframes blueprint-wire-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.blueprint-node-active {
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.65),
+    0 0 28px rgba(0, 229, 255, 0.12);
+}
+
+.blueprint-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #1a2232 transparent;
+}
+.blueprint-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.blueprint-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.blueprint-scroll::-webkit-scrollbar-thumb {
+  background: #1a2232;
+  border-radius: 8px;
+}
+.blueprint-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2a3952;
+}
+
 /* --- Reduced motion -------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,
