@@ -102,6 +102,43 @@ async def test_scenario_publish_strips_archive_suffix_from_slug(client, tmp_path
         assert r.status_code == 200, r.text
         assert r.content == blob
         assert r.headers["x-asset-slug"] == "water_plant"
+
+        # `.tgz` is normalized the same way as `.tar.gz`.
+        tgz_blob = b"SCEN1:gas_plant\n" + b"\x01" * 128
+        tgz_manifest = {
+            **manifest,
+            "slug": "gas_plant.tgz",
+            "name": "Gas Plant Replay",
+        }
+        r = await ac.post(
+            "/api/v1/hub/publish",
+            headers=auth_headers(dev_token),
+            files={"file": ("gas_plant.tgz", tgz_blob, "application/gzip")},
+            data={
+                "asset_type": "scenario",
+                "manifest": json.dumps(tgz_manifest),
+                "signature": private.sign(tgz_blob).hex(),
+            },
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["slug"] == "gas_plant"
+        r = await ac.get("/api/v1/scenarios/gas_plant.tgz/download")
+        assert r.status_code == 200, r.text
+        assert r.content == tgz_blob
+
+        # A real dot is still rejected after suffix stripping.
+        bad_blob = b"SCEN1:bad\n" + b"\x02" * 64
+        r = await ac.post(
+            "/api/v1/hub/publish",
+            headers=auth_headers(dev_token),
+            files={"file": ("bad.slug", bad_blob, "application/octet-stream")},
+            data={
+                "asset_type": "scenario",
+                "manifest": json.dumps({**manifest, "slug": "bad.slug"}),
+                "signature": private.sign(bad_blob).hex(),
+            },
+        )
+        assert r.status_code == 422, r.text
     finally:
         settings.HUB_PACKAGE_DIR = original_dir
 
@@ -173,6 +210,16 @@ async def test_fleet_sync_persists_5g_and_sbom_telemetry(client):
     assert r.json()["active_teids"] == 7
     r = await ac.get("/api/v1/compliance/sbom/drift-events", headers=auth_headers(token))
     assert len(r.json()) == 1
+
+    # A memory-drift flag without explicit counters still yields one event.
+    body["nodes"][0]["live_sbom"] = {
+        "sbom_sha256": "c" * 64,
+        "memory_drift_detected": True,
+    }
+    r = await ac.post("/api/v1/fleet/sync", json=body, headers=auth_headers(token))
+    assert r.status_code == 200, r.text
+    r = await ac.get("/api/v1/compliance/sbom/drift-events", headers=auth_headers(token))
+    assert len(r.json()) == 2
 
     r = await ac.get("/api/v1/telemetry/5g-slices")
     assert r.status_code == 401
@@ -316,6 +363,46 @@ async def test_live_sbom_attestation_and_drift_audit(client):
         json=document,
     )
     assert r.status_code == 403
+
+
+@needs_db
+async def test_live_sbom_json_body_does_not_duplicate_events(client):
+    from tests.conftest import auth_headers, make_user
+
+    ac, factory = client
+    admin_token, _, _ = await make_user(factory, email="sbom-json@example.com")
+    document = {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.5",
+        "metadata": {"component": {"name": "sentinel-node-json"}},
+        "memory_drift_detected": True,
+        "drift_events": [
+            {
+                "event_type": "MPROTECT_PROT_EXEC_BLOCKED",
+                "process_name": "json-loader",
+                "pid": 5151,
+                "action": "SIGKILL",
+            }
+        ],
+    }
+
+    r = await ac.post(
+        "/api/v1/compliance/sbom/attest",
+        headers=auth_headers(admin_token),
+        json=document,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["drift_events_ingested"] == 1
+
+    r = await ac.get(
+        "/api/v1/compliance/sbom/drift-events",
+        headers=auth_headers(admin_token),
+        params={"node_id": "UNKNOWN"},
+    )
+    assert r.status_code == 200, r.text
+    assert len(r.json()) == 1
+    assert r.json()[0]["process_name"] == "json-loader"
 
 
 @needs_db

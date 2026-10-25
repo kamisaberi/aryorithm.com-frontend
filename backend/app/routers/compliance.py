@@ -455,7 +455,13 @@ async def _parse_live_sbom(request: Request) -> tuple[dict, bytes, dict]:
         nested = body.get("live_sbom") or body.get("sbom") or body.get("document")
         if nested is not None:
             if isinstance(nested, str):
-                nested = json.loads(nested)
+                try:
+                    nested = json.loads(nested)
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail="live_sbom/sbom/document must be valid JSON",
+                    )
             document = nested
             raw = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
         else:
@@ -485,15 +491,32 @@ async def _parse_live_sbom(request: Request) -> tuple[dict, bytes, dict]:
     return document, raw, metadata
 
 
+def _drift_count(value) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _extract_drift_events(document: dict, metadata: dict) -> tuple[list, int]:
+    """Normalize explicit event lists and scalar counters without double-counting.
+
+    A JSON attestation body is both ``metadata`` and ``document``; iterating
+    the same dict twice would duplicate events (and inflate fallback counts).
+    """
+    sources: list[dict] = []
+    for source in (metadata, document):
+        if isinstance(source, dict) and not any(source is existing for existing in sources):
+            sources.append(source)
+
     candidates: list = []
     fallback = 0
-    for source in (metadata, document):
-        value = source.get("drift_events") if isinstance(source, dict) else None
+    for source in sources:
+        value = source.get("drift_events")
         if isinstance(value, list):
             candidates.extend(value)
         elif isinstance(value, int):
-            fallback += max(0, value)
+            fallback = max(fallback, _drift_count(value))
         elif isinstance(value, str) and value.strip():
             try:
                 parsed = json.loads(value)
@@ -503,20 +526,44 @@ def _extract_drift_events(document: dict, metadata: dict) -> tuple[list, int]:
                 candidates.extend(parsed)
             elif isinstance(parsed, dict):
                 candidates.append(parsed)
+        source_counts = max(
+            _drift_count(source.get("wx_violations")),
+            _drift_count(source.get("sigkill_events")),
+            _drift_count(source.get("memory_drift_events")),
+            1 if source.get("memory_drift_detected") else 0,
+        )
+        fallback = max(fallback, source_counts)
+
     for key in ("runtime_integrity", "runtime", "integrity"):
         nested = document.get(key)
-        if isinstance(nested, dict):
-            value = nested.get("drift_events")
-            if isinstance(value, list):
-                candidates.extend(value)
-            fallback += max(0, int(nested.get("wx_violations") or nested.get("sigkill_events") or 0))
-    for source in (metadata, document):
-        for key in ("wx_violations", "sigkill_events", "memory_drift_events"):
-            try:
-                fallback += max(0, int(source.get(key) or 0))
-            except (TypeError, ValueError):
-                continue
-    return candidates, fallback
+        if not isinstance(nested, dict):
+            continue
+        value = nested.get("drift_events")
+        if isinstance(value, list):
+            candidates.extend(value)
+        elif isinstance(value, int):
+            fallback = max(fallback, _drift_count(value))
+        nested_counts = max(
+            _drift_count(nested.get("wx_violations")),
+            _drift_count(nested.get("sigkill_events")),
+            _drift_count(nested.get("memory_drift_events")),
+            1 if nested.get("memory_drift_detected") else 0,
+        )
+        fallback = max(fallback, nested_counts)
+
+    # Repeated counters and an explicit list often describe the same events.
+    unique: list = []
+    seen: set[str] = set()
+    for event in candidates:
+        try:
+            fingerprint = json.dumps(event, sort_keys=True, separators=(",", ":"), default=str)
+        except (TypeError, ValueError):
+            fingerprint = repr(event)
+        if fingerprint in seen:
+            continue
+        seen.add(fingerprint)
+        unique.append(event)
+    return unique, fallback
 
 
 def _verify_sbom_seal(public_key: str, signature: str, raw: bytes) -> bool:

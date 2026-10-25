@@ -173,15 +173,15 @@ async def _sync_frontier_telemetry(
         snapshot.raw_stats = stats
 
     if live_sbom is not None:
-        events = live_sbom.get("drift_events")
-        if isinstance(events, int):
-            fallback = events
-            events = []
-        else:
-            fallback = max(
-                int(live_sbom.get("wx_violations") or 0),
-                int(live_sbom.get("sigkill_events") or 0),
-            )
+        raw_events = live_sbom.get("drift_events")
+        events = raw_events if isinstance(raw_events, list) else []
+        fallback = int(raw_events) if isinstance(raw_events, int) else 0
+        fallback = max(
+            fallback,
+            int(live_sbom.get("wx_violations") or 0),
+            int(live_sbom.get("sigkill_events") or 0),
+            1 if live_sbom.get("memory_drift_detected") else 0,
+        )
         sbom_sha = str(
             live_sbom.get("sbom_sha256")
             or live_sbom.get("sha256")
@@ -191,12 +191,12 @@ async def _sync_frontier_telemetry(
         )
         snapshot.live_sbom = live_sbom
         snapshot.live_sbom_sha256 = sbom_sha[:64]
-        snapshot.live_sbom_drift_events = int(fallback or len(events or []))
+        snapshot.live_sbom_drift_events = max(int(fallback or 0), len(events))
         await ingest_drift_events(
             db,
             tenant_id=tenant_id,
             node_id=payload.node_id,
-            events=events if isinstance(events, list) else [],
+            events=events,
             sbom_sha256=sbom_sha,
             source="FLEET_SYNC",
             fallback_count=fallback,

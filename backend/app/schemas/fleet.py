@@ -166,7 +166,7 @@ class FleetSyncLiveSbom(BaseModel):
     memory_drift_detected: bool = False
     wx_violations: int = Field(default=0, ge=0)
     sigkill_events: int = Field(default=0, ge=0)
-    drift_events: list[dict] | int | None = None
+    drift_events: list[dict | str] | int | None = None
 
 
 class FleetSyncNode(BaseModel):

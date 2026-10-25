@@ -596,12 +596,13 @@ async def share_vaccine(
     slug = _vaccine_slug(
         str(payload.get("slug") or manifest.get("slug") or name)
     )
-    vaccine_id = str(
+    raw_vaccine_id = str(
         payload.get("vaccine_id")
         or manifest.get("vaccine_id")
         or manifest.get("id")
         or f"VAC-{digest[:12].upper()}"
-    )[:64]
+    )
+    vaccine_id = re.sub(r"[^a-zA-Z0-9_.:-]", "_", raw_vaccine_id)[:64] or f"VAC-{digest[:12].upper()}"
     safe_file = Path(str(filename or f"{slug}.spkg")).name
     if not safe_file.lower().endswith(".spkg"):
         safe_file = f"{safe_file}.spkg"
@@ -681,9 +682,9 @@ async def share_vaccine(
         )
         row.origin_node = str(payload.get("node_id") or manifest.get("origin_node") or row.origin_node)[:128]
         row.source_site = str(payload.get("site") or manifest.get("site") or row.source_site)[:255]
-        row.signature = signature[:512] or row.signature
-        row.public_key = public_key[:128] or row.public_key
-        row.signature_verified = verified or row.signature_verified
+        row.signature = signature[:512]
+        row.public_key = public_key[:128]
+        row.signature_verified = verified
         row.sha256 = digest
         row.size_bytes = len(blob)
         row.file_name = safe_file

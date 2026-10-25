@@ -1503,15 +1503,10 @@ def _normalize_publish_slug(value: str) -> str:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="slug must not be empty after removing the file extension",
         )
-    if any(character in slug for character in ("/", "\\", "\x00")):
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", slug):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="slug may contain only letters, numbers, underscores and hyphens",
-        )
-    if slug in (".", ".."):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="slug is not a valid catalog identifier",
         )
     return slug
 

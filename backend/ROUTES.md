@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (131 tests — 128 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (132 tests — 129 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -84,8 +84,8 @@ Tests: `tests/test_auth.py`, `tests/test_sso_cookies.py`
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
-| `POST /api/v1/fleet/sync` | JWT or X-API-Key (`X-Tenant-ID` opt) | `{tenant_id, nodes_count, nodes:[{node_id, site?, status?, cpu_pct?, ebpf_drops?, mitigation_latency_us?, gtp_stats?:{active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, n3_peer?, s_nssai?}, live_sbom?:{sbom_sha256?, wx_violations?, sigkill_events?, drift_events?}, sensors:[{sensor_id, …}]…}], nexus_id?, …}` (extra keys ignored) | `{status:"synced", tenant_id, nodes_count, synced, nexus_id, sensors_synced}`; upserts nexus→nodes→sensors, prunes missing sensors, and persists last-wins 5G/live-SBOM telemetry |
-| `GET /api/v1/telemetry/5g-slices` | user | — | `{tenant_id, generated_at, summary{reporting_nodes, active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, total_dropped, affected_nodes}, n3_gtp_u, slices[], nodes[]}`; one row per node from the last `fleet/sync` |
+| `POST /api/v1/fleet/sync` | JWT or X-API-Key (`X-Tenant-ID` opt) | `{tenant_id, nodes_count, nodes:[{node_id, site?, status?, cpu_pct?, ebpf_drops?, mitigation_latency_us?, gtp_stats?:{active_teids=0, gtp_slice_violations_dropped=0, unmapped_teids_dropped=0, n3_peer?, s_nssai?}, live_sbom?:{sbom_sha256?, pcr10_hash?, memory_drift_detected=false, wx_violations=0, sigkill_events=0, drift_events?:list \| int}, sensors:[{sensor_id, …}]…}], nexus_id?, …}` (extra keys ignored) | `{status:"synced", tenant_id, nodes_count, synced, nexus_id, sensors_synced}`; upserts nexus→nodes→sensors, prunes missing sensors, and persists last-wins 5G/live-SBOM telemetry. Omitting `gtp_stats`/`live_sbom` preserves the previous snapshot; live-SBOM events are normalized into the same drift audit table as `POST /api/v1/compliance/sbom/attest` |
+| `GET /api/v1/telemetry/5g-slices` | user | — | `{tenant_id, generated_at, summary{reporting_nodes, active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, total_dropped, affected_nodes}, active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, total_dropped, n3_gtp_u, slices[], nodes[]}`; one row per node from the last `fleet/sync` (`slices` and `nodes` are the same per-node array) |
 | `GET /api/v1/fleet/topology` | user | — | `{tenant_id, nexus[], summary}`; stale nexus ⇒ children `UNREACHABLE`, stale node ⇒ `OFFLINE` |
 | `GET /api/v1/fleet/nodes` | user | `?status&backend&enclave&enclave_id` (enclave* accepted, ignored) | list; heartbeat older than 15 s forces `OFFLINE`; `status`/`backend` filter case-insensitively |
 | `GET /api/v1/fleet/nodes/{node_id}` | user | — | detail + ring/hardware; `404` unknown |
@@ -100,7 +100,7 @@ Tests: `tests/test_auth.py`, `tests/test_sso_cookies.py`
 | `GET /api/v1/fleet/kernel-rules` | user | `?ip` (accepted, ignored) | static 2 rules |
 | `POST /api/v1/fleet/kernel-rules/purge` | admin | `{ip}` | `{status:"PURGED_FLEET_WIDE", ip}` |
 
-Tests: `tests/test_fleet.py` (JWT + API-key sync, topology/nodes after sync, restart/decommission incl. 404s, groups CRUD + validation, ZTP, kernel rules, 401/403 matrix).
+Tests: `tests/test_fleet.py` (JWT + API-key sync, topology/nodes after sync, restart/decommission incl. 404s, groups CRUD + validation, ZTP, kernel rules, 401/403 matrix) and the 5G/live-SBOM heartbeat path in `tests/test_frontier_api.py`.
 
 ---
 
@@ -147,9 +147,12 @@ RBAC and cross-tenant isolation).
 | `GET /api/v1/threats/ransomware-hashes` | user | — | global (tenant NULL) + own-tenant rows |
 | `GET /api/v1/threats/identity-bot` | user | `?type` (accepted, ignored) | static `{impossible_velocity_hits:4, bot_kinematic_blocks:22}` |
 | `GET /api/v1/threats/global-feed` | JWT or X-API-Key | `?verbose` | bare `[{ip}]` list by default; `verbose=true` → rich 24 h rows |
+| `POST /api/v1/threats/vaccines/share` | JWT or X-API-Key | multipart `file!` (`.spkg`) + optional `manifest` JSON, `signature`, `public_key`, `name`, `slug`, `version`, `severity`, `mitre_id`, `target_protocol`, `node_id`, `site`, `rules`; or JSON `{file_base64!, file_name?, …}` | `201 {status:"SHARED", vaccine_id, slug, name, version, severity, sha256, size_bytes, signature_verified, download_url, feed_endpoint, created_at}`; stores the exact bytes under `HUB_PACKAGE_DIR/vaccines/<id>/`; re-sharing the same `vaccine_id` updates it; `413` over `HUB_MAX_UPLOAD_BYTES`, `422` missing/empty/non-base64 payload or bad manifest JSON |
+| `GET /api/v1/threats/vaccines/feed` | JWT or X-API-Key | `?limit=100 (1–500)&since=<unix-sec>&severity=&mitre_id=` | bare fleet-wide list of active vaccines (`vaccine_id, slug, name, version, severity, mitre_id, target_protocol, sha256, size_bytes, signature_verified, origin_node, source_site, status, download_url, created_at`), newest first |
+| `GET /api/v1/threats/vaccines/{vaccine_id}/download` | JWT or X-API-Key | — | `200 application/octet-stream` sealed `.spkg` + `X-Checksum-Sha256`, `X-Vaccine-Id`, `X-Signature-Verified`; increments `download_count`; `404` unknown/inactive/missing artifact |
 | `GET /api/v1/threats/xai` | user | — | stored attributions or 2 reference vectors |
 
-Tests: `tests/test_threats.py` (broadcast→verbose-feed round-trip, grid overview with broadcast→indicator round-trip, DB-seeded SCADA/ransomware, validation 422s, API-key + 401 matrix).
+Vaccine seals accept 32-byte Ed25519 public keys and 64-byte signatures as hex or base64; a missing or invalid seal is stored with `signature_verified:false` rather than rejected. The feed is intentionally global (not tenant-filtered) so a zero-day trapped at one site can be hot-loaded fleet-wide. Tests: `tests/test_threats.py` (broadcast→verbose-feed round-trip, grid overview with broadcast→indicator round-trip, DB-seeded SCADA/ransomware, validation 422s, API-key + 401 matrix) and the share→feed→download cycle in `tests/test_frontier_api.py`.
 
 ---
 
@@ -163,14 +166,16 @@ Tests: `tests/test_threats.py` (broadcast→verbose-feed round-trip, grid overvi
 | `POST /api/v1/ai/ota/stage` | admin | `{version!, sha256!, url!}` | stages to `SHADOW_MODE` |
 | `POST /api/v1/ai/ota/advance` | admin | — | `SHADOW→CANARY_5_PCT→FLEET_WIDE` (promotes stable at the end) |
 | `POST /api/v1/ai/ota/rollback` | admin | — | disables candidate, back to stable `{status, active}` |
-| `GET /api/v1/ai/forge/datasets` | user | — | 2 static datasets |
-| `POST /api/v1/ai/forge/train` | admin | `{dataset_id!, epochs=50}` | stub `{job_id:"TRAIN-891", status:"QUEUED"}` |
+| `GET /api/v1/ai/forge/datasets` | user | — | 2 static legacy dataset descriptors (`ds-001`, `ds-002`) |
+| `POST /api/v1/ai/forge/train` | admin | `{dataset_id!, epochs=50}` | **deprecated compatibility adapter**: queues a real durable `ForgeJob` and returns `200 {job_id, status:"QUEUED", deprecated:true, replacement_endpoint:"/api/v1/forge/train", poll_endpoint:"/api/v1/forge/jobs/<job_id>"}` plus `Deprecation: true`, `Link: </api/v1/forge/train>; rel="successor-version"`, and `Warning: 299 …` headers. New clients must use multipart `POST /api/v1/forge/train`; this adapter synthesizes a deterministic `.slab` from `dataset_id` rather than accepting a dataset upload |
 | `POST /api/v1/ai/compiler/compile` | admin | multipart `file` + `target_silicon` (RKNN/TENSORRT/OPENVINO/HAILO_8/QNN) + `precision` (FP32/FP16/INT8) | `201` task `QUEUED`; `400` bad silicon/precision/empty file; writes `storage/artifacts/COMP-*/input.onnx` |
 | `GET /api/v1/ai/compiler/tasks/{task_id}` | admin | — | poll 1 → `COMPILING`, poll 2 → `COMPLETED` + `download_url`/sha256/speedup; `404` unknown |
 | `GET /api/v1/ai/compiler/artifacts/{task_id}/{filename}` | admin | — | octet-stream (`XFIRMV1:` header); `400` path traversal, `404` not-ready/missing |
-| `POST /api/v1/ai/trism/evaluate` | JWT or X-API-Key | `{prompt_text!, user_id?, sanitize_pii=true}` | jailbreak→`BLOCKED`, PII→`REDACTED`, else `FORWARDED`; always writes audit row |
+| `POST /api/v1/ai/trism/evaluate` | JWT or X-API-Key | `{prompt_text!, user_id?, sanitize_pii=true}` | policy delimiter/blocked-pattern/forbidden-tool hits → `BLOCKED`, jailbreak→`BLOCKED`/`FLAGGED`, PII→`REDACTED`, else `FORWARDED`; always writes an audit row |
+| `GET /api/v1/ai/trism/policy` | user | — | active fleet-wide policy `{policy_id, version, blocked_prompt_delimiters, blocked_delimiters, forbidden_tools, blocked_tools, allowed_tools, blocked_patterns, require_human_approval, updated_by, updated_at, policy_yaml, yaml}` |
+| `PUT /api/v1/ai/trism/policy` | admin | any subset of `{blocked_prompt_delimiters / blocked_delimiters, forbidden_tools / blocked_tools, allowed_tools, blocked_patterns, require_human_approval}` | same shape as GET; omitted fields are preserved, lists are trimmed/deduplicated, and `version` increments only when something changes |
 
-Tests: `tests/test_ai.py` (full OTA + compiler lifecycle incl. error branches, TRiSM verdicts, auth matrix; cleans up `COMP-*` dirs it creates).
+`GET`/`PUT /ai/trism/policy` operate on one global `fleet-default` row, so a policy change applies to every connected OT Copilot. `POST /ai/trism/evaluate` reads the same row on each request: delimiter strings are matched literally, `blocked_patterns` are regexes, and forbidden tools are word-boundary matched. Tests: `tests/test_ai.py` (full OTA + compiler lifecycle incl. error branches, TRiSM verdicts, auth matrix; cleans up `COMP-*` dirs it creates), `tests/test_forge.py`, and the policy→gateway cycle + legacy Forge adapter in `tests/test_frontier_api.py`.
 
 ---
 
@@ -182,11 +187,15 @@ Tests: `tests/test_ai.py` (full OTA + compiler lifecycle incl. error branches, T
 | `GET /api/v1/compliance/iec62443` | user | — | static `{standard:"IEC 62443-3-3", system_integrity:"PASS", zones_verified:14}` |
 | `GET /api/v1/compliance/cmmc` | user | — | `{certified_level, controls_*, score_percentage, key_findings[4]}` |
 | `POST /api/v1/compliance/export` | user | `{framework!, format=PDF\|JSON, include_sla_proofs=true, reporting_period_days=30}` | JSON → manifest + `manifest_sha256`; PDF → `application/pdf` download |
-| `GET /api/v1/compliance/sbom` | user | — | CycloneDX 1.5 document |
+| `GET /api/v1/compliance/5g-slicing` | user | — | 3GPP/NIS2 audit report `{framework, standard, generated_at, overall_status, compliance_score_pct, slice_isolation_verified, nis2_article, summary{…}, s_nssai[], findings[], audited_nodes}` built from the latest N3 GTP-U snapshots. No reporting nodes or zero drops ⇒ `COMPLIANT`; any drop ⇒ `NON_COMPLIANT` |
+| `GET /api/v1/compliance/sbom` | user | — | static CycloneDX 1.5 document (unchanged) |
+| `POST /api/v1/compliance/sbom/attest` | admin | multipart `file` (`live_sbom.json`) or form/JSON `live_sbom`/`sbom`/`document`; optional `node_id`, `signature`, `public_key`/`author_public_key`, `tpm_quote`/`tpm2_quote`/`quote`, `pcr10_hash`/`pcr10`, `attestation_id` | `201 {status:"ATTESTED", attestation_id, node_id, sbom_sha256, pcr10_hash, tpm_quote_present, signature_present, verified, drift_events_ingested, live_sbom_url, received_at}`; stores the document + normalized drift events. `verified` is true when the Ed25519 seal verifies or a TPM quote/PCR10 measurement is present (structural check); duplicate requested ids are re-keyed. `413` oversized, `422` non-JSON/empty payload |
+| `GET /api/v1/compliance/sbom/drift-events` | user | `?node_id=&since=<unix-sec>&severity=&event_type=&limit=100 (1–500)` | tenant-scoped JSON list of normalized W^X/`mprotect(PROT_EXEC)` audit events (`event_id, timestamp, node_id, attestation_id, event_type, severity, process_name, pid, address, action, mitre_id, reason, source, details`), newest first; sources are `SBOM_ATTESTATION` and `FLEET_SYNC` |
+| `GET /api/v1/compliance/sbom/attestations/{attestation_id}` | user | — | stored attestation + full `live_sbom` document; tenant-scoped, `404` unknown/other tenant |
 | `GET /api/v1/compliance/attestation-logs` | user | `?node_id` (accepted, ignored) | 2 static TPM quotes |
 | `GET /api/v1/compliance/insurance-proof` | user | — | `TIER_A_PLUS` proof + writes an `InsuranceProof` row per call |
 
-Tests: `tests/test_compliance.py`.
+Tests: `tests/test_compliance.py` plus the attest→drift→retrieve and tenant-isolation cycle in `tests/test_frontier_api.py`.
 
 ---
 
@@ -291,12 +300,14 @@ Tests: `tests/test_models.py` (header-required 422, traversal 400, seeded-downlo
 | `GET /api/v1/cps/medical/scanners` | user | — | scanners joined to live sensors (`SECURE_ACTIVE` vs `FAULT_NO_DATA`) |
 | `GET /api/v1/cps/medical/pacs-events` | user | — | last 50 DICOM/C-STORE scada events as `MED-SEC-…` synthetic ids |
 | `GET /api/v1/cps/maritime/vessels` | user | — | vessels + per-node threat counts |
+| `GET /api/v1/cps/space/satellites` | user | — | tenant satellite inventory (`satellite_id, name, orbit_class, norad_id, operator, ground_station, downlink_protocol, frequency_band, telemetry_integrity, status, signal_strength_dbm, packet_loss_pct, last_downlink_timestamp, connected_sentinel_node`); projects matching satellite/CCSDS sensors, and returns a deterministic demo fleet only when the install has no space inventory/sensors |
+| `GET /api/v1/cps/space/telecommand-audits` | user | `?limit=100` (clamped 1–500) | blocked rogue AOCS/CCSDS telecommand audit, newest first (`audit_id, timestamp, satellite_id, ground_station, command_name, service_type, function_code, sequence_counter, expected_sequence_counter, source_ip, mitre_id, action_enforced, status, reason, details`); projects matching SCADA events and falls back to demo rows only when empty |
 | `GET /api/v1/threats/itdr/events` | user | — | tenant ITDR events, newest first |
 | `POST /api/v1/threats/itdr/revoke-session` | admin | `{user_principal_name!, reason=""}` | `SESSION_REVOKED` + timestamp; `404` unknown principal |
 | `POST /api/v1/bot/evaluate` | JWT or X-API-Key | `{session_id!, kinematic_vectors:[{x,y,dt_ms}]…, keystroke_jitter_ms?}` | kinematic heuristics → `AUTOMATED_BOT`/`HUMAN_VERIFIED` + factors/action |
 | `GET /api/v1/ztna/sessions` | user | — | risk tiers `CRITICAL≥0.8 / ELEVATED≥0.5 / WATCH≥0.2 / LOW`, quarantined ⇒ access revoked |
 
-Tests: `tests/test_cps_identity.py` (DB-seeded scanners/events/vessels/ITDR/ZTNA incl. tier mapping, bot human-vs-kinematic verdicts, revoke branches, API-key + 401 paths).
+Tests: `tests/test_cps_identity.py` (DB-seeded scanners/events/vessels/ITDR/ZTNA incl. tier mapping, bot human-vs-kinematic verdicts, revoke branches, API-key + 401 paths) and the space inventory/audit + demo-fallback path in `tests/test_frontier_api.py`.
 
 ---
 
@@ -399,7 +410,7 @@ Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing r
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
-| `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model\|scenario`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201` legacy `{status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}` plus spec fields `{slug, asset_type, version, url, download_endpoint, verification:{sha256, signature_verified, signer_public_key}}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
+| `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model\|scenario`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201` legacy `{status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}` plus spec fields `{slug, asset_type, version, url, download_endpoint, verification:{sha256, signature_verified, signer_public_key}}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. `manifest.slug` is normalized **before validation**: one trailing upload suffix (`.tar.gz`, `.tgz`, `.spkg`, `.onnx`, `.slab`, `.pcap`, `.zip`, …) is stripped, so a client `stem()` result such as `water_plant.tar.gz` becomes `water_plant` while the original filename is retained for the artifact. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
 | `GET /api/v1/hub/models/{slug}/download` | none (public) | `?format=&precision=` (exact match wins, else first artifact) | `200 application/octet-stream` + `X-Aryorithm-SHA256` + `X-Aryorithm-Signature-Ed25519`; resolves the latest rollout version (highest stage, then version desc); `404` unknown slug/no match/missing file |
 
 Legacy `POST /api/v1/registry/publish` (`.splugin`-only, `ApiKey` scheme) is unchanged. Dev tokens: `tools/mint_dev_tokens.py --email …` (prints each raw key once). Tests: `tests/test_hub_publish.py`, `tests/test_hub.py`.
@@ -465,6 +476,33 @@ Read model over the existing five catalogs (`package`, `model`, `dataset`, `pcap
 
 Signatures for seeded stand-ins are generated lazily with a deployment key derived from `SECRET_KEY`; developer publications persist the uploaded author signature and public key in `hub_asset_meta`. Tests: `tests/test_hub_assets_api.py`.
 
+#### Legacy root download aliases (`sentinel-ctl` compatibility)
+
+Older edge clients call the category at the API root instead of the unified
+`/hub/assets/...` surface. These aliases serve the **same bytes and integrity
+headers** as the unified download route (no redirect), so existing clients
+work unchanged:
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/packages/{filename}/download` | none (public) | slug or uploaded filename | unified package download; extension included |
+| `GET /api/v1/models/{filename}/download` | none (public) | slug, model filename, or artifact filename | unified model download (latest rollout artifact) |
+| `GET /api/v1/datasets/{filename}/download` | none (public) | slug or uploaded filename | unified dataset download |
+| `GET /api/v1/pcaps/{filename}/download` | none (public) | slug or uploaded filename | unified PCAP download |
+| `GET /api/v1/scenarios/{filename}/download` | none (public) | slug or uploaded filename | unified scenario download |
+
+Singular hidden aliases (`/package/…`, `/model/…`, `/dataset/…`, `/pcap/…`,
+`/scenario/…`) are also registered with `include_in_schema=False`. Resolution
+tries the reference as-is, then strips one or more known archive/asset
+suffixes (`.tar.gz`, `.tgz`, `.spkg`, `.onnx`, `.slab`, `.pcap`, `.zip`, …),
+then tries underscore/hyphen variants and type-prefix removal, then a
+conservative token-subset fallback (e.g. `modbus_guard.spkg` →
+`modbus-actuator-guard`). Ambiguous fuzzy matches return `404`; unknown
+references also return `404`. Responses carry `ETag`,
+`X-Checksum-SHA256`, `X-Ed25519-Signature`, `X-Ed25519-Public-Key`,
+`X-Asset-Type`, `X-Asset-Slug`, and `Content-Disposition`. Tests:
+`tests/test_frontier_api.py` (including `scenario_water_plant.tar.gz`).
+
 ### 14b-iv. Cloud Forge GPU training — `app/routers/forge.py` (`/api/v1/forge`)
 
 | Method & Path | Auth | Request | Response / Notes |
@@ -512,6 +550,7 @@ After install **restart** the backend so the new `DATABASE_URL` loads
 
 - `Telemetry`/`stream` SSE routes can't be read over `ASGITransport` (it buffers infinite bodies); tests invoke the route functions directly and cover the HTTP surface with a finite stub generator.
 - Trailing-slash collection aliases (`GET /api/v1/plans/`, `POST /api/v1/hub/publish/`, …) are real `include_in_schema=False` routes, not redirects; payload parity with their canonical twins is enforced by `tests/test_route_aliases.py`.
+- Root download aliases (`GET /api/v1/{packages,models,datasets,pcaps,scenarios}/{filename}/download`) are also real routes that stream bytes directly, not `302` redirects, so old `sentinel-ctl` clients keep their integrity headers. Singular hidden aliases exist for each category. Coverage lives in `tests/test_frontier_api.py`.
 - Non-`/api/v1` system routes (`GET /health`, `GET /`, the public `/v1/models` stub) are covered by `tests/test_system.py`.
 - Schema bootstrapping (`create_all` + add-column migrations) always runs on
   the **request session's bind** (`db.bind` via `run_schema_ddl`) — never the
