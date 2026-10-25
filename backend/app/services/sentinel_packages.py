@@ -288,7 +288,13 @@ async def ensure_seed(db) -> None:
 
     rows = (await db.execute(_select(_SentinelPackage))).scalars().all()
     for row in rows:
-        if row.artifact_path and (package_dir() / row.artifact_path).is_file():
+        existing_path = artifact_file(row)
+        if existing_path is not None:
+            # Normalize legacy full-vault paths (``sentinel/<slug>/<file>``)
+            # to the package-dir-relative form used by current publishers.
+            normalized = str(existing_path.relative_to(package_dir()))
+            if row.artifact_path != normalized:
+                row.artifact_path = normalized
             continue
         try:
             path = materialize(row)
@@ -306,6 +312,21 @@ def package_dir() -> Path:
 def artifact_relpath(slug: str, file_name: str) -> Path:
     """Vault-relative storage path for one package file."""
     return Path(slug) / file_name
+
+
+def artifact_file(row) -> Path | None:
+    """Resolve a row's artifact, accepting legacy full-vault paths."""
+    rel = (row.artifact_path or "").strip()
+    if not rel:
+        return None
+    candidate = package_dir() / rel
+    if candidate.is_file():
+        return candidate
+    if rel.startswith("sentinel/"):
+        legacy = Path(settings.HUB_PACKAGE_DIR) / rel
+        if legacy.is_file():
+            return legacy
+    return None
 
 
 async def _ensure_columns(db) -> None:
@@ -353,9 +374,9 @@ async def resolve_artifact_bytes(db, row) -> tuple[bytes, str]:
     the synthesized bytes are always a valid fallback.
     """
     if row.artifact_path:
-        candidate = package_dir() / row.artifact_path
+        candidate = artifact_file(row)
         try:
-            if candidate.is_file():
+            if candidate is not None:
                 blob = candidate.read_bytes()
                 return blob, hashlib.sha256(blob).hexdigest()
         except OSError:

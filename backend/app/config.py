@@ -60,5 +60,11 @@ class Settings(BaseSettings):
     MODEL_VAULT_DIR: str = "storage/model-vault"
     MODEL_VAULT_MAX_UPLOAD_BYTES: int = 536870912
 
+    # Cloud Forge (remote GPU training queue). The simulated duration keeps
+    # the queued -> training -> completed lifecycle deterministic until the
+    # external GPU worker is connected.
+    FORGE_DIR: str = "storage/forge"
+    FORGE_SIMULATED_TRAINING_SECONDS: int = 12
+
 
 settings = Settings()

@@ -15,6 +15,8 @@ from app.models.subscription import SubscriptionPlan, PlanEntitlement
 from app.models.license import License
 from app.models.hub import HubAuthor, HubPlugin, HubPluginVersion, HubStar, HubApiToken, SentinelPackage
 from app.models.hub import PcapCategory, DatasetFormat, ScenarioComplexity, HubPcap, HubDataset, HubScenario
+from app.models.hub_assets import HubAssetMeta
+from app.models.forge import ForgeJob
 from app.models.modelvault import AIModel, AIModelVersion, AIModelArtifact
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
 from app.models.blueprint import ThreatBlueprint, BlueprintStatus
@@ -34,6 +36,7 @@ __all__ = [
     "HubAuthor", "HubPlugin", "HubPluginVersion", "HubStar", "HubApiToken", "SentinelPackage",
     "PcapCategory", "DatasetFormat", "ScenarioComplexity",
     "HubPcap", "HubDataset", "HubScenario",
+    "HubAssetMeta", "ForgeJob",
     "AIModel", "AIModelVersion", "AIModelArtifact",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",
     "ThreatBlueprint", "BlueprintStatus",

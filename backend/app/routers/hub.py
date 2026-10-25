@@ -104,25 +104,54 @@ async def get_hub_identity(request: Request, db: AsyncSession = Depends(get_db))
                 return HubIdentity(user=user, token=None)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     if scheme == "ApiKey" and credential:
-        digest = hashlib.sha256(credential.encode()).hexdigest()
-        token = (
-            await db.execute(select(HubApiToken).where(HubApiToken.key_hash == digest))
-        ).scalar_one_or_none()
-        now = datetime.now(timezone.utc)
-        exp = token.expires_at if token else None
-        if exp is not None and exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        if token is None or token.revoked or (exp is not None and exp < now):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired API token")
-        user = await db.get(User, token.user_id)
-        if user is None or not user.is_active:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token owner inactive")
-        token.last_used = now
-        await db.flush()
-        return HubIdentity(user=user, token=token)
+        return await _resolve_cli_token(db, credential)
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated (expected 'Bearer <JWT>' or 'ApiKey <key>')",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def _resolve_cli_token(db: AsyncSession, credential: str) -> HubIdentity:
+    digest = hashlib.sha256(credential.encode()).hexdigest()
+    token = (
+        await db.execute(select(HubApiToken).where(HubApiToken.key_hash == digest))
+    ).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    exp = token.expires_at if token else None
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if token is None or token.revoked or (exp is not None and exp < now):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired API token")
+    user = await db.get(User, token.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token owner inactive")
+    token.last_used = now
+    await db.flush()
+    return HubIdentity(user=user, token=token)
+
+
+async def get_token_validation_identity(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> HubIdentity:
+    """Validate either ``Bearer <JWT>``, ``Bearer <API key>`` or ``ApiKey``."""
+    from app.utils.security import decode_token
+
+    raw = request.headers.get("authorization", "")
+    scheme, _, credential = raw.partition(" ")
+    credential = credential.strip()
+    if scheme == "Bearer" and credential:
+        user_id = decode_token(credential, expected_type="access")
+        if user_id:
+            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            if user is not None and user.is_active:
+                return HubIdentity(user=user, token=None)
+        return await _resolve_cli_token(db, credential)
+    if scheme == "ApiKey" and credential:
+        return await _resolve_cli_token(db, credential)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated (expected 'Bearer <JWT|API key>' or 'ApiKey <key>')",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -875,6 +904,42 @@ async def create_cli_token(
     return TokenCreateOut(token_id=row.token_id, name=row.name, api_key=raw, created_at=hub.to_zulu(row.created_at))
 
 
+@registry_router.get("/tokens/validate")
+async def validate_cli_token(
+    ident: HubIdentity = Depends(get_token_validation_identity),
+):
+    """Verify the presented CLI token / JWT and return its quota envelope.
+
+    Accepts ``Authorization: Bearer <API key>`` (the scheme used by
+    ``/hub/publish``), ``Authorization: ApiKey <key>`` (legacy CLI scheme) or
+    a normal Bearer JWT.
+    """
+    token = ident.token
+    return {
+        "valid": True,
+        "token_id": token.token_id if token else None,
+        "name": token.name if token else "jwt-session",
+        "key_prefix": token.key_prefix if token else "",
+        "scopes": list(token.scopes or []) if token else [],
+        "expires_at": hub.to_zulu(token.expires_at) if token and token.expires_at else None,
+        "revoked": bool(token.revoked) if token else False,
+        "last_used": hub.to_zulu(token.last_used) if token and token.last_used else None,
+        "created_at": hub.to_zulu(token.created_at) if token and token.created_at else None,
+        "user": {
+            "user_id": ident.user.id,
+            "email": ident.user.email,
+            "name": ident.user.name,
+            "role": ident.user.role.value
+            if hasattr(ident.user.role, "value")
+            else str(ident.user.role),
+        },
+        "quota": {
+            "max_upload_bytes": settings.HUB_MAX_UPLOAD_BYTES,
+            "scopes": list(token.scopes or []) if token else [],
+        },
+    }
+
+
 @registry_router.get("/tokens", response_model=list[TokenOut])
 async def list_cli_tokens(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """List the caller's CLI tokens (secret keys never returned)."""
@@ -1324,7 +1389,14 @@ async def download_scenario(slug: str, db: AsyncSession = Depends(get_db)):
 publish_router = APIRouter(prefix="/hub/publish", tags=["Hub — Universal Publish"])
 hub_models_router = APIRouter(prefix="/hub/models", tags=["Hub — Model Downloads"])
 
-ASSET_TYPES = ("package", "pcap", "dataset", "model")
+ASSET_TYPES = ("package", "pcap", "dataset", "model", "scenario")
+_ASSET_URL_SEGMENT = {
+    "package": "packages",
+    "model": "models",
+    "dataset": "datasets",
+    "pcap": "pcaps",
+    "scenario": "scenarios",
+}
 
 _TIER_DISPLAY = {
     "native": "Tier A (Native C++20)",
@@ -1449,7 +1521,7 @@ async def universal_publish(
     ident: HubIdentity = Depends(get_developer_identity),
     db: AsyncSession = Depends(get_db),
 ):
-    """Publish any hub asset: package (.spkg), pcap, dataset (.slab) or model.
+    """Publish any hub asset: package (.spkg), pcap, dataset (.slab), model or scenario.
 
     Auth: ``Authorization: Bearer <developer API token>`` (CLI tokens need
     the ``packages:publish`` scope; repo JWTs carry full developer rights).
@@ -1487,22 +1559,92 @@ async def universal_publish(
 
     if kind == "package":
         asset_id, dl_path = await _publish_package(db, author, file, file_bytes, meta)
+        default_version = "1.0.0"
+        tier = str(meta.get("tier") or "lua")
     elif kind == "pcap":
         asset_id, dl_path = await _publish_pcap(db, file, file_bytes, meta)
+        default_version = "1.0.0"
+        tier = str(meta.get("category") or "pcap")
     elif kind == "dataset":
         asset_id, dl_path = await _publish_dataset(db, file, file_bytes, meta)
+        default_version = "1.0.0"
+        tier = str(meta.get("format") or "dataset")
+    elif kind == "scenario":
+        asset_id, dl_path = await _publish_scenario(db, file, file_bytes, meta)
+        default_version = "1.0.0"
+        tier = "scenario"
     else:
         asset_id, dl_path = await _publish_model(db, file, file_bytes, meta, sig)
+        default_version = "v0.1.0"
+        tier = str(meta.get("tier") or "COMMUNITY")
+
+    slug = str(meta.get("slug") or "").strip()
+    version = str(meta.get("version") or default_version)
+
+    # Persist the author signature / ownership so the unified
+    # /hub/assets/{type}/{slug}/signature endpoint can serve it.  The legacy
+    # publish response is intentionally unchanged.
+    from app.services import hub_assets as unified_assets
+
+    compliance = meta.get("compliance") or meta.get("compliance_tags") or []
+    if not isinstance(compliance, list):
+        compliance = []
+    try:
+        signature_hex = hub.decode_key_material(sig, 64, "signature").hex()
+    except ValueError:
+        signature_hex = sig
+    await unified_assets.record_publish(
+        db,
+        asset_type=kind,
+        slug=slug,
+        signature=signature_hex,
+        public_key=author.public_key,
+        author=author.name or ident.user.name or ident.user.email,
+        owner_user_id=ident.user.id,
+        version=version,
+        tier=tier,
+        industry=str(
+            meta.get("industry")
+            or meta.get("sector")
+            or meta.get("target_sector")
+            or meta.get("domain")
+            or meta.get("category")
+            or ""
+        ),
+        compliance=compliance,
+        manifest=meta,
+        readme_markdown=str(meta.get("readme_markdown") or ""),
+        file_name=file.filename or f"{slug}.bin",
+        sha256=hashlib.sha256(file_bytes).hexdigest(),
+    )
+
+    try:
+        signer_public_key = hub.decode_key_material(author.public_key, 32, "public key").hex()
+    except ValueError:
+        signer_public_key = author.public_key
+    public_base = settings.HUB_PUBLIC_BASE.rstrip("/")
 
     return UniversalPublishOut(
         status="success",
         asset_id=asset_id,
         download_url=f"{settings.HUB_PUBLIC_BASE}{dl_path}",
         published_at=hub.to_zulu(now),
+        slug=slug,
+        asset_type=kind,
+        version=version,
+        url=f"{public_base}/{_ASSET_URL_SEGMENT[kind]}/{slug}",
+        download_endpoint=f"/api/v1/hub/assets/{kind}/{slug}/download",
+        verification={
+            "sha256": hashlib.sha256(file_bytes).hexdigest(),
+            "signature_verified": True,
+            "signer_public_key": signer_public_key,
+        },
     )
 
 
 async def _publish_package(db, author, file: UploadFile, file_bytes: bytes, meta: dict) -> tuple[str, str]:
+    from app.services import sentinel_packages as spkg
+
     _require_manifest_fields(meta, ["slug", "name"])
     tier = str(meta.get("tier") or "lua").strip().lower()
     if tier not in ("native", "wasm", "lua"):
@@ -1517,7 +1659,7 @@ async def _publish_package(db, author, file: UploadFile, file_bytes: bytes, meta
     )
     version = str(meta.get("version") or "1.0.0")
     file_name = file.filename or f"{slug}.spkg"
-    dest = Path(settings.HUB_PACKAGE_DIR) / "sentinel" / slug / file_name
+    dest = spkg.package_dir() / spkg.artifact_relpath(slug, file_name)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(file_bytes)
     digest = hashlib.sha256(file_bytes).hexdigest()
@@ -1544,7 +1686,7 @@ async def _publish_package(db, author, file: UploadFile, file_bytes: bytes, meta
         package_file_size_bytes=len(file_bytes),
         signature_algorithm="Ed25519",
         install_command=str(meta.get("install_command") or f"sentinel plugin install {slug}:{version}"),
-        artifact_path=str(dest.relative_to(Path(settings.HUB_PACKAGE_DIR))),
+        artifact_path=str(dest.relative_to(spkg.package_dir())),
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
@@ -1640,6 +1782,63 @@ async def _publish_dataset(db, file: UploadFile, file_bytes: bytes, meta: dict) 
     db.add(row)
     await db.flush()
     return row.id, f"/api/v1/hub/datasets/{slug}/download"
+
+
+async def _publish_scenario(db, file: UploadFile, file_bytes: bytes, meta: dict) -> tuple[str, str]:
+    from app.models.hub import HubScenario
+    from app.services import hub_library as lib
+
+    _require_manifest_fields(meta, ["slug", "name", "complexity", "target_sector"])
+    complexity = str(meta["complexity"]).strip()
+    if complexity not in lib.SCENARIO_COMPLEXITIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"manifest.complexity must be one of: {', '.join(lib.SCENARIO_COMPLEXITIES)}",
+        )
+    node_topology = meta.get("node_topology") or {}
+    if not isinstance(node_topology, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="manifest.node_topology must be a JSON object",
+        )
+    replayed_attacks = meta.get("replayed_attacks") or []
+    if not isinstance(replayed_attacks, list):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="manifest.replayed_attacks must be a JSON array",
+        )
+    slug = str(meta["slug"]).strip()
+    _check_duplicate(
+        (await db.execute(select(HubScenario).where(HubScenario.slug == slug))).scalars().all(),
+        f"Scenario '{slug}'",
+    )
+    file_name = file.filename or f"{slug}.tar.gz"
+    dest = lib.vault_root("scenarios") / slug / file_name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(file_bytes)
+    row = HubScenario(
+        id=str(meta.get("id") or f"scenario-{slug}"),
+        slug=slug,
+        name=str(meta["name"]),
+        complexity=complexity,
+        target_sector=str(meta["target_sector"]),
+        network_subnet=str(meta.get("network_subnet") or "10.240.0.0/24"),
+        node_topology=node_topology,
+        replayed_attacks=[str(a) for a in replayed_attacks],
+        expected_mitigation_sla=str(meta.get("expected_mitigation_sla") or ""),
+        file_name=file_name,
+        file_size_bytes=len(file_bytes),
+        sha256_checksum=hashlib.sha256(file_bytes).hexdigest(),
+        cli_pull_command=str(
+            meta.get("cli_pull_command") or f"make scenario-pull NAME={slug.replace('-', '_')}"
+        ),
+        short_description=str(meta.get("short_description") or ""),
+        technical_walkthrough=str(meta.get("technical_walkthrough") or ""),
+        artifact_path=str(dest.relative_to(lib.vault_root("scenarios"))),
+    )
+    db.add(row)
+    await db.flush()
+    return row.id, f"/api/v1/hub/scenarios/{slug}/download"
 
 
 async def _publish_model(db, file: UploadFile, file_bytes: bytes, meta: dict, sig: str) -> tuple[str, str]:

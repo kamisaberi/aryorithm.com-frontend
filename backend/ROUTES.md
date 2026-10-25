@@ -358,6 +358,7 @@ Remainder (versions, download, security, star, publish, yank, tokens) in full:
 | `DELETE /api/v1/registry/{slug}/versions/{version}` | author or admin (JWT or ApiKey) | — | yank: hides from fresh installs, history stays downloadable; `404` unknown |
 | `POST /api/v1/registry/tokens` | user (JWT) | `{name!, scopes=[packages:publish, packages:validate], expires_in_days=365?}` | `201` + raw `api_key` **shown once** (only the hash is stored) |
 | `GET /api/v1/registry/tokens` | user (JWT) | — | caller's tokens (secrets never returned) |
+| `GET /api/v1/registry/tokens/validate` | Bearer JWT, Bearer API key or `ApiKey` | — | `200 {valid, token_id, name, key_prefix, scopes, expires_at, revoked, last_used, created_at, user, quota}`; `401` invalid/expired |
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
@@ -397,7 +398,7 @@ Seed: `app/services/hub_library.py` (`ensure_seed`, idempotent, skips existing r
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
-| `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201 {status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
+| `POST /api/v1/hub/publish` | `Authorization: Bearer <dev API token>` (CLI tokens need `packages:publish`; repo JWTs carry full rights) | multipart `asset_type!` (`package\|pcap\|dataset\|model\|scenario`), `file!`, `manifest!` (JSON string), `signature!` (64-byte Ed25519 hex over the file bytes) | `201` legacy `{status:"success", asset_id, download_url (absolute via HUB_PUBLIC_BASE), published_at}` plus spec fields `{slug, asset_type, version, url, download_endpoint, verification:{sha256, signature_verified, signer_public_key}}`; `400` bad asset_type/enum, `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/signature/empty file. Author key enrolled from `manifest.author_public_key` on first publish, verified thereafter. Models land in the vault as `DEVELOPMENT` (no golden gate — developer channel, not the fleet rollout) |
 | `GET /api/v1/hub/models/{slug}/download` | none (public) | `?format=&precision=` (exact match wins, else first artifact) | `200 application/octet-stream` + `X-Aryorithm-SHA256` + `X-Aryorithm-Signature-Ed25519`; resolves the latest rollout version (highest stage, then version desc); `404` unknown slug/no match/missing file |
 
 Legacy `POST /api/v1/registry/publish` (`.splugin`-only, `ApiKey` scheme) is unchanged. Dev tokens: `tools/mint_dev_tokens.py --email …` (prints each raw key once). Tests: `tests/test_hub_publish.py`, `tests/test_hub.py`.
@@ -412,7 +413,7 @@ then publishes with the API token.
 |---|---|---|---|
 | 1. credentials → JWT | `POST /api/v1/auth/login` (or `POST /api/v1/auth/register` on first run) | none | `access_token` (+ SSO cookies) |
 | 2. JWT → API token | `POST /api/v1/registry/tokens` `{name, scopes, expires_in_days}` | `Authorization: Bearer <jwt>` | `api_key` (`ary_hub_live_…`) **shown once**; only its SHA-256 hash is stored |
-| 3. publish | `POST /api/v1/hub/publish` (multipart `asset_type!`, `file!`, `manifest!`, `signature!`) | `Authorization: Bearer <api_key>` | `201 {status, asset_id, download_url, published_at}` |
+| 3. publish | `POST /api/v1/hub/publish` (multipart `asset_type!`, `file!`, `manifest!`, `signature!`) | `Authorization: Bearer <api_key>` | `201` legacy status/asset_id/download_url/published_at plus spec slug/asset_type/version/url/download_endpoint/verification |
 
 ```bash
 BASE=http://localhost:8000
@@ -444,6 +445,34 @@ curl -s $BASE/api/v1/hub/publish -H "Authorization: Bearer $API_KEY" \
 > `DELETE /api/v1/registry/tokens/{token_id}` (revoke).
 >
 > This exact chain is locked by `tests/test_hub_publish.py::test_client_publish_token_chain`.
+
+### 14b-iii. Unified five-type asset API — `app/routers/hub_assets.py` (`/api/v1/hub`)
+
+Read model over the existing five catalogs (`package`, `model`, `dataset`, `pcap`, `scenario`); no legacy table/route was changed.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/hub/catalog` | none | `?type=all&industry=&page=1&limit=20&sort=downloads` | `200 {total, page, limit, total_pages, results[]}`; `type` accepts singular/plural or `all`; `sort` is `downloads\|latest\|name\|sla`; `400` unknown type/sort |
+| `GET /api/v1/hub/search` | none | `?q=&type=all&industry=&page=1&limit=20&sort=downloads` | same pagination envelope; fuzzy keyword match over slug/name/description/manifest, plus optional type/industry filters |
+| `GET /api/v1/hub/categories` | none | — | `200 {total, asset_types[], categories[], industries[], compliance[], target_protocols[]}` with counts |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}` | none | — | `200` full metadata + `merkle_sha256`, `signature_status`, `file_size`, `manifest`, `download_url`, `readme_url`, `sla_url`, `signature_url`; `400` bad type; `404` unknown/yanked |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/sla` | none | — | `200 {verified, latency_sla_ns, latency_display, compliance[], benchmark{}, published_at}` |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/readme` | none | `?raw=false` | `200` JSON `{content_markdown,…}`; `raw=true` returns `text/markdown` |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/download` | none | — | `200 application/octet-stream` + `ETag`, `X-Checksum-SHA256`, `X-Ed25519-Signature`, `X-Ed25519-Public-Key`, `Content-Disposition`; increments the type-specific counter |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/signature` | none | — | `200` standalone 64-byte Ed25519 signature + public-key/signature headers; `404` when no signature is recorded |
+| `DELETE /api/v1/hub/assets/{asset_type}/{slug}` | Bearer JWT/API key (owner or admin) | — | `200 {status:"revoked", asset_type, slug}`; developer-published assets are deleted from catalog + disk; seeded/authority assets are yanked (hidden from unified routes, legacy history preserved) |
+
+Signatures for seeded stand-ins are generated lazily with a deployment key derived from `SECRET_KEY`; developer publications persist the uploaded author signature and public key in `hub_asset_meta`. Tests: `tests/test_hub_assets_api.py`.
+
+### 14b-iv. Cloud Forge GPU training — `app/routers/forge.py` (`/api/v1/forge`)
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `POST /api/v1/forge/train` | Bearer JWT/API key | multipart `dataset!` (`.slab`), `base_model!`, `epochs=5`, `learning_rate=0.0001` | `202 {job_id, status:"queued", target_hardware, dataset_samples, poll_endpoint, estimated_completion_seconds}`; dataset is streamed to disk under `FORGE_DIR`, `413` over `MODEL_VAULT_MAX_UPLOAD_BYTES`, `422` empty dataset/missing base model |
+| `GET /api/v1/forge/jobs/{job_id}` | Bearer JWT/API key (owner or admin) | — | `200` job status (`queued → training → completed`), timestamps, Golden Gate recall/degradation/pass, INT8 quantization metrics, `download_url`; `403` other non-admin; `404` unknown |
+| `GET /api/v1/forge/models/{job_id}/download` | Bearer JWT/API key (owner or admin) | — | `200 application/octet-stream` INT8 ONNX + `X-Aryorithm-SHA256`, `X-Forge-Job-Id`, `X-Forge-Quantization`; `409` before completion; `403`/`404` as above |
+
+Training advances deterministically for `FORGE_SIMULATED_TRAINING_SECONDS` until an external GPU worker is connected; jobs and artifacts are durable. Tests: `tests/test_forge.py`.
 
 ### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
 

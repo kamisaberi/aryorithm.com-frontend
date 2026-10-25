@@ -338,7 +338,16 @@ class HubScenarioOut(BaseModel):
 # universal asset publishing (POST /hub/publish)
 # ---------------------------------------------------------------------------
 class UniversalPublishOut(BaseModel):
+    # Legacy fields (kept verbatim for existing CLI/dashboard clients).
     status: str = "success"
     asset_id: str
     download_url: str
     published_at: str
+
+    # Cloud-registry spec fields, appended without changing the legacy shape.
+    slug: str
+    asset_type: str
+    version: str
+    url: str
+    download_endpoint: str
+    verification: dict
