@@ -12,6 +12,8 @@ Effective availability (computed at read time):
   packet gap exceeds the window, else ACTIVE.
 """
 
+import hashlib
+import json
 from datetime import datetime, timezone
 
 from sqlalchemy import inspect, select, text
@@ -19,8 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import Base, run_schema_ddl
 import app.models  # noqa: F401 (register all tables for create_all)
-from app.models.fleet import NexusInstance, Node, NodeStatus, Sensor
+from app.models.fleet import GtpSliceSnapshot, NexusInstance, Node, NodeStatus, Sensor
 from app.models.user import Tenant, TenantTier, User
+from app.services.frontier import ingest_drift_events
 
 OFFLINE_AFTER_SEC = 30.0
 FAULT_GAP_SEC = 30.0
@@ -123,6 +126,87 @@ def _coerce_node_status(value: str | None, fallback: NodeStatus) -> NodeStatus:
     return fallback
 
 
+def _model_dump(value) -> dict | None:
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump()
+        return dumped if isinstance(dumped, dict) else None
+    return value if isinstance(value, dict) else None
+
+
+async def _sync_frontier_telemetry(
+    db: AsyncSession, tenant_id: str, payload, now: datetime
+) -> None:
+    """Persist optional 5G GTP-U counters and live-SBOM drift flags.
+
+    These blocks are additive on ``fleet/sync`` so old Nexus versions keep
+    working. The 5G route reads the last-update snapshot; live-SBOM events
+    are normalized into the same audit table used by the attestation API.
+    """
+    stats = _model_dump(getattr(payload, "gtp_stats", None))
+    live_sbom = _model_dump(getattr(payload, "live_sbom", None))
+    if stats is None and live_sbom is None:
+        return
+
+    snapshot = (
+        await db.execute(
+            select(GtpSliceSnapshot).where(GtpSliceSnapshot.node_id == payload.node_id)
+        )
+    ).scalar_one_or_none()
+    if snapshot is None:
+        snapshot = GtpSliceSnapshot(node_id=payload.node_id, tenant_id=tenant_id)
+        db.add(snapshot)
+
+    snapshot.tenant_id = tenant_id
+    if stats is not None:
+        snapshot.active_teids = max(0, int(stats.get("active_teids") or 0))
+        snapshot.gtp_slice_violations_dropped = max(
+            0, int(stats.get("gtp_slice_violations_dropped") or 0)
+        )
+        snapshot.unmapped_teids_dropped = max(
+            0, int(stats.get("unmapped_teids_dropped") or 0)
+        )
+        snapshot.n3_peer = stats.get("n3_peer")
+        slices = stats.get("s_nssai") or stats.get("slices") or []
+        snapshot.s_nssai = slices if isinstance(slices, list) else []
+        snapshot.raw_stats = stats
+
+    if live_sbom is not None:
+        events = live_sbom.get("drift_events")
+        if isinstance(events, int):
+            fallback = events
+            events = []
+        else:
+            fallback = max(
+                int(live_sbom.get("wx_violations") or 0),
+                int(live_sbom.get("sigkill_events") or 0),
+            )
+        sbom_sha = str(
+            live_sbom.get("sbom_sha256")
+            or live_sbom.get("sha256")
+            or hashlib.sha256(
+                json.dumps(live_sbom, sort_keys=True, default=str).encode()
+            ).hexdigest()
+        )
+        snapshot.live_sbom = live_sbom
+        snapshot.live_sbom_sha256 = sbom_sha[:64]
+        snapshot.live_sbom_drift_events = int(fallback or len(events or []))
+        await ingest_drift_events(
+            db,
+            tenant_id=tenant_id,
+            node_id=payload.node_id,
+            events=events if isinstance(events, list) else [],
+            sbom_sha256=sbom_sha,
+            source="FLEET_SYNC",
+            fallback_count=fallback,
+            received_at=now,
+        )
+
+    snapshot.updated_at = now
+    await db.flush()
+
+
 async def sync_topology(
     db: AsyncSession,
     body,
@@ -214,6 +298,8 @@ async def sync_topology(
                 node.mitigation_latency_us = n.mitigation_latency_us
             node.last_heartbeat = now
         await db.flush()
+
+        await _sync_frontier_telemetry(db, tenant.id, n, now)
 
         live_ids: set[str] = set()
         for s in n.sensors:

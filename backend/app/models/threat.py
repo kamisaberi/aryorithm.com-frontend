@@ -3,7 +3,18 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
+from sqlalchemy import (
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    BigInteger,
+    Float,
+    Text,
+    JSON,
+    Enum as SQLEnum,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -141,5 +152,46 @@ class RansomwareHash(Base):
     reported_by_site: Mapped[str] = mapped_column(String(255), default="")
     first_detected: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     status: Mapped[str] = mapped_column(String(32), default="BLOCKED_FLEET_WIDE")
+
+    tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+
+
+class ThreatVaccine(Base):
+    """Locally synthesized, Ed25519-sealed deception vaccine (Idea D).
+
+    Edge nodes trap a novel exploit and mint a `.spkg` vaccine. The cloud
+    stores the exact bytes plus its seal so every other appliance in the
+    fleet can pull and hot-reload the same countermeasure.
+    """
+
+    __tablename__ = "threat_vaccines"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    vaccine_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    slug: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    version: Mapped[str] = mapped_column(String(32), default="1.0.0")
+    severity: Mapped[str] = mapped_column(String(32), default="HIGH", index=True)
+    mitre_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_protocol: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    origin_node: Mapped[str] = mapped_column(String(128), default="")
+    source_site: Mapped[str] = mapped_column(String(255), default="")
+    signature: Mapped[str] = mapped_column(String(512), default="")
+    public_key: Mapped[str] = mapped_column(String(128), default="")
+    signature_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    file_name: Mapped[str] = mapped_column(String(255), default="")
+    artifact_path: Mapped[str] = mapped_column(String(512), default="")
+    manifest: Mapped[dict] = mapped_column(JSON, default=dict)
+    rules: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", index=True)
+    download_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)

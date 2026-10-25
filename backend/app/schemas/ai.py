@@ -97,6 +97,9 @@ class ForgeTrainRequest(BaseModel):
 class ForgeTrainResponse(BaseModel):
     job_id: str
     status: str
+    deprecated: bool = False
+    replacement_endpoint: str | None = None
+    poll_endpoint: str | None = None
 
 
 class CompileRequest(BaseModel):
@@ -140,3 +143,31 @@ class TrismResponse(BaseModel):
     action_enforced: str
     sanitized_prompt: str | None = None
     audit_reason: str
+
+
+class TrismPolicyResponse(BaseModel):
+    policy_id: str
+    version: int
+    blocked_prompt_delimiters: list[str] = []
+    blocked_delimiters: list[str] = []
+    forbidden_tools: list[str] = []
+    blocked_tools: list[str] = []
+    allowed_tools: list[str] = []
+    blocked_patterns: list[str] = []
+    require_human_approval: bool = True
+    updated_by: str = ""
+    updated_at: datetime
+    policy_yaml: str = ""
+    yaml: str = ""
+
+
+class TrismPolicyUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    blocked_prompt_delimiters: list[str] | None = None
+    blocked_delimiters: list[str] | None = None
+    forbidden_tools: list[str] | None = None
+    blocked_tools: list[str] | None = None
+    allowed_tools: list[str] | None = None
+    blocked_patterns: list[str] | None = None
+    require_human_approval: bool | None = None

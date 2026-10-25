@@ -1464,6 +1464,58 @@ def _parse_manifest(raw: str) -> dict:
     return data
 
 
+_UPLOAD_SUFFIXES = (
+    ".tar.gz",
+    ".tar.bz2",
+    ".tar.xz",
+    ".tgz",
+    ".tbz2",
+    ".txz",
+    ".spkg",
+    ".onnx",
+    ".slab",
+    ".pcapng",
+    ".pcap",
+    ".zip",
+    ".tar",
+    ".bin",
+)
+
+
+def _normalize_publish_slug(value: str) -> str:
+    """Strip upload extensions before slug validation/storage.
+
+    ``sentinel-ctl`` derives a slug from the filename, so a scenario
+    published as ``water_plant.tar.gz`` reached the validator as
+    ``water_plant.tar.gz`` and failed the strict slug rule. The slug is the
+    catalog identity, never the artifact filename, so archive/asset suffixes
+    are removed here and only here.
+    """
+    slug = (value or "").strip()
+    lowered = slug.lower()
+    for suffix in _UPLOAD_SUFFIXES:
+        if lowered.endswith(suffix):
+            slug = slug[: -len(suffix)]
+            break
+    slug = slug.strip()
+    if not slug:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="slug must not be empty after removing the file extension",
+        )
+    if any(character in slug for character in ("/", "\\", "\x00")):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="slug may contain only letters, numbers, underscores and hyphens",
+        )
+    if slug in (".", ".."):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="slug is not a valid catalog identifier",
+        )
+    return slug
+
+
 def _require_manifest_fields(manifest: dict, fields: list[str]) -> None:
     missing = [f for f in fields if not manifest.get(f)]
     if missing:
@@ -1548,6 +1600,8 @@ async def universal_publish(
             detail=f"File exceeds HUB_MAX_UPLOAD_BYTES ({settings.HUB_MAX_UPLOAD_BYTES})",
         )
     meta = _parse_manifest(manifest)
+    if meta.get("slug") is not None:
+        meta["slug"] = _normalize_publish_slug(str(meta["slug"]))
     sig = (signature or "").strip()
     if len(sig) not in (128, 130):  # 64-byte hex, optional 0x prefix
         raise HTTPException(

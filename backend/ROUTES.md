@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (105 tests — 102 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (131 tests — 128 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -26,7 +26,7 @@ cd backend
 |---|---|---|
 | JWT user | `Authorization: Bearer <access_token>` (from `/auth/login` or `/auth/register`) | Almost everything |
 | Admin | Same JWT, but `role` ∈ `super_admin`, `tenant_admin`, `admin` → else `403` | Write/admin routes |
-| Nexus API key | `X-API-Key: <NEXUS_API_KEY>` (default `ary_dev_secret_key_8000`) | Edge polling: `fleet/sync`, `threats/global-feed`, `ai/trism/evaluate`, `bot/evaluate`, `tenants/*/commands/pending` |
+| Nexus API key | `X-API-Key: <NEXUS_API_KEY>` (default `ary_dev_secret_key_8000`) | Edge polling: `fleet/sync`, `threats/global-feed`, `threats/vaccines/share`, `threats/vaccines/feed`, `ai/trism/evaluate`, `bot/evaluate`, `tenants/*/commands/pending` |
 | Hub CLI token | `Authorization: ApiKey <key>` (from `POST /registry/tokens`) | Hub publishing only |
 | Tenant header | `X-Tenant-ID` — **required** on `GET /models*` (value itself is ignored; scoping comes from the JWT), optional elsewhere | `models`, `fleet/sync`, `threats/global-feed`, `ai/trism`, `tenants` |
 
@@ -84,7 +84,8 @@ Tests: `tests/test_auth.py`, `tests/test_sso_cookies.py`
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
-| `POST /api/v1/fleet/sync` | JWT or X-API-Key (`X-Tenant-ID` opt) | `{tenant_id, nodes_count, nodes:[{node_id, site?, status?, cpu_pct?, ebpf_drops?, mitigation_latency_us?, sensors:[{sensor_id, …}]…}], nexus_id?, …}` (extra keys ignored) | `{status:"synced", tenant_id, nodes_count, synced, nexus_id, sensors_synced}`; upserts nexus→nodes→sensors, prunes missing sensors |
+| `POST /api/v1/fleet/sync` | JWT or X-API-Key (`X-Tenant-ID` opt) | `{tenant_id, nodes_count, nodes:[{node_id, site?, status?, cpu_pct?, ebpf_drops?, mitigation_latency_us?, gtp_stats?:{active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, n3_peer?, s_nssai?}, live_sbom?:{sbom_sha256?, wx_violations?, sigkill_events?, drift_events?}, sensors:[{sensor_id, …}]…}], nexus_id?, …}` (extra keys ignored) | `{status:"synced", tenant_id, nodes_count, synced, nexus_id, sensors_synced}`; upserts nexus→nodes→sensors, prunes missing sensors, and persists last-wins 5G/live-SBOM telemetry |
+| `GET /api/v1/telemetry/5g-slices` | user | — | `{tenant_id, generated_at, summary{reporting_nodes, active_teids, gtp_slice_violations_dropped, unmapped_teids_dropped, total_dropped, affected_nodes}, n3_gtp_u, slices[], nodes[]}`; one row per node from the last `fleet/sync` |
 | `GET /api/v1/fleet/topology` | user | — | `{tenant_id, nexus[], summary}`; stale nexus ⇒ children `UNREACHABLE`, stale node ⇒ `OFFLINE` |
 | `GET /api/v1/fleet/nodes` | user | `?status&backend&enclave&enclave_id` (enclave* accepted, ignored) | list; heartbeat older than 15 s forces `OFFLINE`; `status`/`backend` filter case-insensitively |
 | `GET /api/v1/fleet/nodes/{node_id}` | user | — | detail + ring/hardware; `404` unknown |

@@ -1,6 +1,6 @@
 """Fleet management schemas."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 
@@ -139,14 +139,46 @@ class FleetSyncSensor(BaseModel):
     last_packet_seen_sec_ago: float | None = None
 
 
+class FleetSyncGtpStats(BaseModel):
+    """Live 5G N3 GTP-U counters (Idea B).
+
+    The three required counters match the edge payload exactly. Unknown
+    per-slice details are retained via ``extra="allow"`` so S-NSSAI
+    expansion never causes a 422.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    active_teids: int = Field(default=0, ge=0)
+    gtp_slice_violations_dropped: int = Field(default=0, ge=0)
+    unmapped_teids_dropped: int = Field(default=0, ge=0)
+    n3_peer: str | None = None
+    s_nssai: list = Field(default_factory=list)
+
+
+class FleetSyncLiveSbom(BaseModel):
+    """Runtime live-SBOM flags carried by a Nexus heartbeat (Idea C)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    sbom_sha256: str | None = None
+    pcr10_hash: str | None = None
+    memory_drift_detected: bool = False
+    wx_violations: int = Field(default=0, ge=0)
+    sigkill_events: int = Field(default=0, ge=0)
+    drift_events: list[dict] | int | None = None
+
+
 class FleetSyncNode(BaseModel):
     """Single edge appliance entry — exact sentinel-nexus shape.
 
     Nexus sends: node_id, site, status, cpu_pct, ebpf_drops,
     mitigation_latency_us. Legacy dashboard fields (latency_us, eps,
     version, backend) are kept optional for backward compat.
-    Tier-3 sensors ride along as an embedded list.
-    Extra keys are ignored so sender/backend never 422 on drift.
+    Tier-3 sensors ride along as an embedded list, while the optional
+    ``gtp_stats`` and ``live_sbom`` blocks carry the newer 5G and runtime
+    integrity telemetry. Extra keys are ignored so sender/backend never
+    422 on drift.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -170,6 +202,9 @@ class FleetSyncNode(BaseModel):
     packets_inspected: int | None = None
     sensors_count: int | None = None
     sensors: list[FleetSyncSensor] = []
+    # Frontier telemetry extensions.
+    gtp_stats: FleetSyncGtpStats | None = None
+    live_sbom: FleetSyncLiveSbom | None = None
 
 
 class FleetSyncRequest(BaseModel):

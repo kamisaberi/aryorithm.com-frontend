@@ -97,3 +97,38 @@ class ZTNASessionResponse(BaseModel):
     active_enclaves_accessed: list[str] = []
     automated_action: str
     timestamp: int
+
+
+class SatelliteResponse(BaseModel):
+    satellite_id: str
+    name: str
+    orbit_class: str
+    norad_id: str | None = None
+    operator: str = ""
+    ground_station: str = ""
+    downlink_protocol: str = "CCSDS"
+    frequency_band: str = ""
+    telemetry_integrity: str = "NOMINAL"
+    status: str = "TRACKING"
+    signal_strength_dbm: float = 0.0
+    packet_loss_pct: float = 0.0
+    last_downlink_timestamp: int | None = None
+    connected_sentinel_node: str = ""
+
+
+class TelecommandAuditResponse(BaseModel):
+    audit_id: str
+    timestamp: int
+    satellite_id: str
+    ground_station: str = ""
+    command_name: str = ""
+    service_type: str = "AOCS"
+    function_code: str = ""
+    sequence_counter: int | None = None
+    expected_sequence_counter: int | None = None
+    source_ip: str = ""
+    mitre_id: str | None = None
+    action_enforced: str = "TELECOMMAND_BLOCKED"
+    status: str = "BLOCKED"
+    reason: str = ""
+    details: dict = {}

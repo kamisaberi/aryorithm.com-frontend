@@ -104,3 +104,58 @@ class ZTNASession(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class SpaceSatellite(Base):
+    """Monitored LEO/GEO downlink tracked by a Sentinel space gateway."""
+
+    __tablename__ = "space_satellites"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    satellite_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    orbit_class: Mapped[str] = mapped_column(String(16), default="LEO", index=True)
+    norad_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    operator: Mapped[str] = mapped_column(String(255), default="")
+    ground_station: Mapped[str] = mapped_column(String(255), default="")
+    downlink_protocol: Mapped[str] = mapped_column(String(64), default="CCSDS")
+    frequency_band: Mapped[str] = mapped_column(String(32), default="Ka")
+    telemetry_integrity: Mapped[str] = mapped_column(String(32), default="NOMINAL")
+    status: Mapped[str] = mapped_column(String(32), default="TRACKING", index=True)
+    signal_strength_dbm: Mapped[float] = mapped_column(Float, default=0.0)
+    packet_loss_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    last_downlink_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    connected_sentinel_node: Mapped[str] = mapped_column(String(128), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class SpaceTelecommandAudit(Base):
+    """Rejected rogue AOCS / telecommand audit row (Idea E)."""
+
+    __tablename__ = "space_telecommand_audits"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    audit_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    satellite_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    ground_station: Mapped[str] = mapped_column(String(255), default="")
+    command_name: Mapped[str] = mapped_column(String(255), default="")
+    service_type: Mapped[str] = mapped_column(String(64), default="AOCS")
+    function_code: Mapped[str] = mapped_column(String(64), default="")
+    sequence_counter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expected_sequence_counter: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_ip: Mapped[str] = mapped_column(String(64), default="")
+    mitre_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    action_enforced: Mapped[str] = mapped_column(String(64), default="TELECOMMAND_BLOCKED")
+    status: Mapped[str] = mapped_column(String(32), default="BLOCKED", index=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)

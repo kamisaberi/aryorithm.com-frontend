@@ -152,3 +152,36 @@ class XAIIncidentResponse(BaseModel):
     attacker_ip: str
     mitre_id: str | None = None
     attributions: list[XAIAttributionVector] = []
+
+
+class VaccineShareResponse(BaseModel):
+    status: str = "SHARED"
+    vaccine_id: str
+    slug: str
+    name: str
+    version: str = "1.0.0"
+    severity: str = "HIGH"
+    sha256: str
+    size_bytes: int
+    signature_verified: bool = False
+    download_url: str
+    feed_endpoint: str = "/api/v1/threats/vaccines/feed"
+    created_at: datetime
+
+
+class VaccineFeedItem(BaseModel):
+    vaccine_id: str
+    slug: str
+    name: str
+    version: str
+    severity: str
+    mitre_id: str | None = None
+    target_protocol: str | None = None
+    sha256: str
+    size_bytes: int
+    signature_verified: bool
+    origin_node: str = ""
+    source_site: str = ""
+    status: str
+    download_url: str
+    created_at: datetime

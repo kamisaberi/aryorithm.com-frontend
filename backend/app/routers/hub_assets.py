@@ -28,6 +28,7 @@ from app.services import hub_assets as assets
 from app.services import hub_service as hub
 
 router = APIRouter(prefix="/hub", tags=["Hub — Unified Assets"])
+legacy_download_router = APIRouter(tags=["Hub — Legacy Download Aliases"])
 
 
 def _bad_type(exc: ValueError) -> HTTPException:
@@ -197,6 +198,10 @@ async def asset_signature(asset_type: str, slug: str, db: AsyncSession = Depends
 async def asset_download(asset_type: str, slug: str, db: AsyncSession = Depends(get_db)):
     """Stream the raw binary with ETag, SHA-256 and Ed25519 headers (public)."""
     view = await _view_or_404(db, asset_type, slug, with_signature=True)
+    return await _stream_asset_download(view, db)
+
+
+async def _stream_asset_download(view: assets.AssetView, db: AsyncSession):
     try:
         blob, path, digest, meta = await assets.resolve_download(db, view)
     except FileNotFoundError as exc:
@@ -206,6 +211,8 @@ async def asset_download(asset_type: str, slug: str, db: AsyncSession = Depends(
         "X-Checksum-SHA256": digest,
         "X-Ed25519-Signature": _signature_hex(meta),
         "X-Ed25519-Public-Key": meta.public_key,
+        "X-Asset-Type": view.asset_type,
+        "X-Asset-Slug": view.slug,
         "Cache-Control": "public, max-age=300",
     }
     if blob is not None:
@@ -217,6 +224,54 @@ async def asset_download(asset_type: str, slug: str, db: AsyncSession = Depends(
         filename=view.file_name,
         headers=headers,
     )
+
+
+async def _legacy_download(asset_type: str, filename: str, db: AsyncSession):
+    """Resolve a filename/slug from the old client download path."""
+    try:
+        view = await assets.get_view_by_reference(db, asset_type, filename)
+    except ValueError as exc:
+        raise _bad_type(exc)
+    if view is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{asset_type}/{filename} not found",
+        )
+    return await _stream_asset_download(view, db)
+
+
+# Backwards-compatible root download aliases used by sentinel-ctl. The
+# official surface is /api/v1/hub/assets/{type}/{slug}/download; these paths
+# accept either the published slug or the uploaded filename (extension
+# included) and serve the identical bytes and integrity headers.
+@legacy_download_router.get("/packages/{filename}/download", include_in_schema=True)
+@legacy_download_router.get("/package/{filename}/download", include_in_schema=False)
+async def legacy_package_download(filename: str, db: AsyncSession = Depends(get_db)):
+    return await _legacy_download("package", filename, db)
+
+
+@legacy_download_router.get("/models/{filename}/download", include_in_schema=True)
+@legacy_download_router.get("/model/{filename}/download", include_in_schema=False)
+async def legacy_model_download(filename: str, db: AsyncSession = Depends(get_db)):
+    return await _legacy_download("model", filename, db)
+
+
+@legacy_download_router.get("/datasets/{filename}/download", include_in_schema=True)
+@legacy_download_router.get("/dataset/{filename}/download", include_in_schema=False)
+async def legacy_dataset_download(filename: str, db: AsyncSession = Depends(get_db)):
+    return await _legacy_download("dataset", filename, db)
+
+
+@legacy_download_router.get("/pcaps/{filename}/download", include_in_schema=True)
+@legacy_download_router.get("/pcap/{filename}/download", include_in_schema=False)
+async def legacy_pcap_download(filename: str, db: AsyncSession = Depends(get_db)):
+    return await _legacy_download("pcap", filename, db)
+
+
+@legacy_download_router.get("/scenarios/{filename}/download", include_in_schema=True)
+@legacy_download_router.get("/scenario/{filename}/download", include_in_schema=False)
+async def legacy_scenario_download(filename: str, db: AsyncSession = Depends(get_db)):
+    return await _legacy_download("scenario", filename, db)
 
 
 @router.delete("/assets/{asset_type}/{slug}")

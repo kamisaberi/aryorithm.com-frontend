@@ -44,6 +44,52 @@ class AttestationLog(Base):
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
 
+class SbomAttestation(Base):
+    """Hardware-anchored live-SBOM submission from a Sentinel appliance."""
+
+    __tablename__ = "sbom_attestations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    attestation_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    sbom_sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    pcr10_hash: Mapped[str] = mapped_column(String(128), default="")
+    tpm_quote: Mapped[str] = mapped_column(Text, default="")
+    signature: Mapped[str] = mapped_column(Text, default="")
+    public_key: Mapped[str] = mapped_column(String(128), default="")
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    drift_events_found: Mapped[int] = mapped_column(Integer, default=0)
+    live_sbom: Mapped[dict] = mapped_column(JSON, default=dict)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class SbomDriftEvent(Base):
+    """In-kernel W^X / mprotect violation blocked by the edge eBPF engine."""
+
+    __tablename__ = "sbom_drift_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_id: Mapped[str] = mapped_column(String(96), unique=True, nullable=False, index=True)
+    node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    attestation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), default="MPROTECT_PROT_EXEC_BLOCKED", index=True)
+    severity: Mapped[str] = mapped_column(String(16), default="CRITICAL", index=True)
+    process_name: Mapped[str] = mapped_column(String(255), default="")
+    pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    action: Mapped[str] = mapped_column(String(64), default="SIGKILL")
+    mitre_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(32), default="SBOM_ATTESTATION", index=True)
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
 class InsuranceProof(Base):
     __tablename__ = "insurance_proofs"
 

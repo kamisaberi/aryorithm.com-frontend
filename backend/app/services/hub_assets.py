@@ -23,7 +23,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.config import settings
 from app.models.hub_assets import HubAssetMeta
@@ -686,6 +686,187 @@ async def get_view(
     if with_signature:
         await ensure_asset_signature(db, view)
     return view
+
+
+# File extensions accepted by the legacy uploader and registry download URLs.
+_REFERENCE_SUFFIXES = (
+    ".tar.gz",
+    ".tar.bz2",
+    ".tar.xz",
+    ".tgz",
+    ".tbz2",
+    ".txz",
+    ".spkg",
+    ".onnx",
+    ".slab",
+    ".pcapng",
+    ".pcap",
+    ".zip",
+    ".tar",
+    ".bin",
+)
+
+
+def _reference_candidates(asset_type: str, reference: str) -> list[str]:
+    """Expand a client filename into plausible catalog slugs/file names.
+
+    ``scenario_water_plant.tar.gz`` should resolve the same asset as
+    ``water-plant`` when clients append the on-disk archive extension, and
+    ``modbus_actuator_guard.spkg`` should resolve ``modbus-actuator-guard``.
+    """
+    raw = (reference or "").strip()
+    if not raw:
+        return []
+    roots: list[str] = [raw]
+    current = raw
+    while True:
+        lowered = current.lower()
+        suffix = next((s for s in _REFERENCE_SUFFIXES if lowered.endswith(s)), None)
+        if suffix is None:
+            break
+        current = current[: -len(suffix)]
+        if not current or current == raw:
+            break
+        roots.append(current)
+
+    prefixes = {
+        asset_type,
+        f"{asset_type}s",
+        "package",
+        "packages",
+        "model",
+        "models",
+        "dataset",
+        "datasets",
+        "pcap",
+        "pcaps",
+        "scenario",
+        "scenarios",
+    }
+    candidates: list[str] = []
+
+    def add(value: str) -> None:
+        if not value:
+            return
+        for variant in (
+            value,
+            value.lower(),
+            value.replace("_", "-"),
+            value.replace("-", "_"),
+            value.lower().replace("_", "-"),
+            value.lower().replace("-", "_"),
+        ):
+            if variant and variant not in candidates:
+                candidates.append(variant)
+
+    for root in roots:
+        add(root)
+        lowered = root.lower()
+        for prefix in prefixes:
+            for separator in ("_", "-"):
+                marker = f"{prefix}{separator}"
+                if lowered.startswith(marker) and len(root) > len(marker):
+                    add(root[len(marker):])
+    return candidates
+
+
+def _token_set(value: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", (value or "").lower()))
+
+
+def _fuzzy_match_row(rows, candidates: list[str], attributes: tuple[str, ...]):
+    """Return a unique row whose slug/filename contains all reference tokens.
+
+    This handles legacy short names such as ``modbus_guard.spkg`` mapping to
+    the published ``modbus-actuator-guard`` package without broad substring
+    guessing. Ambiguous matches are deliberately ignored.
+    """
+    wanted_sets = [
+        tokens
+        for tokens in (_token_set(value) for value in candidates)
+        if len(tokens) >= 2
+    ]
+    if not wanted_sets:
+        return None
+    matches = []
+    for row in rows:
+        row_tokens: set[str] = set()
+        for attribute in attributes:
+            row_tokens |= _token_set(str(getattr(row, attribute, "") or ""))
+        if any(tokens.issubset(row_tokens) for tokens in wanted_sets):
+            matches.append(row)
+            if len(matches) > 1:
+                return None
+    return matches[0] if matches else None
+
+
+async def get_view_by_reference(
+    db, asset_type: str, reference: str
+) -> AssetView | None:
+    """Resolve a legacy ``{category}/{filename}`` download reference.
+
+    Slugs are tried first, then the exact ``file_name`` /
+    ``package_file_name`` column on the underlying catalog. This preserves
+    seeded assets whose published filename differs from their slug.
+    """
+    kind = normalize_asset_type(asset_type)
+    candidates = _reference_candidates(kind, reference)
+    for candidate in candidates:
+        view = await get_view(db, kind, candidate, allow_deprecated=True)
+        if view is not None:
+            return view
+
+    await ensure_seeded(db)
+    file_values = [value.lower() for value in {reference, *candidates} if value]
+    if kind == "package":
+        from app.models.hub import SentinelPackage
+
+        row = (
+            await db.execute(
+                select(SentinelPackage).where(
+                    func.lower(SentinelPackage.package_file_name).in_(file_values)
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            rows = (await db.execute(select(SentinelPackage))).scalars().all()
+            row = _fuzzy_match_row(rows, candidates, ("slug", "package_file_name", "name"))
+        return await get_view(db, kind, row.slug, allow_deprecated=True) if row else None
+
+    if kind in _LIBRARY_DIRS:
+        from app.models.hub import HubDataset, HubPcap, HubScenario
+
+        model = {"pcap": HubPcap, "dataset": HubDataset, "scenario": HubScenario}[kind]
+        row = (
+            await db.execute(
+                select(model).where(func.lower(model.file_name).in_(file_values))
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            rows = (await db.execute(select(model))).scalars().all()
+            row = _fuzzy_match_row(rows, candidates, ("slug", "file_name", "title"))
+        return await get_view(db, kind, row.slug, allow_deprecated=True) if row else None
+
+    from app.models.modelvault import AIModel, AIModelArtifact, AIModelVersion
+
+    artifact = (
+        await db.execute(
+            select(AIModelArtifact).where(
+                func.lower(AIModelArtifact.file_name).in_(file_values)
+            )
+        )
+    ).scalar_one_or_none()
+    if artifact is None:
+        artifacts = (await db.execute(select(AIModelArtifact))).scalars().all()
+        artifact = _fuzzy_match_row(artifacts, candidates, ("file_name",))
+    if artifact is None:
+        return None
+    version = await db.get(AIModelVersion, artifact.version_id)
+    model_row = await db.get(AIModel, version.model_id) if version is not None else None
+    if model_row is None:
+        return None
+    return await get_view(db, "model", model_row.slug, allow_deprecated=True)
+
 
 
 async def all_views(db) -> list[AssetView]:

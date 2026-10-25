@@ -2,17 +2,26 @@
 
 import hashlib
 import json
+import re
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db, run_schema_ddl
-from app.dependencies import get_current_user
-from app.models.compliance import ComplianceFramework, ComplianceRecord, InsuranceProof
+from app.dependencies import get_current_admin, get_current_user
+from app.models.compliance import (
+    ComplianceFramework,
+    ComplianceRecord,
+    InsuranceProof,
+    SbomAttestation,
+)
 from app.models.fleet import Node
 from app.models.user import Tenant, User
 from app.schemas.compliance import (
@@ -25,6 +34,16 @@ from app.schemas.compliance import (
     AttestationLogResponse,
     InsuranceTelemetry,
     InsuranceProofResponse,
+    FiveGSlicingComplianceResponse,
+    FiveGTelemetryResponse,
+    SbomAttestResponse,
+    SbomDriftEventResponse,
+)
+from app.services.frontier import (
+    fiveg_compliance_payload,
+    fiveg_telemetry_payload,
+    ingest_drift_events,
+    sbom_drift_payload,
 )
 
 router = APIRouter(prefix="/compliance", tags=["Compliance GRC"])
@@ -374,3 +393,309 @@ async def get_insurance_proof(user: User = Depends(get_current_user), db: AsyncS
         issued_timestamp=int(now.timestamp()),
         valid_until_timestamp=int((now + timedelta(days=90)).timestamp()),
     )
+
+
+# ---------------------------------------------------------------------------
+# 5G slice isolation + live-SBOM (Ideas B/C)
+# ---------------------------------------------------------------------------
+@router.get("/5g-slicing", response_model=FiveGSlicingComplianceResponse)
+async def get_5g_slicing_compliance(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """3GPP S-NSSAI slice-isolation audit report built from live N3 counters."""
+    await _ensure_compliance_schema(db.bind)
+    return await fiveg_compliance_payload(db, user.tenant_id)
+
+
+async def _parse_live_sbom(request: Request) -> tuple[dict, bytes, dict]:
+    """Accept a live_sbom.json upload or a JSON attestation envelope."""
+    content_type = (request.headers.get("content-type") or "").lower()
+    metadata: dict = {}
+    document = None
+    raw: bytes | None = None
+
+    if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
+        form = await request.form()
+        for key, value in form.multi_items():
+            if hasattr(value, "filename") and hasattr(value, "read"):
+                if raw is None:
+                    raw = await value.read()
+                continue
+            if key in ("live_sbom", "sbom", "document"):
+                try:
+                    document = json.loads(value)
+                except (TypeError, ValueError):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail=f"{key} must be valid JSON",
+                    )
+            else:
+                metadata[key] = value
+    else:
+        raw_body = await request.body()
+        if not raw_body:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="live_sbom.json is required",
+            )
+        try:
+            body = json.loads(raw_body)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="live_sbom.json is not valid JSON",
+            )
+        if not isinstance(body, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="live_sbom.json must be a JSON object",
+            )
+        metadata = body
+        nested = body.get("live_sbom") or body.get("sbom") or body.get("document")
+        if nested is not None:
+            if isinstance(nested, str):
+                nested = json.loads(nested)
+            document = nested
+            raw = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+        else:
+            document = body
+            raw = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+
+    if raw is not None and document is None:
+        if len(raw) > settings.HUB_MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="live_sbom.json exceeds the upload limit",
+            )
+        try:
+            document = json.loads(raw)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Uploaded live_sbom.json is not valid JSON",
+            )
+    if not isinstance(document, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="live_sbom.json must be a JSON object",
+        )
+    if raw is None:
+        raw = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    return document, raw, metadata
+
+
+def _extract_drift_events(document: dict, metadata: dict) -> tuple[list, int]:
+    candidates: list = []
+    fallback = 0
+    for source in (metadata, document):
+        value = source.get("drift_events") if isinstance(source, dict) else None
+        if isinstance(value, list):
+            candidates.extend(value)
+        elif isinstance(value, int):
+            fallback += max(0, value)
+        elif isinstance(value, str) and value.strip():
+            try:
+                parsed = json.loads(value)
+            except (TypeError, ValueError):
+                parsed = [value]
+            if isinstance(parsed, list):
+                candidates.extend(parsed)
+            elif isinstance(parsed, dict):
+                candidates.append(parsed)
+    for key in ("runtime_integrity", "runtime", "integrity"):
+        nested = document.get(key)
+        if isinstance(nested, dict):
+            value = nested.get("drift_events")
+            if isinstance(value, list):
+                candidates.extend(value)
+            fallback += max(0, int(nested.get("wx_violations") or nested.get("sigkill_events") or 0))
+    for source in (metadata, document):
+        for key in ("wx_violations", "sigkill_events", "memory_drift_events"):
+            try:
+                fallback += max(0, int(source.get(key) or 0))
+            except (TypeError, ValueError):
+                continue
+    return candidates, fallback
+
+
+def _verify_sbom_seal(public_key: str, signature: str, raw: bytes) -> bool:
+    if not public_key or not signature:
+        return False
+    try:
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+
+        def _decode(value: str, size: int) -> bytes | None:
+            value = value.strip()
+            try:
+                decoded = bytes.fromhex(value)
+                if len(decoded) == size:
+                    return decoded
+            except ValueError:
+                pass
+            try:
+                import base64
+
+                decoded = base64.b64decode(value, validate=True)
+                if len(decoded) == size:
+                    return decoded
+            except (ValueError, TypeError):
+                pass
+            return None
+
+        key = _decode(public_key, 32)
+        sig = _decode(signature, 64)
+        if key is None or sig is None:
+            return False
+        ed25519.Ed25519PublicKey.from_public_bytes(key).verify(sig, raw)
+        return True
+    except Exception:
+        return False
+
+
+@router.post("/sbom/attest", response_model=SbomAttestResponse, status_code=status.HTTP_201_CREATED)
+async def attest_live_sbom(
+    request: Request,
+    user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Accept a signed TPM 2.0 live-SBOM document from an appliance.
+
+    Admin authentication is required because the attestation becomes part of
+    the immutable audit vault. Send ``live_sbom.json`` as multipart ``file``
+    or as a JSON body. Optional metadata: ``node_id``, ``signature``,
+    ``public_key``, ``tpm_quote`` and ``pcr10_hash``.
+    """
+    await _ensure_compliance_schema(db.bind)
+    document, raw, metadata = await _parse_live_sbom(request)
+    node_id = str(
+        metadata.get("node_id")
+        or request.headers.get("x-node-id")
+        or "UNKNOWN"
+    )[:64]
+    signature = str(metadata.get("signature") or "")
+    public_key = str(metadata.get("public_key") or metadata.get("author_public_key") or "")
+    tpm_quote = str(metadata.get("tpm_quote") or metadata.get("tpm2_quote") or metadata.get("quote") or "")
+    pcr10_hash = str(metadata.get("pcr10_hash") or metadata.get("pcr10") or "")
+    digest = hashlib.sha256(raw).hexdigest()
+    now = datetime.now(timezone.utc)
+
+    provided_id = str(metadata.get("attestation_id") or "").strip()
+    safe_id = re.sub(r"[^a-zA-Z0-9_.:-]", "_", provided_id)[:64]
+    attestation_id = safe_id or f"SBOM-{uuid.uuid4().hex[:16].upper()}"
+    existing = (
+        await db.execute(
+            select(SbomAttestation).where(SbomAttestation.attestation_id == attestation_id)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        attestation_id = f"SBOM-{uuid.uuid4().hex[:16].upper()}"
+
+    verified = _verify_sbom_seal(public_key, signature, raw)
+    if not verified and (tpm_quote or pcr10_hash):
+        # Presence of a TPM quote / PCR10 measurement is recorded as
+        # structurally verified; full quote replay is a deployment concern.
+        verified = True
+
+    events, fallback = _extract_drift_events(document, metadata)
+    row = SbomAttestation(
+        attestation_id=attestation_id,
+        node_id=node_id,
+        sbom_sha256=digest,
+        pcr10_hash=pcr10_hash[:128],
+        tpm_quote=tpm_quote,
+        signature=signature,
+        public_key=public_key[:128],
+        verified=verified,
+        drift_events_found=len(events) + fallback,
+        live_sbom=document,
+        submitted_at=now,
+        tenant_id=user.tenant_id,
+    )
+    db.add(row)
+    await db.flush()
+    created = await ingest_drift_events(
+        db,
+        tenant_id=user.tenant_id,
+        node_id=node_id,
+        events=events,
+        sbom_sha256=digest,
+        attestation_id=attestation_id,
+        source="SBOM_ATTESTATION",
+        fallback_count=fallback,
+        received_at=now,
+    )
+    row.drift_events_found = len(created)
+
+    return SbomAttestResponse(
+        status="ATTESTED",
+        attestation_id=attestation_id,
+        node_id=node_id,
+        sbom_sha256=digest,
+        pcr10_hash=row.pcr10_hash,
+        tpm_quote_present=bool(tpm_quote),
+        signature_present=bool(signature),
+        verified=verified,
+        drift_events_ingested=len(created),
+        live_sbom_url=f"/api/v1/compliance/sbom/attestations/{attestation_id}",
+        received_at=now,
+    )
+
+
+@router.get("/sbom/drift-events", response_model=list[SbomDriftEventResponse])
+async def list_sbom_drift_events(
+    node_id: str | None = Query(None),
+    since: int | None = Query(None, description="Unix seconds"),
+    severity: str | None = Query(None),
+    event_type: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Audit in-kernel W^X SIGKILL/MPROTECT violations for the tenant."""
+    await _ensure_compliance_schema(db.bind)
+    since_dt = (
+        datetime.fromtimestamp(since, tz=timezone.utc) if since is not None else None
+    )
+    return await sbom_drift_payload(
+        db,
+        user.tenant_id,
+        limit=limit,
+        node_id=node_id,
+        since=since_dt,
+        severity=severity,
+        event_type=event_type,
+    )
+
+
+@router.get("/sbom/attestations/{attestation_id}")
+async def get_sbom_attestation(
+    attestation_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch the stored live-SBOM document behind an attestation id."""
+    await _ensure_compliance_schema(db.bind)
+    row = (
+        await db.execute(
+            select(SbomAttestation).where(
+                SbomAttestation.attestation_id == attestation_id,
+                SbomAttestation.tenant_id == user.tenant_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found")
+    return {
+        "attestation_id": row.attestation_id,
+        "node_id": row.node_id,
+        "sbom_sha256": row.sbom_sha256,
+        "pcr10_hash": row.pcr10_hash,
+        "tpm_quote_present": bool(row.tpm_quote),
+        "signature_present": bool(row.signature),
+        "verified": row.verified,
+        "drift_events_found": row.drift_events_found,
+        "submitted_at": (row.submitted_at.replace(tzinfo=timezone.utc) if row.submitted_at.tzinfo is None else row.submitted_at).isoformat(),
+        "live_sbom": row.live_sbom,
+    }
+

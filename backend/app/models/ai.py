@@ -116,3 +116,29 @@ class TrismAuditLog(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     tenant_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=True)
+
+
+class TrismPolicy(Base):
+    """Fleet-wide OT Copilot tool-governance policy.
+
+    A single global row is the source of truth for every TRiSM gateway.
+    Administrators mutate it through ``PUT /api/v1/ai/trism/policy``; edge
+    copilots pull it and hot-reload the prompt/tool restrictions.
+    """
+
+    __tablename__ = "trism_policies"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    policy_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, default="fleet-default", index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    blocked_prompt_delimiters: Mapped[list] = mapped_column(JSON, default=list)
+    forbidden_tools: Mapped[list] = mapped_column(JSON, default=list)
+    allowed_tools: Mapped[list] = mapped_column(JSON, default=list)
+    blocked_patterns: Mapped[list] = mapped_column(JSON, default=list)
+    require_human_approval: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_by: Mapped[str] = mapped_column(String(255), default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )

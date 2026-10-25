@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, Enum as SQLEnum
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Float, Text, JSON, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -93,6 +93,36 @@ class Sensor(Base):
 
     # Parent sentinel appliance (nodes.node_id string, not FK — see above).
     node_node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+
+    tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
+
+
+class GtpSliceSnapshot(Base):
+    """Latest 5G N3 GTP-U counters reported by one edge appliance.
+
+    The 5G telemetry and 3GPP slice-isolation report read this snapshot
+    directly; keeping the last-update-wins row avoids unbounded timeseries
+    growth in the control plane.
+    """
+
+    __tablename__ = "gtp_slice_snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    active_teids: Mapped[int] = mapped_column(Integer, default=0)
+    gtp_slice_violations_dropped: Mapped[int] = mapped_column(Integer, default=0)
+    unmapped_teids_dropped: Mapped[int] = mapped_column(Integer, default=0)
+    n3_peer: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    s_nssai: Mapped[list] = mapped_column(JSON, default=list)
+    raw_stats: Mapped[dict] = mapped_column(JSON, default=dict)
+    live_sbom: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    live_sbom_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    live_sbom_drift_events: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     tenant_id: Mapped[str] = mapped_column(String(36), ForeignKey("tenants.id"), nullable=False)
 
