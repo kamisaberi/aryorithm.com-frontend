@@ -14,13 +14,13 @@ import {
 } from "@/lib/session";
 
 const NAV = [
-  { label: "Packages", href: "/explore" },
+  { label: "Explore", href: "/explore" },
+  { label: "Blueprints", href: "/explore?type=blueprint" },
+  { label: "Appliances", href: "/appliances" },
   { label: "Models", href: "/models" },
-  { label: "PCAPs", href: "/pcaps" },
-  { label: "Datasets", href: "/datasets" },
-  { label: "Scenarios", href: "/scenarios" },
-  { label: "Documentation & SDK", href: "/docs" },
+  { label: "Docs & SDK", href: "/docs" },
   { label: "Publish", href: "/publish" },
+  { label: "Developer", href: "/settings/developer" },
 ];
 
 const ECOSYSTEM_BASE = [
@@ -117,7 +117,7 @@ export default function Header() {
             <span className="font-mono text-cyan" aria-hidden="true">
               ⌕
             </span>
-            <span className="flex-1 truncate">Search extensions, protocols, MITRE IDs...</span>
+            <span className="flex-1 truncate">Search 7 asset types, protocols, MITRE IDs...</span>
             <kbd className="rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-muted">
               ⌘K
             </kbd>
@@ -162,7 +162,7 @@ export default function Header() {
             href="/publish"
             className="hidden rounded-md bg-cyan px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-void transition-all hover:brightness-110 sm:block"
           >
-            Submit Plugin
+            Publish Asset
           </Link>
 
           {session === undefined ? (
@@ -266,7 +266,7 @@ export default function Header() {
                 onClick={() => setMobileOpen(false)}
                 className="block rounded-md bg-cyan px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-void"
               >
-                Submit Plugin
+                Publish Asset
               </Link>
               {session === undefined ? null : session ? (
                 <div className="space-y-2.5">

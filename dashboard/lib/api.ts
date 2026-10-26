@@ -156,6 +156,28 @@ export const api = {
     return response.blob();
   },
 
+  getBlob: async (endpoint: string, token?: string | null, options?: ApiOptions): Promise<Blob> => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    try {
+      const { getSelectedTenant } = await import("./tenant");
+      const selected = options?.tenantId ?? getSelectedTenant();
+      if (selected) headers["X-Tenant-ID"] = selected;
+    } catch {
+      /* no tenant context */
+    }
+    if (options?.enclaveId) headers["X-Enclave-ID"] = options.enclaveId;
+    if (options?.apiKey) headers["X-API-Key"] = options.apiKey;
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+    return response.blob();
+  },
+
   put: <T>(endpoint: string, body?: unknown, token?: string | null, options?: ApiOptions) =>
     request<T>(endpoint, { method: "PUT", body: JSON.stringify(body), ...(options || {}) }, token),
 

@@ -3,6 +3,8 @@ import type { MetadataRoute } from "next";
 const STATIC_ROUTES: { path: string; priority: number }[] = [
   { path: "/", priority: 1.0 },
   { path: "/explore", priority: 0.9 },
+  { path: "/appliances", priority: 0.9 },
+  { path: "/settings/developer", priority: 0.6 },
   { path: "/publish", priority: 0.7 },
   { path: "/docs", priority: 0.7 },
 ];

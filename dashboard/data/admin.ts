@@ -4,7 +4,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     group: "Mission Control",
     items: [
-      { title: "Overview", url: "/dashboard", icon: "◈" },
+      { title: "Overview", url: "/overview", icon: "◈" },
+      { title: "Dashboard & Billing", url: "/dashboard", icon: "◇" },
       { title: "MDR Triage Hub", url: "/dashboard/mdr-triage", icon: "◍", badge: "LIVE" },
       { title: "Threat Map & XAI", url: "/threat-map", icon: "◉" },
     ],
@@ -12,7 +13,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     group: "Edge Fleet",
     items: [
-      { title: "Appliance Matrix & Nodes", url: "/fleet/appliances", icon: "▣" },
+      { title: "Fleet Command", url: "/fleet", icon: "▣", highlight: true },
+      { title: "Appliance Matrix & Nodes", url: "/fleet/appliances", icon: "▤" },
       { title: "Asset Topology & Enclaves", url: "/topology", icon: "⟁" },
       { title: "Kernel eBPF Engine", url: "/kernel-rules", icon: "⌘" },
     ],
@@ -20,15 +22,25 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     group: "Threat Defense",
     items: [
-      { title: "Collective Grid & Bus", url: "/threats/grid", icon: "⇄", highlight: true },
+      { title: "Threat Command", url: "/threats", icon: "⇄", highlight: true },
+      { title: "Collective Grid & Bus", url: "/threats/grid", icon: "⇆" },
       { title: "SCADA & Specialized CPS", url: "/threats/scada-cps", icon: "◫" },
       { title: "Identity, ZTNA & Bots", url: "/threats/identity-itdr", icon: "◐" },
       { title: "MITRE ATT&CK & Ransomware", url: "/threats/mitre", icon: "▦" },
     ],
   },
   {
+    group: "Frontier Systems",
+    items: [
+      { title: "Frontier Telemetry", url: "/frontier", icon: "◎", badge: "5G", highlight: "green" },
+      { title: "AI TRiSM Firewall", url: "/trism", icon: "⌁" },
+      { title: "Live-SBOM Integrity", url: "/compliance/sbom", icon: "▧" },
+    ],
+  },
+  {
     group: "AI & Sentinel-Hub",
     items: [
+      { title: "OTA Canary Rollout", url: "/ai/ota", icon: "⇪", badge: "OTA", highlight: "green" },
       { title: "Model Repository & Forge", url: "/model-hub", icon: "⬡" },
       { title: "Silicon Compiler & TRiSM", url: "/ai/silicon-compiler", icon: "⟨⟩" },
       { title: "Visual Threat Blueprints", url: "/ai/threat-blueprints", icon: "⌗", badge: "YAML", highlight: "green" },

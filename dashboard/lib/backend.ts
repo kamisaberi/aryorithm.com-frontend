@@ -26,6 +26,19 @@ export interface XAIAttribution {
   mitre_id: string | null;
   attributions: { feature: string; pct: number }[];
 }
+export interface XAIVector {
+  rank: number;
+  feature: string;
+  contribution_pct: number;
+  observed: string;
+  baseline: string;
+  audit_note: string;
+}
+export interface XAIIncident {
+  attacker_ip: string;
+  mitre_id: string | null;
+  attributions: XAIVector[];
+}
 
 /* ---------- Fleet ---------- */
 export interface FleetNode {
@@ -46,6 +59,29 @@ export interface FleetNode {
   backend: string;
   last_heartbeat_timestamp?: number | null;
   sensors_count?: number;
+  /** Optional enrichment fields supplied by newer edge collectors. */
+  architecture?: string | null;
+  primary_interface?: string | null;
+  slicing_violations?: number | null;
+  sbom_drift_alerts?: number | null;
+  active_blueprint?: string | null;
+}
+
+export interface FleetNodeDetail {
+  node_id: string;
+  ring_buffer_fill_pct: number;
+  kernel_drops: number;
+  hardware: Record<string, unknown>;
+  site: string | null;
+  status: string | null;
+  sensors: {
+    sensor_id: string;
+    name: string;
+    type: string;
+    protocol: string;
+    ip_address: string | null;
+    status: string;
+  }[];
 }
 export interface Enclave {
   enclave_id: string;
@@ -435,6 +471,126 @@ export interface IdentityBotStatus {
   bot_kinematic_blocks: number;
 }
 
+/* ---------- Frontier telemetry (5G slicing, SBOM, space) ---------- */
+export interface GtpSliceRow {
+  node_id: string;
+  site: string;
+  status: string;
+  active_teids: number;
+  gtp_slice_violations_dropped: number;
+  unmapped_teids_dropped: number;
+  total_slice_drops: number;
+  n3_peer: string | null;
+  s_nssai: unknown[];
+  last_updated: string | null;
+}
+
+export interface GtpSliceSummary {
+  reporting_nodes: number;
+  active_teids: number;
+  gtp_slice_violations_dropped: number;
+  unmapped_teids_dropped: number;
+  total_dropped: number;
+  affected_nodes: number;
+}
+
+export interface FiveGSlicingStatus {
+  framework: string;
+  standard: string;
+  generated_at: number;
+  overall_status: string;
+  compliance_score_pct: number;
+  slice_isolation_verified: boolean;
+  nis2_article: string;
+  summary: GtpSliceSummary;
+  s_nssai: unknown[];
+  findings: Record<string, unknown>[];
+  audited_nodes: number;
+}
+
+export interface FiveGTelemetry {
+  tenant_id: string;
+  generated_at: number;
+  summary: GtpSliceSummary;
+  active_teids: number;
+  gtp_slice_violations_dropped: number;
+  unmapped_teids_dropped: number;
+  total_dropped: number;
+  n3_gtp_u: Record<string, unknown>;
+  slices: GtpSliceRow[];
+  nodes: GtpSliceRow[];
+}
+
+export interface SbomDriftEvent {
+  event_id: string;
+  timestamp: number;
+  node_id: string;
+  attestation_id: string | null;
+  event_type: string;
+  severity: string;
+  process_name: string;
+  pid: number | null;
+  address: string | null;
+  action: string;
+  mitre_id: string | null;
+  reason: string;
+  source: string;
+  details: Record<string, unknown>;
+}
+
+export interface Satellite {
+  satellite_id: string;
+  name: string;
+  orbit_class: string;
+  norad_id: string | null;
+  operator: string;
+  ground_station: string;
+  downlink_protocol: string;
+  frequency_band: string;
+  telemetry_integrity: string;
+  status: string;
+  signal_strength_dbm: number;
+  packet_loss_pct: number;
+  last_downlink_timestamp: number | null;
+  connected_sentinel_node: string;
+}
+
+export interface TelecommandAudit {
+  audit_id: string;
+  timestamp: number;
+  satellite_id: string;
+  ground_station: string;
+  command_name: string;
+  service_type: string;
+  function_code: string;
+  sequence_counter: number | null;
+  expected_sequence_counter: number | null;
+  source_ip: string;
+  mitre_id: string | null;
+  action_enforced: string;
+  status: string;
+  reason: string;
+  details: Record<string, unknown>;
+}
+
+export interface VaccineFeedItem {
+  vaccine_id: string;
+  slug: string;
+  name: string;
+  version: string;
+  severity: string;
+  mitre_id: string | null;
+  target_protocol: string | null;
+  sha256: string;
+  size_bytes: number;
+  signature_verified: boolean;
+  origin_node: string;
+  source_site: string;
+  status: string;
+  download_url: string;
+  created_at: string;
+}
+
 /* ---------- AI ---------- */
 export interface AIModel {
   version?: string;
@@ -480,6 +636,21 @@ export interface TrismResult {
   action_enforced: string;
   sanitized_prompt: string | null;
   audit_reason: string;
+}
+export interface TrismPolicy {
+  policy_id: string;
+  version: number;
+  blocked_prompt_delimiters: string[];
+  blocked_delimiters: string[];
+  forbidden_tools: string[];
+  blocked_tools: string[];
+  allowed_tools: string[];
+  blocked_patterns: string[];
+  require_human_approval: boolean;
+  updated_by: string;
+  updated_at: string;
+  policy_yaml: string;
+  yaml: string;
 }
 export interface NIS2Mandate {
   article: string;
@@ -851,6 +1022,19 @@ export const backend = {
     const qs = q.toString();
     return get<FleetNode[]>(`/fleet/nodes${qs ? `?${qs}` : ""}`, t);
   },
+  fleetNode: (nodeId: string, t: string | null) =>
+    get<FleetNodeDetail>(`/fleet/nodes/${encodeURIComponent(nodeId)}`, t),
+  restartFleetNode: (nodeId: string, reason: string, t: string | null) =>
+    api.post<{ status: string; node_id: string }>(
+      `/fleet/nodes/${encodeURIComponent(nodeId)}/restart`,
+      { reason },
+      t
+    ),
+  decommissionFleetNode: (nodeId: string, t: string | null) =>
+    api.delete<{ status: string; node_id: string }>(
+      `/fleet/nodes/${encodeURIComponent(nodeId)}`,
+      t
+    ),
   fleetGroups: (t: string | null) => get<FleetGroup[]>("/fleet/groups", t),
   createFleetGroup: (body: { group_id: string; description?: string; scada_mode?: boolean; max_allowed_latency_us?: number }, t: string | null) =>
     api.post<{ status: string; group_id: string }>("/fleet/groups", body, t),
@@ -886,6 +1070,37 @@ export const backend = {
     get<CollectiveBusEntry[]>("/threats/collective-bus?limit=20", t),
   threatGrid: (t: string | null) =>
     get<ThreatGrid>("/threats/grid", t),
+  threatXai: (t: string | null) =>
+    get<XAIIncident[]>("/threats/xai", t),
+  vaccineFeed: (t: string | null) =>
+    get<VaccineFeedItem[]>("/threats/vaccines/feed", t),
+  downloadVaccine: (downloadUrl: string, t: string | null) => {
+    let path = downloadUrl;
+    if (/^https?:\/\//.test(path)) {
+      try {
+        path = new URL(path).pathname;
+      } catch {
+        /* keep original */
+      }
+    }
+    path = path.replace(/^\/api\/v1/, "");
+    if (!path.startsWith("/")) path = `/${path}`;
+    return api.getBlob(path, t);
+  },
+  shareVaccine: (form: FormData, t: string | null) =>
+    api.postForm<{
+      status: string;
+      vaccine_id: string;
+      slug: string;
+      name: string;
+      version: string;
+      severity: string;
+      sha256: string;
+      size_bytes: number;
+      signature_verified: boolean;
+      download_url: string;
+      created_at: string;
+    }>("/threats/vaccines/share", form, t),
   globalFeed: (t: string | null) =>
     api.get<GlobalFeedItem[]>("/threats/global-feed", t, {
       apiKey: NEXUS_API_KEY,
@@ -967,6 +1182,8 @@ export const backend = {
   // AI
   models: (t: string | null) => get<AIModel[]>("/ai/models", t),
   otaStatus: (t: string | null) => get<OTAStatus>("/ai/ota/status", t),
+  otaStage: (body: { version: string; sha256: string; url: string }, t: string | null) =>
+    api.post<{ status: string; stage: string }>("/ai/ota/stage", body, t),
   otaAdvance: (t: string | null) =>
     api.post<{ status: string; new_stage: string | null }>(
       "/ai/ota/advance",
@@ -1016,6 +1233,9 @@ export const backend = {
 
   trismEvaluate: (body: { prompt_text: string; user_id?: string; sanitize_pii?: boolean }, t: string | null) =>
     api.post<TrismResult>("/ai/trism/evaluate", body, t),
+  trismPolicy: (t: string | null) => get<TrismPolicy>("/ai/trism/policy", t),
+  updateTrismPolicy: (body: Partial<TrismPolicy>, t: string | null) =>
+    api.put<TrismPolicy>("/ai/trism/policy", body, t),
   exportCompliance: (body: { framework: string; format: string; include_sla_proofs?: boolean; reporting_period_days?: number }, t: string | null) =>
     api.postBlob("/compliance/export", body, t),
 
@@ -1024,6 +1244,16 @@ export const backend = {
   iec62443: (t: string | null) => get<IECStatus>("/compliance/iec62443", t),
   cmmc: (t: string | null) => get<CMMCStatus>("/compliance/cmmc", t),
   sbom: (t: string | null) => get<SBOM>("/compliance/sbom", t),
+  sbomDriftEvents: (t: string | null) =>
+    get<SbomDriftEvent[]>("/compliance/sbom/drift-events?limit=50", t),
+  fiveGSlicing: (t: string | null) =>
+    get<FiveGSlicingStatus>("/compliance/5g-slicing", t),
+  fiveGTelemetry: (t: string | null) =>
+    get<FiveGTelemetry>("/telemetry/5g-slices", t),
+  satellites: (t: string | null) =>
+    get<Satellite[]>("/cps/space/satellites", t),
+  telecommandAudits: (t: string | null) =>
+    get<TelecommandAudit[]>("/cps/space/telecommand-audits?limit=50", t),
   insurance: (t: string | null) =>
     get<InsuranceProof>("/compliance/insurance-proof", t),
   attestationLogs: (t: string | null) =>

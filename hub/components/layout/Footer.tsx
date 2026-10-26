@@ -4,11 +4,11 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Marketplace",
     links: [
-      { label: "Industrial OT Dissectors", href: "/explore?category=industrial-ot" },
-      { label: "Neural Models", href: "/explore?category=ai-models" },
-      { label: "Wasm Sandboxes", href: "/explore?runtime=WASM_SANDBOX" },
-      { label: "Lua Threat Rules", href: "/explore?runtime=LUAJIT" },
-      { label: "SIEM Forwarders", href: "/explore?category=ai-models" },
+      { label: "Universal Asset Catalog", href: "/explore" },
+      { label: "Production Blueprints", href: "/explore?type=blueprint" },
+      { label: "Official Appliances", href: "/appliances" },
+      { label: "Neural Models", href: "/models" },
+      { label: "Developer Portal", href: "/settings/developer" },
     ],
   },
   {

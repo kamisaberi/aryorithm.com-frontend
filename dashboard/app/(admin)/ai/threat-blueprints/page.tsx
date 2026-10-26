@@ -1021,6 +1021,59 @@ export default function ThreatBlueprintsPage() {
     URL.revokeObjectURL(url);
   }, [draftId, yamlText]);
 
+  const exportBlueprintPackage = useCallback(() => {
+    const targetSites = sitesInput
+      .split(",")
+      .map((site) => site.trim())
+      .filter(Boolean);
+    const bundle = {
+      format: "aryorithm.blueprint/v1",
+      exported_at: new Date().toISOString(),
+      signature_algorithm: "Ed25519",
+      blueprint: {
+        id: draftId ?? "unsaved",
+        name: name.trim() || "Untitled Threat Blueprint",
+        description,
+        target_sites: targetSites,
+        status,
+        nodes,
+        edges,
+        compiled_yaml: yamlText || null,
+        compiled_at: compiledAt,
+        estimated_latency_ns: compileResult?.estimated_latency_ns ?? null,
+        validation: {
+          errors: compileErrors,
+          warnings: compileWarnings,
+          local_checks: checks,
+        },
+      },
+    };
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: "application/vnd.aryorithm.blueprint+json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${draftId || name.trim().replace(/\s+/g, "_") || "threat_blueprint"}.blueprint`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setNotice("Standalone .blueprint bundle exported for offline deployment.");
+  }, [
+    checks,
+    compiledAt,
+    compileErrors,
+    compileResult?.estimated_latency_ns,
+    compileWarnings,
+    description,
+    draftId,
+    edges,
+    name,
+    nodes,
+    sitesInput,
+    status,
+    yamlText,
+  ]);
+
   /* ------------------------------ derived ---------------------------- */
   const filteredBlueprints = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -1444,6 +1497,14 @@ export default function ThreatBlueprintsPage() {
             disabled={!canModify || busy !== null || !name.trim()}
           >
             {busy === "save" ? "SAVING…" : "SAVE DRAFT"}
+          </button>
+          <button
+            type="button"
+            className="admin-btn-secondary"
+            onClick={exportBlueprintPackage}
+            title="Export a standalone .blueprint bundle for air-gapped deployment"
+          >
+            EXPORT .BLUEPRINT
           </button>
         </div>
 

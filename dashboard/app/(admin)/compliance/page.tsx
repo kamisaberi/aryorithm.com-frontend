@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -33,6 +34,53 @@ export default function ComplianceHubPage() {
     token,
     60000
   );
+
+  const [framework, setFramework] = useState("NIS2");
+  const [format, setFormat] = useState("PDF");
+  const [period, setPeriod] = useState("30");
+  const [includeSla, setIncludeSla] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function exportEvidence() {
+    if (!token) {
+      setExportError("Sign in to generate a signed evidence package.");
+      return;
+    }
+    setExporting(true);
+    setExportError(null);
+    setExportMessage(null);
+    try {
+      const blob = await backend.exportCompliance(
+        {
+          framework,
+          format,
+          include_sla_proofs: includeSla,
+          reporting_period_days: Number(period),
+        },
+        token
+      );
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeFramework = framework.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+      anchor.href = url;
+      anchor.download = `compliance_${safeFramework}_${new Date()
+        .toISOString()
+        .slice(0, 10)}.${format === "JSON" ? "json" : "pdf"}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setExportMessage(
+        `Signed ${format} evidence package generated for ${framework} · last ${period} days.`
+      );
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Evidence export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const { nis2, cmmc, iec } = overview.data;
 
@@ -114,6 +162,81 @@ export default function ComplianceHubPage() {
           <p className="mt-1 font-mono text-[10px] text-muted">{iec.standard} · {iec.system_integrity}</p>
         </Card>
       </div>
+
+      <Card className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-[14px] font-semibold text-ink">Audit evidence generator</p>
+            <p className="mt-0.5 max-w-2xl text-[11.5px] leading-relaxed text-muted">
+              Package framework mappings, fleet SLA proofs, live-SBOM attestations and the signed
+              operator manifest into a cryptographically hashed export.
+            </p>
+          </div>
+          <Badge variant="cyan">SHA-256 manifest</Badge>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.7fr_0.7fr_auto]">
+          <label className="block">
+            <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.16em] text-muted">Framework</span>
+            <select value={framework} onChange={(event) => setFramework(event.target.value)} className="admin-input text-[11.5px]">
+              <option value="NIS2">EU NIS2</option>
+              <option value="DORA">DORA</option>
+              <option value="CMMC">CMMC 2.0 / NIST 800-171</option>
+              <option value="IEC_62443">IEC 62443</option>
+              <option value="ALL">All frameworks</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.16em] text-muted">Format</span>
+            <select value={format} onChange={(event) => setFormat(event.target.value)} className="admin-input text-[11.5px]">
+              <option value="PDF">PDF package</option>
+              <option value="JSON">JSON manifest</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.16em] text-muted">Reporting period</span>
+            <select value={period} onChange={(event) => setPeriod(event.target.value)} className="admin-input text-[11.5px]">
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last 12 months</option>
+            </select>
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => void exportEvidence()}
+              disabled={exporting}
+              className="admin-btn-primary w-full justify-center text-[10px] disabled:opacity-50"
+            >
+              {exporting ? "Generating…" : "↓ Export signed evidence"}
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-muted">
+            <input
+              type="checkbox"
+              checked={includeSla}
+              onChange={(event) => setIncludeSla(event.target.checked)}
+              className="accent-cyan"
+            />
+            Include fleet SLA proofs
+          </label>
+          <span className="font-mono text-[9.5px] text-muted">
+            Bundle always includes NIS2, IEC 62443, SBOM and TPM attestation manifests.
+          </span>
+        </div>
+        {exportMessage && (
+          <p className="mt-3 rounded border border-kernel/30 bg-kernel/5 px-3 py-2 font-mono text-[10px] text-kernel">
+            {exportMessage}
+          </p>
+        )}
+        {exportError && (
+          <p className="mt-3 rounded border border-threat/30 bg-threat/5 px-3 py-2 font-mono text-[10px] text-threat">
+            {exportError}
+          </p>
+        )}
+      </Card>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {frameworks.map((fw) => (
           <Link key={fw.href} href={fw.href} className="admin-card block p-5 transition-colors hover:border-cyan/40">

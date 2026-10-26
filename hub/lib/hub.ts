@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, HUB_API_BASE_URL } from "./api";
 
 /* ---------- Catalog ---------- */
 export interface HubAuthor {
@@ -437,4 +437,267 @@ export const library = {
     return api.get<HubScenario[]>(`/hub/scenarios${qs ? `?${qs}` : ""}`);
   },
   scenario: (slug: string) => api.get<HubScenario>(`/hub/scenarios/${encodeURIComponent(slug)}`),
+};
+
+/* ==========================================================================
+   Unified catalog, production blueprints and official appliances
+   ========================================================================== */
+
+export type HubAssetType =
+  | "package"
+  | "model"
+  | "dataset"
+  | "pcap"
+  | "scenario"
+  | "blueprint"
+  | "appliance";
+
+export interface HubAssetListItem {
+  id: string;
+  slug: string;
+  name: string;
+  asset_type: string;
+  tier: string;
+  version: string;
+  author: string;
+  author_public_key: string;
+  target_protocol: string;
+  latency_sla_ns: number;
+  downloads: number;
+  size_bytes: number;
+  verified_signature: boolean;
+  compliance: string[];
+  published_at: string;
+  description: string;
+  industry: string;
+  download_url: string;
+}
+
+export interface HubAssetDetail extends HubAssetListItem {
+  merkle_sha256: string;
+  signature_status: string;
+  file_size: number;
+  manifest: Record<string, unknown>;
+  readme_url: string;
+  sla_url: string;
+  signature_url: string;
+}
+
+export interface HubAssetSla {
+  slug: string;
+  asset_type: string;
+  verified: boolean;
+  latency_sla_ns: number | null;
+  latency_display: string;
+  compliance: string[];
+  benchmark: Record<string, unknown>;
+  published_at: string;
+}
+
+export interface HubAssetReadme {
+  slug: string;
+  asset_type: string;
+  name: string;
+  version: string;
+  format: string;
+  content_markdown: string;
+}
+
+export interface HubCategoryCount {
+  name: string;
+  count: number;
+}
+
+export interface HubCategories {
+  total: number;
+  asset_types: { asset_type: string; count: number }[];
+  categories: HubCategoryCount[];
+  industries: HubCategoryCount[];
+  compliance: HubCategoryCount[];
+  target_protocols: HubCategoryCount[];
+}
+
+export interface HubSearchResult {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  results: HubAssetListItem[];
+}
+
+export interface HubSearchQuery {
+  q?: string;
+  type?: Exclude<HubAssetType, "appliance"> | "all";
+  industry?: string;
+  page?: number;
+  limit?: number;
+  sort?: "downloads" | "latest" | "name" | "sla";
+}
+
+export const hubAssets = {
+  search: (params?: HubSearchQuery) => {
+    const q = new URLSearchParams();
+    if (params?.q) q.set("q", params.q);
+    if (params?.type && params.type !== "all") q.set("type", params.type);
+    if (params?.industry) q.set("industry", params.industry);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.sort) q.set("sort", params.sort);
+    const qs = q.toString();
+    return api.get<HubSearchResult>(`/hub/search${qs ? `?${qs}` : ""}`);
+  },
+  categories: () => api.get<HubCategories>("/hub/categories"),
+  detail: (assetType: string, slug: string) =>
+    api.get<HubAssetDetail>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`
+    ),
+  readme: (assetType: string, slug: string) =>
+    api.get<HubAssetReadme>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/readme`
+    ),
+  sla: (assetType: string, slug: string) =>
+    api.get<HubAssetSla>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/sla`
+    ),
+};
+
+export interface BlueprintDependencies {
+  packages: string[];
+  models: string[];
+}
+
+export interface BlueprintListItem {
+  slug: string;
+  name: string;
+  version: string;
+  target_site: string | null;
+  industry: string;
+  target_architecture: string;
+  primary_interface: string;
+  max_pipeline_latency_us: number;
+  downloads: number;
+  verified_signature: boolean;
+  author: string;
+  author_public_key: string;
+  dependencies: BlueprintDependencies;
+  download_url: string;
+  published_at: string;
+}
+
+export interface BlueprintDetail extends BlueprintListItem {
+  description: string;
+  file_size_bytes: number;
+  sha256: string;
+  hardware_binding: Record<string, unknown>;
+  sla_guarantees: Record<string, unknown>;
+  raw_dag_url: string;
+}
+
+export interface BlueprintListResult {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  results: BlueprintListItem[];
+}
+
+export interface BlueprintQuery {
+  q?: string;
+  industry?: string;
+  target_arch?: string;
+  page?: number;
+  limit?: number;
+  sort?: "downloads" | "latest" | "name" | "sla";
+}
+
+export const blueprints = {
+  list: (params?: BlueprintQuery) => {
+    const q = new URLSearchParams();
+    if (params?.q) q.set("q", params.q);
+    if (params?.industry) q.set("industry", params.industry);
+    if (params?.target_arch) q.set("target_arch", params.target_arch);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.sort) q.set("sort", params.sort);
+    const qs = q.toString();
+    return api.get<BlueprintListResult>(`/hub/blueprints${qs ? `?${qs}` : ""}`);
+  },
+  detail: (slug: string) =>
+    api.get<BlueprintDetail>(`/hub/blueprints/${encodeURIComponent(slug)}`),
+  rawDag: async (slug: string): Promise<string> => {
+    const res = await fetch(
+      `${HUB_API_BASE_URL}/hub/blueprints/${encodeURIComponent(slug)}/raw-dag`,
+      { credentials: "include" }
+    );
+    if (!res.ok) throw new Error(`Raw DAG unavailable (${res.status})`);
+    return res.text();
+  },
+};
+
+export interface ApplianceArchitecture {
+  id: string;
+  label: string;
+  target_hardware: string;
+  recommended_for: string;
+}
+
+export interface ApplianceIndustry {
+  id: string;
+  label: string;
+  protocols: string[];
+}
+
+export interface ApplianceLicense {
+  id: string;
+  label: string;
+  node_limit: number;
+}
+
+export interface ApplianceMatrix {
+  latest_version: string;
+  supported_architectures: ApplianceArchitecture[];
+  supported_industries: ApplianceIndustry[];
+  supported_licenses: ApplianceLicense[];
+}
+
+export interface ApplianceRelease {
+  slug: string;
+  title: string;
+  version: string;
+  architecture: string;
+  industry: string;
+  license_tier: string;
+  file_name: string;
+  file_size_bytes: number;
+  sha256_checksum: string;
+  authority_signature: string;
+  verified_health_checks: string;
+  download_url: string;
+  install_command: string;
+  published_at: string;
+}
+
+export interface ApplianceListResult {
+  total: number;
+  releases: ApplianceRelease[];
+}
+
+export interface ApplianceDetail extends ApplianceRelease {
+  download_count: number;
+  is_active: boolean;
+}
+
+export const appliances = {
+  matrix: () => api.get<ApplianceMatrix>("/hub/appliances/matrix"),
+  list: (params?: { arch?: string; industry?: string; license?: string; version?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.arch) q.set("arch", params.arch);
+    if (params?.industry) q.set("industry", params.industry);
+    if (params?.license) q.set("license", params.license);
+    if (params?.version) q.set("version", params.version);
+    const qs = q.toString();
+    return api.get<ApplianceListResult>(`/hub/appliances${qs ? `?${qs}` : ""}`);
+  },
+  detail: (slug: string) =>
+    api.get<ApplianceDetail>(`/hub/appliances/${encodeURIComponent(slug)}`),
 };
