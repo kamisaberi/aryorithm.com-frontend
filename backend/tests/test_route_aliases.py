@@ -44,6 +44,8 @@ async def test_get_alias_routes_match_canonical(client):
         ("/api/v1/hub/pcaps", None),                        # public PCAP vault
         ("/api/v1/hub/datasets", None),                     # public SLAB datasets
         ("/api/v1/hub/scenarios", None),                    # public twin scenarios
+        ("/api/v1/hub/blueprints", None),                   # production blueprints
+        ("/api/v1/hub/appliances", None),                   # official appliances
         ("/api/v1/model-vault", None),                      # public model vault
         ("/api/v1/plans", None),                            # public pricing matrix
         ("/api/v1/licenses", h),                            # tenant licenses

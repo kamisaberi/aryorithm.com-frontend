@@ -11,7 +11,7 @@
 > ```
 >
 > Canonical migrated database: `aryorithm` (fresh copy of `aryorithm.db`,
-> 59 tables / 357 rows, verified identical). `backend/.env` already points
+> 64 tables / 357 rows, verified identical). `backend/.env` already points
 > at it, so `uvicorn app.main:app` runs on MySQL out of the box.
 > Test database: `aryorithm_test`
 > (`TEST_DATABASE_URL="mysql+aiomysql://root@127.0.0.1:3307/aryorithm_test?charset=utf8mb4"`).
@@ -64,7 +64,7 @@ created with `utf8mb4_unicode_ci` collation. MariaDB 10.6+ also works.
 - `app/config.py`: `DATABASE_URL` documented for both backends.
 - `app/database.py`: `pool_pre_ping=True` + `pool_recycle=3600` (survives
   hosts that kill idle connections; harmless on SQLite).
-- Models: no changes needed — all 59 tables use portable types
+- Models: no changes needed — all 64 tables use portable types
   (`VARCHAR/TEXT/INTEGER/FLOAT/DATETIME/BOOLEAN/JSON/natural ENUMs`).
   One real bug found by the transfer check and fixed:
   `threat.py: mitre_id String(32) → String(64)` on three tables
@@ -78,6 +78,57 @@ created with `utf8mb4_unicode_ci` collation. MariaDB 10.6+ also works.
 Verified end-to-end on a real MySQL 8.0.44: dump import, 357/357 rows
 identical across all tables, app boot + register/login + catalog reads,
 and the full pytest suite.
+
+---
+
+## Part 2a — Hub blueprints + official appliance tables (Oct 2026)
+
+The production-blueprint / official-appliance API adds two tables:
+
+| Table | Purpose |
+|---|---|
+| `hub_blueprints` | Signed `.blueprint` bundles for `/api/v1/hub/blueprints` |
+| `hub_appliance_releases` | Authority-signed `.aryopack` releases for `/api/v1/hub/appliances` |
+
+They are created automatically on app startup (`Base.metadata.create_all`).
+To pre-provision an existing MySQL/cPanel database — or to apply the change
+without restarting — import the idempotent migration:
+
+```bash
+cd backend
+mysql -u USER -p DBNAME < migrations/2026_10_27_hub_blueprints_appliances.sql
+```
+
+Or in cPanel: **phpMyAdmin → select DB → Import →** choose the file → **Go**.
+The script uses `CREATE TABLE IF NOT EXISTS`, so running it twice is safe.
+
+Add these settings to the deployed `.env`:
+
+```ini
+HUB_BLUEPRINTS_DIR=storage/hub/blueprints
+HUB_APPLIANCES_DIR=storage/hub/appliances
+HUB_APPLIANCE_MAX_UPLOAD_BYTES=2147483648
+
+# Verify key for official .aryopack uploads. Empty falls back to
+# ARYORITHM_MASTER_PUBLIC_KEY_B64 (or LICENSE_KEY_FILE).
+ARYORITHM_AUTHORITY_PUBLIC_KEY_B64=
+```
+
+Security rules enforced by the API:
+
+- Blueprint publishing uses a JWT or Hub API token with
+  `packages:publish`; only the author or an admin can yank one.
+- `.aryopack` publish/delete is **super_admin only** and every upload's
+  Ed25519 `authority_signature` is verified against the Authority root
+  before the file is stored. Non-admins receive `403`, bad signatures `422`.
+
+Generate a dev Authority keypair if needed:
+
+```bash
+PYTHONPATH=. .venv/bin/python tools/licensing/generate_keys.py
+# put the printed public key in ARYORITHM_MASTER_PUBLIC_KEY_B64
+# (or ARYORITHM_AUTHORITY_PUBLIC_KEY_B64) and keep the private key offline
+```
 
 ---
 
@@ -110,7 +161,7 @@ You need: the file `backend/aryorithm_mysql.sql` (regenerate anytime with
 
 1. cPanel → **phpMyAdmin** → click your new (empty) database on the left.
 2. Tab **Import** → Choose file `aryorithm_mysql.sql` → **Go**.
-3. Expect success Colors green, 59 tables created. The file contains
+3. Expect success Colors green, 64 tables created. The file contains
    `SET FOREIGN_KEY_CHECKS=0/1` around the load, so import order is safe,
    and `DROP TABLE IF EXISTS` per table, so re-importing is idempotent.
 
@@ -133,7 +184,7 @@ left untouched (creation is `IF NOT EXISTS`-style).
 - Log in with an existing user from the imported data.
 - Spot-check row counts, e.g. in phpMyAdmin:
   `SELECT COUNT(*) FROM users;` should match the number printed
-  when the dump was generated (357 rows total across 59 tables).
+  when the dump was generated (357 rows total across 64 tables).
 
 ### Regenerating / re-transferring later
 

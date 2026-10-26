@@ -45,6 +45,11 @@ To use a different database, update `DATABASE_URL` in `.env`:
 - MySQL 8+: `mysql+aiomysql://user:pass@localhost:3306/aryorithm?charset=utf8mb4`
   (see `CPANEL_MYSQL.md` for server setup, cPanel import, and data transfer)
 
+Hub production-blueprint and official-appliance tables are created
+automatically on startup when using `Base.metadata.create_all`. To
+pre-provision an existing MySQL database, import the idempotent DDL in
+`migrations/2026_10_27_hub_blueprints_appliances.sql`.
+
 ## Project Structure
 
 ```

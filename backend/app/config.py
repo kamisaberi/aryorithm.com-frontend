@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # Public key (base64, 32 bytes) may be committed; appliances verify with it.
     ARYORITHM_MASTER_PRIVATE_KEY_B64: str = ""
     ARYORITHM_MASTER_PUBLIC_KEY_B64: str = ""
+    # Dedicated Authority-root verify key for official .aryopack releases.
+    # Empty falls back to ARYORITHM_MASTER_PUBLIC_KEY_B64 (or the dev key file).
+    ARYORITHM_AUTHORITY_PUBLIC_KEY_B64: str = ""
     # Dev fallback: raw 32-byte private key file (also git-ignored).
     LICENSE_KEY_FILE: str = "tools/licensing/master_private.key"
 
@@ -54,6 +57,12 @@ class Settings(BaseSettings):
     HUB_PACKAGE_DIR: str = "storage/packages"
     HUB_MAX_UPLOAD_BYTES: int = 104857600
     HUB_PUBLIC_BASE: str = "https://hub.aryorithm.com"
+
+    # Signed production-site blueprints + official air-gapped appliance vaults.
+    # Appliances are large (hundreds of MB), so they use a separate limit.
+    HUB_BLUEPRINTS_DIR: str = "storage/hub/blueprints"
+    HUB_APPLIANCES_DIR: str = "storage/hub/appliances"
+    HUB_APPLIANCE_MAX_UPLOAD_BYTES: int = 2147483648
 
     # Cloud Model Vault (AI model registry) artifact vault. Layout mirrors
     # the S3 URI scheme: models/{slug}/{version}/{format_dir}/{file}.

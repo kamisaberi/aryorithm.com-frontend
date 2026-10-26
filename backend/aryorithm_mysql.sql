@@ -1275,4 +1275,75 @@ CREATE TABLE hub_stars (
 CREATE INDEX ix_hub_stars_plugin_id ON hub_stars (plugin_id);
 CREATE INDEX ix_hub_stars_user_id ON hub_stars (user_id);
 
+-- Table: hub_blueprints (2026-10 production-blueprint API)
+DROP TABLE IF EXISTS `hub_blueprints`;
+
+CREATE TABLE hub_blueprints (
+	id VARCHAR(36) NOT NULL, 
+	slug VARCHAR(128) NOT NULL, 
+	name VARCHAR(255) NOT NULL, 
+	version VARCHAR(32) NOT NULL, 
+	target_site VARCHAR(255), 
+	industry VARCHAR(64) NOT NULL, 
+	target_architecture VARCHAR(32) NOT NULL, 
+	description TEXT NOT NULL, 
+	primary_interface VARCHAR(64) NOT NULL, 
+	max_pipeline_latency_us FLOAT NOT NULL, 
+	dependencies_json JSON NOT NULL, 
+	hardware_binding_json JSON NOT NULL, 
+	sla_guarantees_json JSON NOT NULL, 
+	raw_dag_yaml TEXT NOT NULL, 
+	sha256 VARCHAR(64) NOT NULL, 
+	author VARCHAR(255) NOT NULL, 
+	author_public_key VARCHAR(128) NOT NULL, 
+	signature VARCHAR(256) NOT NULL, 
+	owner_user_id VARCHAR(36), 
+	file_name VARCHAR(255) NOT NULL, 
+	file_path VARCHAR(512) NOT NULL, 
+	file_size_bytes BIGINT NOT NULL, 
+	downloads INTEGER NOT NULL, 
+	verified_signature BOOL NOT NULL, 
+	is_yanked BOOL NOT NULL, 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	CONSTRAINT fk_hub_blueprints_owner_user FOREIGN KEY(owner_user_id) REFERENCES users (id)
+) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX ix_hub_blueprints_industry ON hub_blueprints (industry);
+CREATE INDEX ix_hub_blueprints_is_yanked ON hub_blueprints (is_yanked);
+CREATE INDEX ix_hub_blueprints_owner_user_id ON hub_blueprints (owner_user_id);
+CREATE UNIQUE INDEX ix_hub_blueprints_slug ON hub_blueprints (slug);
+CREATE INDEX ix_hub_blueprints_target_architecture ON hub_blueprints (target_architecture);
+
+-- Table: hub_appliance_releases (2026-10 official appliance API)
+DROP TABLE IF EXISTS `hub_appliance_releases`;
+
+CREATE TABLE hub_appliance_releases (
+	id VARCHAR(36) NOT NULL, 
+	slug VARCHAR(128) NOT NULL, 
+	title VARCHAR(255) NOT NULL, 
+	version VARCHAR(32) NOT NULL, 
+	architecture VARCHAR(64) NOT NULL, 
+	industry VARCHAR(64) NOT NULL, 
+	license_tier VARCHAR(32) NOT NULL, 
+	file_name VARCHAR(255) NOT NULL, 
+	file_path VARCHAR(512) NOT NULL, 
+	file_size_bytes BIGINT NOT NULL, 
+	sha256_checksum VARCHAR(64) NOT NULL, 
+	authority_signature VARCHAR(256) NOT NULL, 
+	verified_health_checks VARCHAR(16) NOT NULL, 
+	download_count INTEGER NOT NULL, 
+	is_active BOOL NOT NULL, 
+	published_by VARCHAR(36), 
+	created_at DATETIME NOT NULL, 
+	PRIMARY KEY (id), 
+	CONSTRAINT fk_hub_appliance_releases_published_by FOREIGN KEY(published_by) REFERENCES users (id)
+) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE INDEX ix_hub_appliance_releases_architecture ON hub_appliance_releases (architecture);
+CREATE INDEX ix_hub_appliance_releases_industry ON hub_appliance_releases (industry);
+CREATE INDEX ix_hub_appliance_releases_is_active ON hub_appliance_releases (is_active);
+CREATE INDEX ix_hub_appliance_releases_license_tier ON hub_appliance_releases (license_tier);
+CREATE INDEX ix_hub_appliance_releases_published_by ON hub_appliance_releases (published_by);
+CREATE UNIQUE INDEX ix_hub_appliance_releases_slug ON hub_appliance_releases (slug);
+CREATE INDEX ix_hub_appliance_releases_version ON hub_appliance_releases (version);
+
 SET FOREIGN_KEY_CHECKS=1;

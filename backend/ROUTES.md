@@ -513,6 +513,32 @@ references also return `404`. Responses carry `ETag`,
 
 Training advances deterministically for `FORGE_SIMULATED_TRAINING_SECONDS` until an external GPU worker is connected; jobs and artifacts are durable. Tests: `tests/test_forge.py`.
 
+### 14b-v. Production site blueprints & official appliances
+
+Two catalog surfaces backed by the new `hub_blueprints` and
+`hub_appliance_releases` tables. Blueprints are community/certified-user
+publishable; `.aryopack` appliances are Authority-root only.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/hub/blueprints` | none (public) | `?q=&industry=&target_arch=all\|x86_64\|aarch64&page=1&limit=20&sort=downloads\|latest\|name\|sla` | `200 {total, page, limit, total_pages, results[]}`; yanked blueprints excluded |
+| `GET /api/v1/hub/blueprints/{slug}` | none (public) | — | full metadata + `dependencies`, `hardware_binding`, `sla_guarantees`, `sha256`, `raw_dag_url`; `404` unknown/yanked |
+| `GET /api/v1/hub/blueprints/{slug}/raw-dag` | none (public) | — | `200 application/yaml` raw `model_routes.yaml`; `404` unknown/yanked or no DAG stored |
+| `GET /api/v1/hub/blueprints/{slug}/download` | none (public) | — | `200 application/octet-stream` signed `.blueprint` + `X-Checksum-SHA256` + `X-Signature-Ed25519`; increments `downloads` |
+| `POST /api/v1/hub/blueprints/publish` | JWT or `Bearer <Hub API key>` with `packages:publish` | multipart `file!` (`.blueprint`/`.tar.gz`/`.zip`), `manifest!` (JSON string), `signature!` (128-char Ed25519 hex over file) | `201 {status:"published", slug, asset_type:"blueprint", version, download_url, verification{sha256, signature_verified, signer_public_key}}`; `401` bad token, `403` missing scope, `409` duplicate slug, `422` bad manifest/key/signature |
+| `DELETE /api/v1/hub/blueprints/{slug}` | author or admin (JWT/API key + publish scope) | — | `200 {status:"yanked", slug, asset_type:"blueprint"}`; hidden from public routes, file retained for audit |
+| `GET /api/v1/hub/appliances/matrix` | none (public) | — | `200 {latest_version, supported_architectures[], supported_industries[], supported_licenses[]}` for the 3-axis selector |
+| `GET /api/v1/hub/appliances` | none (public) | `?arch=&industry=&license=&version=` (version defaults to latest) | `200 {total, releases[]}`; unknown selector values → `400` |
+| `GET /api/v1/hub/appliances/{slug}` | none (public) | — | release detail incl. checksums, signature, `download_count`; `404` unknown/deprecated |
+| `GET /api/v1/hub/appliances/{slug}/download` | none (public) | — | `200 application/octet-stream` `.aryopack` + checksum/signature headers; increments `download_count` |
+| `POST /api/v1/hub/appliances/publish` | **super_admin JWT only** | multipart `file!` (`.aryopack`), `metadata!` (JSON string), `authority_signature!` (128-char Ed25519 hex over file) | `201 {status:"published", slug, asset_type:"appliance", download_url, size_mb, authority_root_verified}`; `403` non-super-admin, `422` bad metadata/signature, `409` active duplicate |
+| `DELETE /api/v1/hub/appliances/{slug}` | **super_admin JWT only** | — | `200 {status:"deprecated", slug, asset_type:"appliance"}`; hidden from public routes; re-release same slug is allowed after a fresh signature check |
+
+Artifacts live under `<HUB_BLUEPRINTS_DIR>` and `<HUB_APPLIANCES_DIR>`
+(defaults `storage/hub/blueprints` / `storage/hub/appliances`). MySQL DDL:
+`migrations/2026_10_27_hub_blueprints_appliances.sql`. Tests:
+`tests/test_hub_marketplace.py`.
+
 ### 14c. Cloud Model Vault — `app/routers/modelvault.py` (`/api/v1/model-vault`)
 
 | Method & Path | Auth | Request | Response / Notes |
