@@ -38,6 +38,11 @@ function ensureBridge(): Promise<HTMLIFrameElement | null> {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return Promise.resolve(null);
   }
+  // Never embed the bridge from the bridge itself: its own localStorage is
+  // already the shared store, so callers can fall back to it directly.
+  if (window.location.pathname.replace(/\/+$/, "") === BRIDGE_PATH) {
+    return Promise.resolve(null);
+  }
   if (!iframePromise) {
     iframePromise = new Promise((resolve) => {
       let done = false;
@@ -53,6 +58,9 @@ function ensureBridge(): Promise<HTMLIFrameElement | null> {
           if (e.origin !== origin) return;
           const d = e.data as Record<string, unknown> | null | undefined;
           if (!d || d.ns !== "ary-sso" || typeof d.id !== "number") return;
+          // Accept typed replies and legacy replies from an older bridge
+          // build; never treat a request (which carries `op`) as a reply.
+          if (d.type !== "ary-sso:response" && (d.type !== undefined || d.op !== undefined)) return;
           const r = pending.get(d.id);
           if (r) {
             pending.delete(d.id);
@@ -89,7 +97,7 @@ function callBridge(op: string, key: string, value?: string): Promise<Record<str
       setTimeout(() => {
         if (pending.delete(id)) reject(new Error("bridge timeout"));
       }, 2500);
-      win.postMessage({ ns: "ary-sso", id, op, key, value }, bridgeOrigin());
+      win.postMessage({ type: "ary-sso:request", ns: "ary-sso", id, op, key, value }, bridgeOrigin());
     });
   });
 }

@@ -5,8 +5,11 @@ import { useEffect } from "react";
 /**
  * SSO storage bridge. Embed as a hidden iframe from any of the three apps;
  * it owns the ONE shared token store (this origin's localStorage) and
- * answers `{ns:"ary-sso"}` get/set/remove requests via postMessage.
- * Only our own origins are answered; only `aryorithm_*` keys are touched.
+ * answers `{type:"ary-sso:request"}` get/set/remove requests via postMessage.
+ * Responses use `{type:"ary-sso:response"}` so they can never be mistaken
+ * for another request (which previously caused two bridge frames to bounce
+ * messages forever). Only our own origins are answered; only `aryorithm_*`
+ * keys are touched.
  */
 export default function AuthBridge() {
   useEffect(() => {
@@ -27,26 +30,29 @@ export default function AuthBridge() {
       const d = e.data as Record<string, unknown> | null | undefined;
       if (!d || d.ns !== "ary-sso" || typeof d.id !== "number") return;
       if (!allowed.has(e.origin)) return;
+      // Only a real operation is answered. Responses have no `op`, so they
+      // are ignored instead of being echoed back (the old ping-pong bug).
+      // Untyped requests from older hub/dashboard builds stay supported.
+      const op = d.op;
+      if (op !== "get" && op !== "set" && op !== "remove") return;
       const key = String(d.key ?? "");
       let value: string | null = null;
       let ok = true;
       try {
         if (!key.startsWith("aryorithm_")) {
           ok = false;
-        } else if (d.op === "get") {
+        } else if (op === "get") {
           value = localStorage.getItem(key);
-        } else if (d.op === "set") {
+        } else if (op === "set") {
           localStorage.setItem(key, String(d.value ?? ""));
-        } else if (d.op === "remove") {
-          localStorage.removeItem(key);
         } else {
-          ok = false;
+          localStorage.removeItem(key);
         }
       } catch {
         ok = false;
       }
       const src = e.source as Window | null;
-      src?.postMessage({ ns: "ary-sso", id: d.id, ok, value }, e.origin);
+      src?.postMessage({ type: "ary-sso:response", ns: "ary-sso", id: d.id, ok, value }, e.origin);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);

@@ -78,22 +78,43 @@ export function FastPathDiagram() {
   );
 }
 
+function useOnScreen<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { rootMargin: "120px" }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+}
+
 export function RingVisual() {
   const SLOTS = 16;
   const [write, setWrite] = useState(5);
   const [read, setRead] = useState(0);
   const [running, setRunning] = useState(true);
+  const { ref, visible } = useOnScreen<HTMLDivElement>();
   useEffect(() => {
-    if (!running) return;
+    if (!running || !visible) return;
     const id = window.setInterval(() => {
       setWrite((w) => (w + 1) % SLOTS);
       setRead((r) => (Math.random() < 0.72 ? r + 1 : r) % SLOTS);
     }, 520);
     return () => window.clearInterval(id);
-  }, [running]);
+  }, [running, visible]);
   const pending = (write - read + SLOTS) % SLOTS;
   return (
-    <div className="rounded-md border border-hairline bg-void/50 p-5">
+    <div ref={ref} className="rounded-md border border-hairline bg-void/50 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted">SPMC Ring · {SLOTS} slots</p>
         <button type="button" onClick={() => setRunning((v) => !v)} className="rounded-md border border-hairline px-3 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted hover:text-cyan">

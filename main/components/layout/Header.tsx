@@ -34,8 +34,11 @@ export default function Header() {
     >
       <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-6 px-5 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Aryorithm Technologies home">
+          {/* Static glow on purpose: animating this pip inside the header's
+              `backdrop-blur` forces a full re-blur every frame and costs
+              ~25% GPU while the page is idle. */}
           <span
-            className="pip-pulse block h-2.5 w-2.5 bg-cyan"
+            className="block h-2.5 w-2.5 bg-cyan"
             style={{ boxShadow: "0 0 12px rgba(0,229,255,0.9)" }}
             aria-hidden="true"
           />

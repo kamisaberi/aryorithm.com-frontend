@@ -32,6 +32,9 @@ export default function TopologyCanvas() {
 
     let raf = 0;
     let lastPulse = 0;
+    let running = false;
+    let onScreen = true;
+    let pageVisible = document.visibilityState !== "hidden";
     const dpr = Math.min(2, window.devicePixelRatio || 1);
 
     const resize = () => {
@@ -156,9 +159,41 @@ export default function TopologyCanvas() {
         ctx.fillText(p.n.short, p.x, p.y - 12);
       }
 
+      if (running) raf = requestAnimationFrame(loop);
+    };
+
+    const start = () => {
+      if (running) return;
+      running = true;
+      lastPulse = performance.now();
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+    const sync = () => {
+      if (onScreen && pageVisible) start();
+      else stop();
+    };
+
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          onScreen = entry.isIntersecting;
+          sync();
+        },
+        { rootMargin: "200px" }
+      );
+      observer.observe(canvas);
+    }
+    const onVisibility = () => {
+      pageVisible = document.visibilityState !== "hidden";
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    sync();
 
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -180,12 +215,16 @@ export default function TopologyCanvas() {
       setHovered(hit);
     };
     canvas.addEventListener("mousemove", onMove);
-    canvas.addEventListener("mouseleave", () => setHovered(null));
+    const onLeave = () => setHovered(null);
+    canvas.addEventListener("mouseleave", onLeave);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 

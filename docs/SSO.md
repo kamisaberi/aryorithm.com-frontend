@@ -28,10 +28,15 @@ cookie second.
 
 `localStorage` is per-origin, so the three subdomains share one store
 through a hidden iframe: `main/app/auth-bridge/page.tsx` owns it (main
-origin's localStorage), answering `{ns:"ary-sso"}` get/set/remove over
-`postMessage` with strict origin + `aryorithm_*`-key checks. Identical
-`shared-storage.ts` client in each app (bridge first, own localStorage as
-fallback when main isn't running in dev).
+origin's localStorage), answering typed `{type:"ary-sso:request", ns:"ary-sso"}`
+get/set/remove messages over `postMessage` with strict origin +
+`aryorithm_*`-key checks. Replies carry `type:"ary-sso:response"` and are
+ignored by the bridge (messages without a valid `op` are never answered), so
+two bridge frames can no longer bounce messages forever. The route is rendered
+without the public site chrome, so it never boots a second account widget.
+Untyped requests from older builds are still accepted during rollout.
+Identical `shared-storage.ts` client in each app (bridge first, own
+localStorage as fallback when main isn't running in dev).
 
 - Dashboard tokens live there (not per-origin localStorage); login/register/
   logout on any app read/write the same keys.

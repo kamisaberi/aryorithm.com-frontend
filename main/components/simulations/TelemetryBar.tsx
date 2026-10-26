@@ -1,18 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { TelemetryMetric } from "@/types/telemetry";
 import { TELEMETRY } from "@/data/home";
 import TelemetryCounter, { useInView } from "@/components/ui/TelemetryCounter";
 
 function MetricCard({ metric, active }: { metric: TelemetryMetric; active: boolean }) {
-  const [seq, setSeq] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const id = window.setInterval(() => setSeq((s) => s + 1), 1400);
-    return () => window.clearInterval(id);
-  }, [active]);
-  void seq;
   return (
     <div className="relative overflow-hidden rounded-md border border-hairline bg-panel p-5">
       <div className="sweep-line pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-cyan/[0.06] to-transparent" aria-hidden="true" />

@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import PageLoader from "@/components/layout/PageLoader";
+import SiteChrome from "@/components/layout/SiteChrome";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -71,15 +72,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
         />
-        <Suspense fallback={null}>
-          <PageLoader />
-        </Suspense>
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
-        <Header />
-        <main id="main-content">{children}</main>
-        <Footer />
+        <SiteChrome
+          loader={
+            <Suspense fallback={null}>
+              <PageLoader />
+            </Suspense>
+          }
+          header={<Header />}
+          footer={<Footer />}
+        >
+          {children}
+        </SiteChrome>
       </body>
     </html>
   );
