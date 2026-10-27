@@ -3,7 +3,7 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import RouteLoader from "@/components/layout/RouteLoader";
+import TopProgressBar from "@/components/layout/TopProgressBar";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
         />
-        <RouteLoader />
+        <TopProgressBar />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

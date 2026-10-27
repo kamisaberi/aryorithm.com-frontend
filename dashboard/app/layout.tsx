@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import TopProgressBar from "@/components/layout/TopProgressBar";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`scroll-smooth ${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-void font-sans text-ink antialiased selection:bg-cyan/25">
+        <TopProgressBar />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

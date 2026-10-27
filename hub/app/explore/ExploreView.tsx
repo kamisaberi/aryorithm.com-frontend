@@ -30,9 +30,9 @@ export default function ExploreView() {
   const [live, setLive] = useState(false);
 
   // Mirror state into the URL so filters are shareable and chips clear cleanly.
-  // Native replaceState — NOT router.replace: router navigations would fire
-  // the global fullscreen PageLoader on every keystroke, while only the
-  // results section should show loading (skeletons + Filtering… indicator).
+  // Native replaceState — NOT router.replace: route-level navigation would
+  // treat every keystroke as a page transition, while only the results section
+  // should show loading (skeletons + Filtering… indicator).
   useEffect(() => {
     const q = new URLSearchParams();
     if (query.trim()) q.set("q", query.trim());

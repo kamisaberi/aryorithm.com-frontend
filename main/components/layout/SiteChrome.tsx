@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import TopProgressBar from "./TopProgressBar";
 
 /**
- * Renders the public site chrome (header, footer, route loader) everywhere
+ * Renders the public site chrome (header, footer, route progress) everywhere
  * except the hidden SSO bridge page. The bridge is embedded as an iframe on
  * every app, so mounting the full shell there would recursively boot another
  * account widget / bridge request. Server-rendered slots are passed in as
@@ -12,12 +13,10 @@ import { usePathname } from "next/navigation";
 export default function SiteChrome({
   header,
   footer,
-  loader,
   children,
 }: {
   header: React.ReactNode;
   footer: React.ReactNode;
-  loader: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -28,7 +27,7 @@ export default function SiteChrome({
 
   return (
     <>
-      {loader}
+      <TopProgressBar />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>

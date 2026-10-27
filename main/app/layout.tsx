@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import PageLoader from "@/components/layout/PageLoader";
 import SiteChrome from "@/components/layout/SiteChrome";
 
 const display = Space_Grotesk({
@@ -72,15 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
         />
-        <SiteChrome
-          loader={
-            <Suspense fallback={null}>
-              <PageLoader />
-            </Suspense>
-          }
-          header={<Header />}
-          footer={<Footer />}
-        >
+        <SiteChrome header={<Header />} footer={<Footer />}>
           {children}
         </SiteChrome>
       </body>
