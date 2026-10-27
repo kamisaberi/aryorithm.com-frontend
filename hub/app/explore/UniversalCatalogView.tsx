@@ -36,6 +36,25 @@ const TYPES: { id: CatalogKind; label: string; icon: string }[] = [
   { id: "appliance", label: "Appliances", icon: "▣" },
 ];
 
+const TYPE_PATHS: Record<HubAssetType, string> = {
+  package: "/packages",
+  model: "/models",
+  dataset: "/datasets",
+  pcap: "/pcaps",
+  scenario: "/scenarios",
+  blueprint: "/blueprints",
+  appliance: "/appliances",
+};
+
+interface UniversalCatalogViewProps {
+  /** Lock the catalog to one asset type and expose it at a dedicated route. */
+  fixedType?: HubAssetType;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  searchPlaceholder?: string;
+}
+
 const ARCHITECTURES = [
   { id: "x86_64", label: "x86_64 (OpenVINO / Generic)" },
   { id: "aarch64", label: "aarch64 (Jetson / Rockchip)" },
@@ -245,9 +264,17 @@ function FacetGroup({
   );
 }
 
-export default function UniversalCatalogView() {
+export default function UniversalCatalogView({
+  fixedType,
+  eyebrow,
+  title,
+  description,
+  searchPlaceholder,
+}: UniversalCatalogViewProps) {
   const params = useSearchParams();
-  const [kind, setKind] = useState<CatalogKind>((params.get("type") as CatalogKind) || "all");
+  const [kind, setKind] = useState<CatalogKind>(
+    fixedType ?? ((params.get("type") as CatalogKind) || "all")
+  );
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [sort, setSort] = useState<SortKey>((params.get("sort") as SortKey) || "downloads");
   const [industry, setIndustry] = useState(params.get("industry") ?? params.get("sector") ?? "all");
@@ -263,12 +290,16 @@ export default function UniversalCatalogView() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const nextKind = params.get("type");
-    setKind(
-      TYPES.some((item) => item.id === nextKind)
-        ? (nextKind as CatalogKind)
-        : "all"
-    );
+    if (fixedType) {
+      setKind(fixedType);
+    } else {
+      const nextKind = params.get("type");
+      setKind(
+        TYPES.some((item) => item.id === nextKind)
+          ? (nextKind as CatalogKind)
+          : "all"
+      );
+    }
     setQuery(params.get("q") ?? params.get("search") ?? "");
     setIndustry(params.get("industry") ?? params.get("sector") ?? "all");
     setTier(params.get("tier") ?? "all");
@@ -278,7 +309,7 @@ export default function UniversalCatalogView() {
         ? (nextSort as SortKey)
         : "downloads"
     );
-  }, [params]);
+  }, [params, fixedType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -445,15 +476,14 @@ export default function UniversalCatalogView() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan">
-            {"// Universal Registry"}
+            {eyebrow ?? "// Universal Registry"}
           </p>
           <h1 className="mt-2 font-display text-[32px] font-bold leading-tight text-ink lg:text-[40px]">
-            Explore the verified mesh.
+            {title ?? "Explore the verified mesh."}
           </h1>
           <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted">
-            Search every signed asset type across the Aryorithm ecosystem — extensions, neural
-            models, telemetry datasets, packet captures, cyber-range scenarios, production
-            blueprints and official .aryopack appliances.
+            {description ??
+              "Search every signed asset type across the Aryorithm ecosystem — extensions, neural models, telemetry datasets, packet captures, cyber-range scenarios, production blueprints and official .aryopack appliances."}
           </p>
         </div>
         <div className="rounded-md border border-kernel/30 bg-kernel/5 px-3.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-kernel">
@@ -511,7 +541,7 @@ export default function UniversalCatalogView() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search slug, name, author, protocol…"
+                  placeholder={searchPlaceholder ?? "Search slug, name, author, protocol…"}
                   className="w-full rounded-md border border-hairline bg-void py-2.5 pl-9 pr-3 text-[13px] text-ink placeholder:text-muted/60 focus:border-cyan/60 focus:outline-none"
                 />
               </label>
@@ -531,29 +561,50 @@ export default function UniversalCatalogView() {
               </label>
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {TYPES.map((t) => {
-                const on = kind === t.id;
-                const count =
-                  t.id === "all"
-                    ? items.length
-                    : items.filter((i) => i.asset_type === t.id).length;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setKind(t.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors ${
-                      on
-                        ? "border-cyan/50 bg-cyan/10 text-cyan"
-                        : "border-hairline text-muted hover:border-cyan/30 hover:text-ink"
-                    }`}
-                  >
-                    <span aria-hidden="true">{t.icon}</span>
-                    {t.label}
-                    <span className="text-[9px] opacity-70">{count}</span>
-                  </button>
-                );
-              })}
+              {fixedType
+                ? TYPES.filter((t) => t.id !== "all").map((t) => {
+                    const on = fixedType === t.id;
+                    const count = items.filter((i) => i.asset_type === t.id).length;
+                    return (
+                      <Link
+                        key={t.id}
+                        href={TYPE_PATHS[t.id as HubAssetType]}
+                        aria-current={on ? "page" : undefined}
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                          on
+                            ? "border-cyan/50 bg-cyan/10 text-cyan"
+                            : "border-hairline text-muted hover:border-cyan/30 hover:text-ink"
+                        }`}
+                      >
+                        <span aria-hidden="true">{t.icon}</span>
+                        {t.label}
+                        <span className="text-[9px] opacity-70">{count}</span>
+                      </Link>
+                    );
+                  })
+                : TYPES.map((t) => {
+                    const on = kind === t.id;
+                    const count =
+                      t.id === "all"
+                        ? items.length
+                        : items.filter((i) => i.asset_type === t.id).length;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setKind(t.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                          on
+                            ? "border-cyan/50 bg-cyan/10 text-cyan"
+                            : "border-hairline text-muted hover:border-cyan/30 hover:text-ink"
+                        }`}
+                      >
+                        <span aria-hidden="true">{t.icon}</span>
+                        {t.label}
+                        <span className="text-[9px] opacity-70">{count}</span>
+                      </button>
+                    );
+                  })}
             </div>
           </div>
 
@@ -604,7 +655,7 @@ export default function UniversalCatalogView() {
                     setArchitecture("all");
                     setCompliance("all");
                     setProtocol("all");
-                    setKind("all");
+                    setKind(fixedType ?? "all");
                   }}
                   className="mt-4 rounded-md border border-cyan/50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-cyan hover:bg-cyan/10"
                 >

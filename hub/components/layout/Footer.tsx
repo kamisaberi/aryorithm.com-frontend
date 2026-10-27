@@ -5,25 +5,30 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     title: "Marketplace",
     links: [
       { label: "Universal Asset Catalog", href: "/explore" },
-      { label: "Production Blueprints", href: "/explore?type=blueprint" },
-      { label: "Official Appliances", href: "/appliances" },
-      { label: "Neural Models", href: "/models" },
-      { label: "Developer Portal", href: "/settings/developer" },
+      { label: "Packages", href: "/packages" },
+      { label: "Models", href: "/models" },
+      { label: "Datasets", href: "/datasets" },
+      { label: "PCAPs", href: "/pcaps" },
+      { label: "Scenarios", href: "/scenarios" },
+      { label: "Blueprints", href: "/blueprints" },
+      { label: "Appliances", href: "/appliances" },
     ],
   },
   {
     title: "Developers",
     links: [
+      { label: "Docs & SDK", href: "/docs" },
       { label: "C++20 Plugin SDK", href: "/docs#cpp-sdk" },
-      { label: "Manifest Specification", href: "/publish" },
+      { label: "Publish an Asset", href: "/publish" },
+      { label: "Developer Portal", href: "/settings/developer" },
       { label: "Security Auditing Criteria", href: "/docs#memory-safety" },
-      { label: "Simulation Mesh", href: "/docs#quickstart" },
     ],
   },
   {
     title: "Ecosystem & Governance",
     links: [
-      { label: "Documentation Portal", href: "/docs" },
+      { label: "Main Portal", href: "https://aryorithm.com" },
+      { label: "Fleet Dashboard", href: "https://app.aryorithm.com" },
       { label: "GitHub Organization", href: "https://github.com/kamisaberi" },
       { label: "Security Disclosures", href: "https://aryorithm.com/security" },
       { label: "Terms of Distribution", href: "https://aryorithm.com/terms" },
@@ -31,7 +36,7 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   },
 ];
 
-/** Structured 4-column footer (§1.3). */
+/** Structured 3-column footer (§1.3). */
 export default function Footer() {
   return (
     <footer className="border-t border-hairline bg-void">

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { hub, type SentinelPackage } from "@/lib/hub";
+import { appliances, blueprints, hubAssets } from "@/lib/hub";
 import { SDK_DOCS } from "@/data/sdkDocs";
 
 interface CommandMenuProps {
@@ -17,10 +17,30 @@ interface Row {
   href: string;
 }
 
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  package: "Package",
+  model: "Model",
+  dataset: "Dataset",
+  pcap: "PCAP",
+  scenario: "Scenario",
+  blueprint: "Blueprint",
+  appliance: "Appliance",
+};
+
+const BROWSE_ROWS: Row[] = [
+  { key: "browse-package", label: "Packages", hint: "Native, Wasm & Lua", href: "/packages" },
+  { key: "browse-model", label: "Models", hint: "Neural weights", href: "/models" },
+  { key: "browse-dataset", label: "Datasets", hint: "SLAB research data", href: "/datasets" },
+  { key: "browse-pcap", label: "PCAPs", hint: "Adversary traffic", href: "/pcaps" },
+  { key: "browse-scenario", label: "Scenarios", hint: "Digital twin ranges", href: "/scenarios" },
+  { key: "browse-blueprint", label: "Blueprints", hint: "Production pipelines", href: "/blueprints" },
+  { key: "browse-appliance", label: "Appliances", hint: "Signed .aryopack images", href: "/appliances" },
+];
+
 /** Global spotlight menu — Cmd+K / Ctrl+K (§1.2). */
 export default function CommandMenu({ open, onClose }: CommandMenuProps) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<SentinelPackage[]>([]);
+  const [items, setItems] = useState<Row[]>([]);
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -32,7 +52,7 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
       setIndex(0);
       setTimeout(() => inputRef.current?.focus(), 30);
     }
-  }, [open ]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -41,47 +61,70 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
       setItems([]);
       return;
     }
+    let cancelled = false;
     const id = setTimeout(async () => {
-      try {
-        const res = await hub.sentinelPackages({ search: q });
-        setItems(res.slice(0, 8));
-        setIndex(0);
-      } catch {
-        setItems([]);
+      const [catalog, blueprintResult, applianceResult] = await Promise.all([
+        hubAssets.search({ q, limit: 30, sort: "downloads" }).catch(() => null),
+        blueprints.list({ q, limit: 20, sort: "downloads" }).catch(() => null),
+        appliances.list().catch(() => null),
+      ]);
+      if (cancelled) return;
+
+      const rows: Row[] = [];
+      const seen = new Set<string>();
+      const add = (row: Row) => {
+        if (seen.has(row.key)) return;
+        seen.add(row.key);
+        rows.push(row);
+      };
+
+      for (const item of catalog?.results ?? []) {
+        add({
+          key: `${item.asset_type}:${item.slug}`,
+          label: item.name,
+          hint: `${ASSET_TYPE_LABELS[item.asset_type] ?? item.asset_type} · v${item.version}`,
+          href: `/assets/${item.asset_type}/${item.slug}`,
+        });
       }
+
+      for (const blueprint of blueprintResult?.results ?? []) {
+        add({
+          key: `blueprint:${blueprint.slug}`,
+          label: blueprint.name,
+          hint: `Blueprint · v${blueprint.version}`,
+          href: `/assets/blueprint/${blueprint.slug}`,
+        });
+      }
+
+      const needle = q.toLowerCase();
+      for (const release of applianceResult?.releases ?? []) {
+        const haystack =
+          `${release.title} ${release.slug} ${release.industry} ${release.architecture}`.toLowerCase();
+        if (!haystack.includes(needle)) continue;
+        add({
+          key: `appliance:${release.slug}`,
+          label: release.title,
+          hint: `Appliance · v${release.version}`,
+          href: `/assets/appliance/${release.slug}`,
+        });
+      }
+
+      setItems(rows.slice(0, 12));
+      setIndex(0);
     }, 180);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [query, open]);
 
   const rows: { group: string; rows: Row[] }[] = useMemo(() => {
     const q = query.trim().toLowerCase();
     const groups: { group: string; rows: Row[] }[] = [];
-    if (items.length > 0) {
-      groups.push({
-        group: "Top Packages",
-        rows: items.map((p) => ({
-          key: `pkg-${p.slug}`,
-          label: p.name,
-          hint: `${p.tier_display} · ${p.latency_display}${p.verified ? " · ✓" : ""}`,
-          href: `/packages/${p.slug}`,
-        })),
-      });
-      const protocols = Array.from(new Set(items.map((p) => p.target_protocol))).filter((proto) =>
-        proto.toLowerCase().includes(q)
-      );
-      if (protocols.length > 0) {
-        groups.push({
-          group: "Protocols",
-          rows: protocols.map((proto) => ({
-            key: `proto-${proto}`,
-            label: proto,
-            hint: "Filter catalog by protocol",
-            href: `/explore?search=${encodeURIComponent(proto)}`,
-          })),
-        });
-      }
-    }
-    if (q) {
+    if (!q) {
+      groups.push({ group: "Browse by asset type", rows: BROWSE_ROWS });
+    } else {
+      if (items.length > 0) groups.push({ group: "Assets", rows: items });
       const docs = SDK_DOCS.filter(
         (d) => d.title.toLowerCase().includes(q) || d.id.includes(q.replace(/\s+/g, "-"))
       ).map((d) => ({
@@ -145,7 +188,7 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search packages, protocols, sectors..."
+            placeholder="Search all 7 asset types…"
             className="w-full bg-transparent text-[14px] text-ink placeholder:text-muted/60 focus:outline-none"
           />
           <kbd className="shrink-0 rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-muted">
@@ -155,9 +198,7 @@ export default function CommandMenu({ open, onClose }: CommandMenuProps) {
         <div ref={listRef} className="max-h-[46vh] overflow-y-auto p-2">
           {flat.length === 0 ? (
             <p className="px-3 py-6 text-center text-[13px] text-muted">
-              {query.trim()
-                ? "No matches — try a protocol, sector, or tier."
-                : "Type to search the extension mesh."}
+              No matches — try a protocol, sector, or tier.
             </p>
           ) : (
             rows.map((g) => (

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
-import { isLocalBackend } from "@/lib/api";
 import {
   getSession,
   hubLogout,
@@ -15,30 +14,51 @@ import {
 
 const NAV = [
   { label: "Explore", href: "/explore" },
-  { label: "Blueprints", href: "/explore?type=blueprint" },
-  { label: "Appliances", href: "/appliances" },
+  { label: "Packages", href: "/packages" },
   { label: "Models", href: "/models" },
-  { label: "Docs & SDK", href: "/docs" },
-  { label: "Publish", href: "/publish" },
-  { label: "Developer", href: "/settings/developer" },
+  { label: "Datasets", href: "/datasets" },
+  { label: "PCAPs", href: "/pcaps" },
+  { label: "Scenarios", href: "/scenarios" },
+  { label: "Blueprints", href: "/blueprints" },
+  { label: "Appliances", href: "/appliances" },
 ];
 
-const ECOSYSTEM_BASE = [
-  { label: "Main Portal (aryorithm.com)", href: "https://aryorithm.com" },
-  { label: "Fleet SaaS (app.aryorithm.com)", href: "https://app.aryorithm.com" },
-];
+// Keep the matching asset category highlighted when a detail page is open
+// through the generic /assets/{type}/{slug} inspector.
+const ASSET_DETAIL_PATHS: Record<string, string> = {
+  package: "/packages",
+  model: "/models",
+  dataset: "/datasets",
+  pcap: "/pcaps",
+  scenario: "/scenarios",
+  blueprint: "/blueprints",
+  appliance: "/appliances",
+};
 
-// The Nexus local edge-collector UI only exists on a dev machine — hide the
-// dead link on the hosted site (shown when the backend is localhost).
-const ECOSYSTEM = isLocalBackend()
-  ? [...ECOSYSTEM_BASE, { label: "Nexus Local Hub (Port 9443)", href: "http://localhost:9443" }]
-  : ECOSYSTEM_BASE;
+function navIsActive(pathname: string, href: string): boolean {
+  if (pathname === href || pathname.startsWith(`${href}/`)) return true;
+  const match = pathname.match(/^\/assets\/([^/]+)\//);
+  return match ? ASSET_DETAIL_PATHS[match[1]] === href : false;
+}
 
-/** Sticky glass app bar (§1.1): brand, nav, search trigger, switcher, CTA. */
+function UserIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M3.5 17c1.2-3.4 3.6-5 6.5-5s5.3 1.6 6.5 5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Sticky glass app bar (§1.1): brand, asset nav, search trigger, account. */
 export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   // Shared SSO session (dashboard login cookie). undefined = still checking.
   const [session, setSession] = useState<HubSession | null | undefined>(undefined);
@@ -71,13 +91,12 @@ export default function Header() {
 
   useEffect(() => {
     setMobileOpen(false);
-    setSwitcherOpen(false);
   }, [pathname]);
 
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-50 border-b border-hairline bg-void/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-5 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-2.5 px-5 lg:gap-3 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Aryorithm Hub home">
             {/* Static glow on purpose: animating this pip inside the header's
                 `backdrop-blur` forces a full re-blur every frame and costs
@@ -87,170 +106,129 @@ export default function Header() {
               style={{ boxShadow: "0 0 12px rgba(0,255,163,0.9)" }}
               aria-hidden="true"
             />
-            <span className="font-display text-[16px] font-bold tracking-[0.14em] text-ink">
+            <span className="font-display text-[14.5px] font-bold tracking-[0.14em] text-ink sm:text-[16px]">
               ARYORITHM&nbsp;HUB
             </span>
-            <span className="hidden rounded-md border border-kernel/30 bg-kernel/10 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-kernel sm:inline-block">
+            <span className="hidden rounded-md border border-kernel/30 bg-kernel/10 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-kernel xl:inline-block">
               v2.4 Fleet Compatible
             </span>
           </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex" aria-label="Primary">
-            {NAV.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`px-3.5 py-2 text-[13.5px] font-medium transition-colors ${
-                  pathname === item.href ? "text-cyan" : "text-muted hover:text-ink"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav className="hidden flex-1 items-center justify-center lg:flex" aria-label="Primary">
+            {NAV.map((item) => {
+              const active = navIsActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`whitespace-nowrap px-2.5 py-2 text-[12.5px] font-medium transition-colors ${
+                    active ? "text-cyan" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className="hidden min-w-[240px] items-center gap-2.5 rounded-md border border-hairline bg-panel px-3.5 py-2 text-left text-[12.5px] text-muted transition-colors hover:border-cyan/50 hover:text-ink md:flex"
-          >
-            <span className="font-mono text-cyan" aria-hidden="true">
-              ⌕
-            </span>
-            <span className="flex-1 truncate">Search 7 asset types, protocols, MITRE IDs...</span>
-            <kbd className="rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-muted">
-              ⌘K
-            </kbd>
-          </button>
-
-          <div className="relative hidden lg:block">
+          <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
             <button
               type="button"
-              onClick={() => setSwitcherOpen((v) => !v)}
-              aria-expanded={switcherOpen}
-              className="rounded-md border border-hairline px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Search all assets"
+              aria-keyshortcuts="Control+K Meta+K"
+              title="Search all assets (⌘K)"
+              className="flex h-9 items-center gap-2 rounded-md border border-hairline bg-panel px-2.5 text-muted transition-colors hover:border-cyan/50 hover:text-ink"
             >
-              Ecosystem ▾
+              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <circle cx="7.8" cy="7.8" r="5.1" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M11.6 11.6 16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span className="hidden font-mono text-[10px] uppercase tracking-[0.1em] xl:inline">
+                Search
+              </span>
+              <kbd className="hidden rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-muted sm:inline-block">
+                ⌘K
+              </kbd>
             </button>
-            {switcherOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 overflow-hidden rounded-md border border-hairline bg-panel shadow-2xl shadow-black/60">
-                {ECOSYSTEM.map((e) => (
-                  <a
-                    key={e.label}
-                    href={e.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block px-4 py-2.5 text-[12.5px] text-muted transition-colors hover:bg-cyan/[0.05] hover:text-cyan"
-                  >
-                    {e.label} ↗
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <a
-            href="https://github.com/kamisaberi"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden font-mono text-[11px] text-muted transition-colors hover:text-cyan xl:block"
-          >
-            ★ GitHub
-          </a>
-
-          <Link
-            href="/publish"
-            className="hidden rounded-md bg-cyan px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-void transition-all hover:brightness-110 sm:block"
-          >
-            Publish Asset
-          </Link>
-
-          {session === undefined ? (
-            <span
-              aria-hidden="true"
-              className="hidden h-9 w-28 animate-pulse rounded-md border border-hairline lg:block"
-            />
-          ) : session ? (
-            <span className="hidden items-center gap-2 lg:flex">
-              <a
-                href={mainUrl("/profile")}
-                title={`Signed in as ${session.name} (${session.email}) — open profile`}
-                aria-label="Account profile"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-kernel/50 bg-kernel/10 text-kernel transition-colors hover:bg-kernel/20"
-              >
-                <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" strokeWidth="1.6" />
-                  <path
-                    d="M3.5 17c1.2-3.4 3.6-5 6.5-5s5.3 1.6 6.5 5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </a>
-              {isAdminRole(session.role) && (
-                <span className="rounded border border-kernel/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-kernel">
-                  {session.role.replace(/_/g, " ")}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={onLogout}
-                className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
-              >
-                Logout
-              </button>
-            </span>
-          ) : (
-            <span className="hidden items-center gap-2 lg:flex">
+            {session ? (
+              <span className="flex items-center gap-1.5">
+                <a
+                  href={mainUrl("/profile")}
+                  title={`Signed in as ${session.name} (${session.email}) — open profile`}
+                  aria-label="Account profile"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-kernel/50 bg-kernel/10 text-kernel transition-colors hover:bg-kernel/20"
+                >
+                  <UserIcon />
+                </a>
+                {isAdminRole(session.role) && (
+                  <span className="hidden rounded border border-kernel/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-kernel xl:inline">
+                    {session.role.replace(/_/g, " ")}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="hidden font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan xl:inline"
+                >
+                  Logout
+                </button>
+              </span>
+            ) : (
               <Link
                 href="/login"
-                className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
+                title="Login — create an account from the login page"
+                aria-label="Login"
+                className={`flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition-colors hover:border-cyan/50 hover:text-cyan ${
+                  session === undefined ? "opacity-60" : ""
+                }`}
               >
-                Login
+                <UserIcon />
               </Link>
-              <Link
-                href="/register"
-                className="rounded-md border border-hairline px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/50 hover:text-cyan"
-              >
-                Register
-              </Link>
-            </span>
-          )}
+            )}
 
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-expanded={mobileOpen}
-            aria-label="Toggle navigation"
-            className="ml-auto flex h-10 w-10 items-center justify-center rounded-md border border-hairline text-muted hover:text-cyan lg:hidden"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              {mobileOpen ? (
-                <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" />
-              ) : (
-                <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.5" />
-              )}
-            </svg>
-          </button>
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-expanded={mobileOpen}
+              aria-label="Toggle navigation"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline text-muted hover:text-cyan lg:hidden"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                {mobileOpen ? (
+                  <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" />
+                ) : (
+                  <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.5" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
 
         {mobileOpen && (
           <nav aria-label="Mobile" className="border-t border-hairline bg-panel px-5 py-4 lg:hidden">
-            <ul className="space-y-1">
-              {NAV.map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="block rounded px-2 py-2.5 text-[14px] text-ink hover:bg-cyan/[0.05] hover:text-cyan"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+            <ul className="grid grid-cols-2 gap-1">
+              {NAV.map((item) => {
+                const active = navIsActive(pathname, item.href);
+                return (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={`block rounded px-2 py-2.5 text-[14px] hover:bg-cyan/[0.05] hover:text-cyan ${
+                        active ? "text-cyan" : "text-ink"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
-            <div className="mt-3 space-y-2 border-t border-hairline pt-3">
+            <div className="mt-3 space-y-2.5 border-t border-hairline pt-3">
               <button
                 type="button"
                 onClick={() => {
@@ -259,17 +237,10 @@ export default function Header() {
                 }}
                 className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
               >
-                Search ⌘K
+                Search all assets ⌘K
               </button>
-              <Link
-                href="/publish"
-                onClick={() => setMobileOpen(false)}
-                className="block rounded-md bg-cyan px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-void"
-              >
-                Publish Asset
-              </Link>
-              {session === undefined ? null : session ? (
-                <div className="space-y-2.5">
+              {session ? (
+                <>
                   <a
                     href={mainUrl("/profile")}
                     onClick={() => setMobileOpen(false)}
@@ -287,25 +258,8 @@ export default function Header() {
                   >
                     Logout ({session.email})
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-muted"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileOpen(false)}
-                    className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-cyan"
-                  >
-                    Register
-                  </Link>
-                </div>
-              )}
+                </>
+              ) : null}
             </div>
           </nav>
         )}
