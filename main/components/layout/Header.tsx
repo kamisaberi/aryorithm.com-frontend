@@ -106,39 +106,40 @@ export default function Header() {
           </ul>
         </nav>
 
-        <div className="ml-auto hidden items-center gap-3 lg:flex">
-          <Link
-            href="/portal"
-            className="rounded-md border border-hairline px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan"
-          >
-            Portal
-          </Link>
-          <Link
-            href="/contact"
-            className="rounded-md bg-cyan px-4 py-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-void transition-all duration-200 hover:brightness-110"
-          >
-            Schedule Pilot
-          </Link>
+        <div className="ml-auto flex items-center gap-2 lg:gap-3">
+          <div className="hidden items-center gap-3 lg:flex">
+            <Link
+              href="/portal"
+              className="rounded-md border border-hairline px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan"
+            >
+              Portal
+            </Link>
+            <Link
+              href="/contact"
+              className="rounded-md bg-cyan px-4 py-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-void transition-all duration-200 hover:brightness-110"
+            >
+              Schedule Pilot
+            </Link>
+          </div>
           <AccountButton />
+          <button
+            type="button"
+            id="mobile-nav-toggle"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav"
+            aria-label="Toggle navigation"
+            className="flex h-10 w-10 items-center justify-center rounded-md border border-hairline text-muted transition-colors hover:text-cyan lg:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              {mobileOpen ? (
+                <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" />
+              ) : (
+                <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.5" />
+              )}
+            </svg>
+          </button>
         </div>
-
-        <button
-          type="button"
-          id="mobile-nav-toggle"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-nav"
-          aria-label="Toggle navigation"
-          className="ml-auto flex h-10 w-10 items-center justify-center rounded-md border border-hairline text-muted transition-colors hover:text-cyan lg:hidden"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            {mobileOpen ? (
-              <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="1.5" />
-            ) : (
-              <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.5" />
-            )}
-          </svg>
-        </button>
       </div>
 
       {mobileOpen && <MobileDrawer onNavigate={() => setMobileOpen(false)} />}

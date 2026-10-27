@@ -8,15 +8,30 @@ import {
   type SiteSession,
 } from "@/lib/session";
 
+function UserIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M3.5 17c1.2-3.4 3.6-5 6.5-5s5.3 1.6 6.5 5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /**
- * Top-right account corner: Login / Register for guests, account avatar +
- * Profile + Logout for members (shared SSO session, no local tokens).
+ * Top-right account corner: one login icon for guests, avatar + logout for
+ * members (shared SSO session, no local tokens). Registration is reachable
+ * from the login page.
  */
 export default function AccountButton({
-  variant = "desktop",
+  variant = "header",
   onNavigate,
 }: {
-  variant?: "desktop" | "mobile";
+  variant?: "header" | "mobile";
   onNavigate?: () => void;
 }) {
   // undefined = still checking the session.
@@ -39,58 +54,31 @@ export default function AccountButton({
     window.location.reload();
   };
 
-  if (session === undefined) {
-    if (variant === "mobile") return null;
-    return (
-      <span
-        aria-hidden="true"
-        className="hidden h-9 w-24 animate-pulse rounded-md border border-hairline lg:block"
-      />
-    );
-  }
-
   if (variant === "mobile") {
-    if (session) {
-      return (
-        <div className="space-y-2.5">
-          <Link
-            href="/profile"
-            onClick={onNavigate}
-            className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-cyan"
-          >
-            {(session.name || session.email).slice(0, 24)} — Profile
-          </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted"
-          >
-            Logout
-          </button>
-        </div>
-      );
-    }
+    if (!session) return null;
     return (
       <div className="space-y-2.5">
         <Link
-          href="/login"
-          className="block rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted"
+          href="/profile"
+          onClick={onNavigate}
+          className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-cyan"
         >
-          Login
+          {(session.name || session.email).slice(0, 24)} — Profile
         </Link>
-        <Link
-          href="/register"
-          className="block rounded-md border border-cyan/40 bg-cyan/[0.06] px-4 py-2.5 text-center font-mono text-[11.5px] font-bold uppercase tracking-[0.1em] text-cyan"
+        <button
+          type="button"
+          onClick={logout}
+          className="block w-full rounded-md border border-hairline px-4 py-2.5 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted"
         >
-          Register
-        </Link>
+          Logout
+        </button>
       </div>
     );
   }
 
   if (session) {
     return (
-      <span className="hidden items-center gap-2.5 lg:flex">
+      <span className="flex items-center gap-2.5">
         <Link
           href="/profile"
           title={`${session.name} (${session.email}) — Member profile`}
@@ -102,7 +90,7 @@ export default function AccountButton({
         <button
           type="button"
           onClick={logout}
-          className="font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
+          className="hidden font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan lg:inline"
         >
           Logout
         </button>
@@ -111,19 +99,15 @@ export default function AccountButton({
   }
 
   return (
-    <span className="hidden items-center gap-3 lg:flex">
-      <Link
-        href="/login"
-        className="font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-cyan"
-      >
-        Login
-      </Link>
-      <Link
-        href="/register"
-        className="rounded-md border border-hairline px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-muted transition-all duration-200 hover:border-cyan/60 hover:text-cyan"
-      >
-        Register
-      </Link>
-    </span>
+    <Link
+      href="/login"
+      title="Login — create an account from the login page"
+      aria-label="Login"
+      className={`flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-muted transition-colors hover:border-cyan/50 hover:text-cyan ${
+        session === undefined ? "opacity-60" : ""
+      }`}
+    >
+      <UserIcon />
+    </Link>
   );
 }
