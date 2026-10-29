@@ -23,6 +23,7 @@ import app.models  # noqa: F401
 from app.routers import auth, fleet, threats, ai, compliance, dfir, range as range_router, settings as settings_router, overview, stream, tenants, models as models_router, modelvault as modelvault_router, ota as ota_router, plans as plans_router, cps as cps_router, identity as identity_router, soc as soc_router, support as support_router, licenses as licenses_router, hub as hub_router, install as install_router, blueprints as blueprints_router
 from app.routers import forge as forge_router, hub_assets as hub_assets_router, telemetry as telemetry_router
 from app.routers import hub_blueprints as hub_blueprints_router, hub_appliances as hub_appliances_router
+from app.routers import workspace_artifacts as workspace_artifacts_router
 
 
 @asynccontextmanager
@@ -31,6 +32,9 @@ async def lifespan(app: FastAPI):
     # Startup: create tables (use Alembic in production)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    from app.services.artifact_schema import ensure_artifact_columns
+
+    await ensure_artifact_columns()
     yield
     # Shutdown: dispose engine
     await engine.dispose()
@@ -123,6 +127,7 @@ app.include_router(hub_router.datasets_router, prefix="/api/v1")
 app.include_router(hub_router.scenarios_router, prefix="/api/v1")
 app.include_router(hub_assets_router.router, prefix="/api/v1")
 app.include_router(hub_assets_router.legacy_download_router, prefix="/api/v1")
+app.include_router(workspace_artifacts_router.router, prefix="/api/v1")
 app.include_router(hub_blueprints_router.router, prefix="/api/v1")
 app.include_router(hub_appliances_router.router, prefix="/api/v1")
 app.include_router(telemetry_router.router, prefix="/api/v1")

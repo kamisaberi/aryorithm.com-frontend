@@ -195,7 +195,12 @@ async def test_publish_persists_signature_and_owner_can_revoke(client, tmp_path)
             "/api/v1/hub/publish",
             headers={"Authorization": f"Bearer {token}"},
             files={"file": (f"{slug}.spkg", blob, "application/octet-stream")},
-            data={"asset_type": "package", "manifest": json.dumps(manifest), "signature": signature},
+            data={
+                "asset_type": "package",
+                "manifest": json.dumps(manifest),
+                "signature": signature,
+                "visibility": "public",
+            },
         )
         assert r.status_code == 201, r.text
         published = r.json()
@@ -293,6 +298,7 @@ async def test_publish_scenario_and_download_through_unified_routes(client, tmp_
                 "asset_type": "scenario",
                 "manifest": json.dumps(manifest),
                 "signature": signature,
+                "visibility": "public",
             },
         )
         assert r.status_code == 201, r.text

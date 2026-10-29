@@ -350,4 +350,5 @@ class UniversalPublishOut(BaseModel):
     version: str
     url: str
     download_endpoint: str
+    visibility: str = "private"
     verification: dict

@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import os
 import re
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -27,9 +28,18 @@ from sqlalchemy import func, select
 
 from app.config import settings
 from app.models.hub_assets import HubAssetMeta
+from app.services import hub_access as access
 from app.services import hub_service as hub
 
-ASSET_TYPES = ("package", "model", "dataset", "pcap", "scenario")
+ASSET_TYPES = (
+    "package",
+    "model",
+    "dataset",
+    "pcap",
+    "scenario",
+    "blueprint",
+    "appliance",
+)
 ASSET_TYPE_ALIASES = {
     "package": "package",
     "packages": "package",
@@ -41,10 +51,16 @@ ASSET_TYPE_ALIASES = {
     "pcaps": "pcap",
     "scenario": "scenario",
     "scenarios": "scenario",
+    "blueprint": "blueprint",
+    "blueprints": "blueprint",
+    "appliance": "appliance",
+    "appliances": "appliance",
 }
 
 _LIBRARY_DIRS = {"pcap": "pcaps", "dataset": "datasets", "scenario": "scenarios"}
 _LIBRARY_LABELS = {"pcap": "PCAP", "dataset": "Dataset", "scenario": "Scenario"}
+_BLUEPRINT_TYPE = "blueprint"
+_APPLIANCE_TYPE = "appliance"
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +191,42 @@ def _readme_scenario(row) -> str:
     )
 
 
+def _readme_blueprint(row) -> str:
+    deps = row.dependencies_json or {}
+    packages = "\n".join(f"- `{p}`" for p in deps.get("packages", [])) or "- None recorded"
+    models = "\n".join(f"- `{m}`" for m in deps.get("models", [])) or "- None recorded"
+    return (
+        f"# {row.name}\n\n"
+        f"{row.description}\n\n"
+        "## Deployment contract\n\n"
+        f"- Target site: `{row.target_site or 'any'}`\n"
+        f"- Industry: `{row.industry}`\n"
+        f"- Architecture: `{row.target_architecture}`\n"
+        f"- Primary interface: `{row.primary_interface}`\n"
+        f"- Max pipeline latency: `{row.max_pipeline_latency_us} us`\n\n"
+        "## Dependencies\n\n"
+        f"{packages}\n\n"
+        f"{models}\n"
+    )
+
+
+def _readme_appliance(row) -> str:
+    return (
+        f"# {row.title}\n\n"
+        "Official Aryorithm air-gapped appliance release.\n\n"
+        "## Release matrix\n\n"
+        f"- Architecture: `{row.architecture}`\n"
+        f"- Industry: `{row.industry}`\n"
+        f"- License tier: `{row.license_tier}`\n"
+        f"- Version: `{row.version}`\n"
+        f"- Health checks: `{row.verified_health_checks}`\n\n"
+        "## Installation\n\n"
+        "```bash\n"
+        f"sudo ./{row.file_name}\n"
+        "```\n"
+    )
+
+
 def _readme_model(model, version, artifact) -> str:
     release_notes = getattr(version, "release_notes", "") or ""
     return (
@@ -226,6 +278,7 @@ class AssetView:
     meta: HubAssetMeta | None = None
     artifact: Any | None = None
     artifact_path: Path | None = None
+    permissions: list[str] = field(default_factory=list)
 
     @property
     def download_url(self) -> str:
@@ -236,6 +289,30 @@ class AssetView:
         if self.meta is not None and self.meta.signature:
             return "Ed25519_VALID"
         return "Ed25519_VALID" if self.verified_signature else "UNSIGNED"
+
+    @property
+    def visibility(self) -> str:
+        return access.visibility_of(self)
+
+    @property
+    def owner_user_id(self) -> str | None:
+        return access.owner_user_id(self)
+
+    @property
+    def owner_tenant_id(self) -> str | None:
+        return access.owner_tenant_id(self)
+
+    @property
+    def forked_from(self) -> dict | None:
+        return access.forked_from(self)
+
+    @property
+    def fork_count(self) -> int:
+        return int(self.meta.fork_count or 0) if self.meta is not None else 0
+
+    @property
+    def orphaned_root(self) -> bool:
+        return bool(self.meta.orphaned_root) if self.meta is not None else False
 
     def list_item(self) -> dict:
         return {
@@ -257,6 +334,13 @@ class AssetView:
             "description": self.description,
             "industry": self.industry,
             "download_url": self.download_url,
+            "visibility": self.visibility,
+            "owner_user_id": self.owner_user_id,
+            "owner_tenant_id": self.owner_tenant_id,
+            "forked_from": self.forked_from,
+            "fork_count": self.fork_count,
+            "orphaned_root": self.orphaned_root,
+            "permissions": list(self.permissions),
         }
 
     def detail(self) -> dict:
@@ -270,6 +354,11 @@ class AssetView:
                 "readme_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/readme",
                 "sla_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/sla",
                 "signature_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/signature",
+                "fork_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/fork",
+                "forks_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/forks",
+                "lineage_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/lineage",
+                "shares_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/shares",
+                "share_links_url": f"/api/v1/hub/assets/{self.asset_type}/{self.slug}/share-links",
             }
         )
         return payload
@@ -504,6 +593,108 @@ def _scenario_view(row, meta: HubAssetMeta | None) -> AssetView:
     )
 
 
+def _blueprint_view(row, meta: HubAssetMeta | None) -> AssetView:
+    manifest = dict(meta.manifest or {}) if meta else {}
+    if not manifest:
+        manifest = {
+            "name": row.name,
+            "slug": row.slug,
+            "version": row.version,
+            "asset_type": "blueprint",
+            "target_site": row.target_site,
+            "industry": row.industry,
+            "target_architecture": row.target_architecture,
+            "primary_interface": row.primary_interface,
+            "max_pipeline_latency_us": row.max_pipeline_latency_us,
+            "dependencies": dict(row.dependencies_json or {}),
+            "hardware_binding": dict(row.hardware_binding_json or {}),
+            "sla_guarantees": dict(row.sla_guarantees_json or {}),
+        }
+    compliance = list(meta.compliance or []) if meta else []
+    return AssetView(
+        asset_type=_BLUEPRINT_TYPE,
+        id=row.id,
+        slug=row.slug,
+        name=row.name,
+        tier="blueprint",
+        version=row.version,
+        description=row.description,
+        author=(meta.author if meta and meta.author else row.author),
+        author_public_key=(meta.public_key if meta and meta.public_key else row.author_public_key),
+        target_protocol=row.primary_interface,
+        latency_sla_ns=int(float(row.max_pipeline_latency_us or 0.0) * 1000),
+        latency_display=f"{float(row.max_pipeline_latency_us or 0.0):g} us",
+        downloads=int(row.downloads or 0),
+        size_bytes=int(row.file_size_bytes or 0),
+        verified_signature=bool(row.verified_signature),
+        compliance=compliance,
+        published_at=row.created_at,
+        industry=row.industry,
+        sha256=row.sha256,
+        file_name=row.file_name,
+        manifest=manifest,
+        readme_markdown=(meta.readme_markdown if meta and meta.readme_markdown else _readme_blueprint(row)),
+        benchmark={
+            "target_architecture": row.target_architecture,
+            "primary_interface": row.primary_interface,
+            "max_pipeline_latency_us": row.max_pipeline_latency_us,
+            "dependencies": dict(row.dependencies_json or {}),
+            "hardware_binding": dict(row.hardware_binding_json or {}),
+            "sla_guarantees": dict(row.sla_guarantees_json or {}),
+        },
+        source=row,
+        meta=meta,
+    )
+
+
+def _appliance_view(row, meta: HubAssetMeta | None) -> AssetView:
+    manifest = dict(meta.manifest or {}) if meta else {}
+    if not manifest:
+        manifest = {
+            "name": row.title,
+            "slug": row.slug,
+            "version": row.version,
+            "asset_type": "appliance",
+            "architecture": row.architecture,
+            "industry": row.industry,
+            "license_tier": row.license_tier,
+            "verified_health_checks": row.verified_health_checks,
+        }
+    compliance = list(meta.compliance or []) if meta else []
+    return AssetView(
+        asset_type=_APPLIANCE_TYPE,
+        id=row.id,
+        slug=row.slug,
+        name=row.title,
+        tier=row.license_tier,
+        version=row.version,
+        description="Official Aryorithm air-gapped appliance release.",
+        author=(meta.author if meta and meta.author else "Aryorithm Authority"),
+        author_public_key=(meta.public_key if meta and meta.public_key else ""),
+        target_protocol=row.architecture,
+        latency_sla_ns=0,
+        latency_display="",
+        downloads=int(row.download_count or 0),
+        size_bytes=int(row.file_size_bytes or 0),
+        verified_signature=True,
+        compliance=compliance,
+        published_at=row.created_at,
+        industry=row.industry,
+        sha256=row.sha256_checksum,
+        file_name=row.file_name,
+        manifest=manifest,
+        readme_markdown=(meta.readme_markdown if meta and meta.readme_markdown else _readme_appliance(row)),
+        benchmark={
+            "architecture": row.architecture,
+            "industry": row.industry,
+            "license_tier": row.license_tier,
+            "verified_health_checks": row.verified_health_checks,
+        },
+        source=row,
+        meta=meta,
+    )
+
+
 async def _model_view(
     db, model, meta: HubAssetMeta | None, *, allow_deprecated: bool = False
 ) -> AssetView | None:
@@ -643,6 +834,20 @@ async def _fetch_source(db, asset_type: str, slug: str):
         return (
             await db.execute(select(HubScenario).where(HubScenario.slug == slug))
         ).scalar_one_or_none()
+    if asset_type == _BLUEPRINT_TYPE:
+        from app.models.hub_blueprints import HubBlueprint
+
+        return (
+            await db.execute(select(HubBlueprint).where(HubBlueprint.slug == slug))
+        ).scalar_one_or_none()
+    if asset_type == _APPLIANCE_TYPE:
+        from app.models.hub_appliances import HubApplianceRelease
+
+        return (
+            await db.execute(
+                select(HubApplianceRelease).where(HubApplianceRelease.slug == slug)
+            )
+        ).scalar_one_or_none()
     from app.models.modelvault import AIModel
 
     return (
@@ -671,6 +876,10 @@ async def get_view(
     ).scalar_one_or_none()
     if meta is not None and meta.yanked:
         return None
+    if kind == _BLUEPRINT_TYPE and bool(getattr(row, "is_yanked", False)):
+        return None
+    if kind == _APPLIANCE_TYPE and not bool(getattr(row, "is_active", True)):
+        return None
     if kind == "package":
         view = _package_view(row, meta)
     elif kind == "pcap":
@@ -679,6 +888,10 @@ async def get_view(
         view = _dataset_view(row, meta)
     elif kind == "scenario":
         view = _scenario_view(row, meta)
+    elif kind == _BLUEPRINT_TYPE:
+        view = _blueprint_view(row, meta)
+    elif kind == _APPLIANCE_TYPE:
+        view = _appliance_view(row, meta)
     else:
         view = await _model_view(db, row, meta, allow_deprecated=allow_deprecated)
         if view is None:
@@ -742,6 +955,10 @@ def _reference_candidates(asset_type: str, reference: str) -> list[str]:
         "pcaps",
         "scenario",
         "scenarios",
+        "blueprint",
+        "blueprints",
+        "appliance",
+        "appliances",
     }
     candidates: list[str] = []
 
@@ -869,6 +1086,16 @@ async def get_view_by_reference(
 
 
 
+async def visible_key_set(db, user, scope: str = "all") -> set[tuple[str, str]]:
+    """Return the ``(asset_type, slug)`` keys visible to ``user`` in ``scope``."""
+    views = await all_views(db)
+    share_map = await access.share_map_for_user(db, user)
+    return {
+        (view.asset_type, view.slug)
+        for view in access.scope_views(views, user, scope, share_map)
+    }
+
+
 async def all_views(db) -> list[AssetView]:
     await ensure_seeded(db)
     metas = await _meta_map(db)
@@ -913,6 +1140,23 @@ async def all_views(db) -> list[AssetView]:
         view = await _model_view(db, model, meta)
         if view is not None:
             views.append(view)
+
+    from app.models.hub_appliances import HubApplianceRelease
+    from app.models.hub_blueprints import HubBlueprint
+
+    blueprints = (await db.execute(select(HubBlueprint))).scalars().all()
+    for row in blueprints:
+        meta = metas.get((_BLUEPRINT_TYPE, row.slug))
+        if row.is_yanked or (meta and meta.yanked):
+            continue
+        views.append(_blueprint_view(row, meta))
+
+    appliances = (await db.execute(select(HubApplianceRelease))).scalars().all()
+    for row in appliances:
+        meta = metas.get((_APPLIANCE_TYPE, row.slug))
+        if not row.is_active or (meta and meta.yanked):
+            continue
+        views.append(_appliance_view(row, meta))
 
     return views
 
@@ -1004,8 +1248,8 @@ def paginate(views: list[AssetView], page: int, limit: int) -> dict:
     }
 
 
-async def categories(db) -> dict:
-    views = await all_views(db)
+async def categories(db, views: list[AssetView] | None = None) -> dict:
+    views = await all_views(db) if views is None else views
     asset_counts: dict[str, int] = {}
     category_counts: dict[str, int] = {}
     industry_counts: dict[str, int] = {}
@@ -1068,6 +1312,24 @@ async def _artifact_blob(db, view: AssetView) -> tuple[bytes | None, Path | None
         kind = _LIBRARY_DIRS[view.asset_type]
         path, digest = await lib.resolve_artifact(db, kind, view.source)
         return None, path, digest
+    if view.asset_type == _BLUEPRINT_TYPE:
+        from app.services import hub_marketplace as marketplace
+
+        path = marketplace.artifact_path(
+            marketplace.blueprint_root(), view.source.file_path
+        )
+        if not path.is_file():
+            raise FileNotFoundError("Artifact file missing from the blueprint vault")
+        return None, path, view.source.sha256
+    if view.asset_type == _APPLIANCE_TYPE:
+        from app.services import hub_marketplace as marketplace
+
+        path = marketplace.artifact_path(
+            marketplace.appliance_root(), view.source.file_path
+        )
+        if not path.is_file():
+            raise FileNotFoundError("Artifact file missing from the appliance vault")
+        return None, path, view.source.sha256_checksum
     path = view.artifact_path
     if path is None or not path.is_file():
         raise FileNotFoundError("Artifact file missing from the model vault")
@@ -1088,6 +1350,7 @@ async def ensure_asset_signature(db, view: AssetView) -> HubAssetMeta:
             asset_type=view.asset_type,
             slug=view.slug,
             owner_user_id=None,
+            visibility="public",
         )
         db.add(meta)
     meta.signature = signature
@@ -1128,9 +1391,14 @@ async def record_publish(
     readme_markdown: str,
     file_name: str,
     sha256: str,
+    tenant_id: str | None = None,
+    visibility: str = "private",
 ) -> HubAssetMeta:
     """Persist author signature / ownership for a freshly published asset."""
     kind = normalize_asset_type(asset_type)
+    visibility = (visibility or "private").strip().lower()
+    if visibility not in ("public", "private"):
+        raise ValueError("visibility must be 'public' or 'private'")
     try:
         public_key = hub.decode_key_material(public_key, 32, "public key").hex()
     except ValueError:
@@ -1157,7 +1425,11 @@ async def record_publish(
     meta.manifest = dict(manifest or {})
     meta.readme_markdown = readme_markdown
     meta.owner_user_id = owner_user_id
+    meta.tenant_id = tenant_id
+    meta.visibility = visibility
     meta.yanked = False
+    meta.orphaned_root = False
+    meta.deleted_at = None
     await db.flush()
     return meta
 
@@ -1177,6 +1449,10 @@ async def resolve_download(db, view: AssetView) -> tuple[bytes | None, Path | No
     if view.asset_type == "package":
         meta.download_count = int(meta.download_count or 0) + 1
     elif view.asset_type in _LIBRARY_DIRS:
+        view.source.download_count = int(view.source.download_count or 0) + 1
+    elif view.asset_type == _BLUEPRINT_TYPE:
+        view.source.downloads = int(view.source.downloads or 0) + 1
+    elif view.asset_type == _APPLIANCE_TYPE:
         view.source.download_count = int(view.source.download_count or 0) + 1
     elif view.artifact is not None:
         view.artifact.download_count = int(view.artifact.download_count or 0) + 1
@@ -1226,6 +1502,36 @@ async def _remove_user_asset(db, view: AssetView) -> None:
         _safe_unlink(path, root)
         return
 
+    if kind == _BLUEPRINT_TYPE:
+        from app.services import hub_marketplace as marketplace
+
+        row = view.source
+        root = marketplace.blueprint_root()
+        path = marketplace.artifact_path(root, row.file_path)
+        await db.delete(row)
+        await db.flush()
+        _safe_unlink(path, root)
+        try:
+            path.parent.rmdir()
+        except OSError:
+            pass
+        return
+
+    if kind == _APPLIANCE_TYPE:
+        from app.services import hub_marketplace as marketplace
+
+        row = view.source
+        root = marketplace.appliance_root()
+        path = marketplace.artifact_path(root, row.file_path)
+        await db.delete(row)
+        await db.flush()
+        _safe_unlink(path, root)
+        try:
+            path.parent.rmdir()
+        except OSError:
+            pass
+        return
+
     from app.models.modelvault import AIModelArtifact, AIModelVersion
     from app.services import model_vault as vault
 
@@ -1255,37 +1561,88 @@ async def _remove_user_asset(db, view: AssetView) -> None:
         pass
 
 
-async def revoke_asset(db, view: AssetView) -> None:
-    """Revoke/yank an asset.
-
-    Developer-published assets (they carry an owner) are removed from their
-    catalog table and disk.  Seeded/authority assets are instead marked
-    ``yanked`` so the lazy seeders cannot resurrect them on the next request;
-    their historical bytes stay available through the legacy per-type
-    endpoints, matching the registry's yank semantics.
-    """
-    if view.meta is not None and view.meta.owner_user_id:
-        await _remove_user_asset(db, view)
-        return
-
-    meta = view.meta
-    if meta is None:
-        meta = HubAssetMeta(
-            asset_type=view.asset_type,
-            slug=view.slug,
-            signature="",
-            public_key="",
-            sha256=view.sha256,
-            file_name=view.file_name,
-            version=view.version,
-            tier=view.tier,
-            author=view.author,
-            industry=view.industry,
-            compliance=list(view.compliance),
-            manifest=dict(view.manifest or {}),
-            readme_markdown=view.readme_markdown,
-            owner_user_id=None,
-        )
-        db.add(meta)
-    meta.yanked = True
+async def _ensure_meta_for_asset(db, view: AssetView) -> HubAssetMeta:
+    """Return metadata for a view, creating a public legacy row if needed."""
+    if view.meta is not None:
+        return view.meta
+    derived_owner = getattr(view.source, "owner_user_id", None)
+    if not derived_owner and view.asset_type == _APPLIANCE_TYPE:
+        derived_owner = getattr(view.source, "published_by", None)
+    meta = HubAssetMeta(
+        asset_type=view.asset_type,
+        slug=view.slug,
+        signature="",
+        public_key="",
+        sha256=view.sha256,
+        file_name=view.file_name,
+        version=view.version,
+        tier=view.tier,
+        author=view.author,
+        industry=view.industry,
+        compliance=list(view.compliance),
+        manifest=dict(view.manifest or {}),
+        readme_markdown=view.readme_markdown,
+        owner_user_id=derived_owner,
+        tenant_id=None,
+        visibility="public",
+    )
+    db.add(meta)
     await db.flush()
+    view.meta = meta
+    return meta
+
+
+async def fork_children(db, view: AssetView) -> list[HubAssetMeta]:
+    return list(
+        (
+            await db.execute(
+                select(HubAssetMeta).where(
+                    HubAssetMeta.forked_from_type == view.asset_type,
+                    HubAssetMeta.forked_from_slug == view.slug,
+                    HubAssetMeta.yanked.is_(False),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+async def revoke_asset(db, view: AssetView) -> str:
+    """Delete an asset or preserve it as an orphaned root when forks exist.
+
+    Returns ``"revoked"`` for a full delete/yank and ``"orphaned_root"`` when
+    descendants still reference the bytes.  User-owned assets are physically
+    removed; seeded/authority assets are soft-yanked so the lazy seeders do
+    not resurrect them.
+    """
+    meta = await _ensure_meta_for_asset(db, view)
+    children = await fork_children(db, view)
+    if children or int(meta.fork_count or 0) > 0:
+        meta.orphaned_root = True
+        meta.yanked = True
+        meta.deleted_at = datetime.now(timezone.utc)
+        await db.flush()
+        return "orphaned_root"
+
+    if meta.owner_user_id:
+        parent = None
+        if meta.forked_from_type and meta.forked_from_slug:
+            parent = (
+                await db.execute(
+                    select(HubAssetMeta).where(
+                        HubAssetMeta.asset_type == meta.forked_from_type,
+                        HubAssetMeta.slug == meta.forked_from_slug,
+                    )
+                )
+            ).scalar_one_or_none()
+        await _remove_user_asset(db, view)
+        if parent is not None:
+            parent.fork_count = max(int(parent.fork_count or 0) - 1, 0)
+        await db.flush()
+        return "revoked"
+
+    meta.yanked = True
+    meta.deleted_at = datetime.now(timezone.utc)
+    await db.flush()
+    return "revoked"

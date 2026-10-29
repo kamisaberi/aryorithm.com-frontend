@@ -16,9 +16,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.dependencies import get_optional_current_user
 from app.models.hub import HubAuthor
 from app.models.hub_blueprints import HubBlueprint
-from app.routers.hub import HubIdentity, get_developer_identity, require_publish_scope
+from app.models.user import User
+from app.routers.hub import (
+    HubIdentity,
+    _ensure_legacy_readable,
+    get_developer_identity,
+    require_publish_scope,
+)
 from app.schemas.hub_marketplace import (
     BlueprintDetailOut,
     BlueprintListItem,
@@ -251,9 +258,10 @@ async def list_blueprints(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     sort: str = Query(default="downloads"),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Paginated public catalog of production-site blueprints."""
+    """Paginated public/private-aware catalog of production-site blueprints."""
     if sort not in _SORTS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -265,7 +273,14 @@ async def list_blueprints(
             detail=f"Unknown target_arch '{target_arch}'. Use one of: {', '.join(_ARCHITECTURES)}.",
         )
 
-    conditions = [HubBlueprint.is_yanked.is_(False)]
+    from app.services import hub_assets as unified_assets
+
+    visible = await unified_assets.visible_key_set(db, user, "all")
+    visible_slugs = [slug for kind, slug in visible if kind == "blueprint"]
+    conditions = [
+        HubBlueprint.is_yanked.is_(False),
+        HubBlueprint.slug.in_(visible_slugs),
+    ]
     if q.strip():
         needle = f"%{hub.like_escape(q.strip().lower())}%"
         conditions.append(
@@ -318,14 +333,26 @@ async def list_blueprints(
 
 
 @router.get("/{slug}", response_model=BlueprintDetailOut)
-async def get_blueprint(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_blueprint(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
     """Full metadata, hardware bindings, dependencies and SLA for one blueprint."""
+    await _ensure_legacy_readable(db, "blueprint", slug, user, share_token)
     return _detail(await _get_blueprint_or_404(db, slug))
 
 
 @router.get("/{slug}/raw-dag")
-async def get_raw_dag(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_raw_dag(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
     """Return the raw ``model_routes.yaml`` for pre-install inspection."""
+    await _ensure_legacy_readable(db, "blueprint", slug, user, share_token)
     row = await _get_blueprint_or_404(db, slug)
     if not (row.raw_dag_yaml or "").strip():
         raise HTTPException(
@@ -340,8 +367,14 @@ async def get_raw_dag(slug: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{slug}/download")
-async def download_blueprint(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the signed ``.blueprint`` archive (public)."""
+async def download_blueprint(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the signed ``.blueprint`` archive."""
+    await _ensure_legacy_readable(db, "blueprint", slug, user, share_token)
     row = await _get_blueprint_or_404(db, slug)
     path = marketplace.artifact_path(marketplace.blueprint_root(), row.file_path)
     if not path.is_file():
@@ -376,11 +409,18 @@ async def publish_blueprint(
     file: UploadFile = File(...),
     manifest: str = Form(...),
     signature: str = Form(...),
+    visibility: str = Form("public"),
     ident: HubIdentity = Depends(get_developer_identity),
     db: AsyncSession = Depends(get_db),
 ):
     """Publish & sign a ``.blueprint`` bundle (JWT or API key + publish scope)."""
     require_publish_scope(ident)
+    visibility = (visibility or "private").strip().lower()
+    if visibility not in ("public", "private"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="visibility must be 'public' or 'private'",
+        )
     meta = marketplace.parse_manifest(manifest)
     fields = _manifest_fields(meta, ident)
     slug = fields["slug"]
@@ -449,6 +489,45 @@ async def publish_blueprint(
     )
     db.add(row)
     await db.flush()
+
+    from app.services import artifact_sanitize
+    from app.services import hub_assets as unified_assets
+
+    if visibility == "public":
+        view = await unified_assets.get_view(db, "blueprint", row.slug)
+        if view is not None:
+            try:
+                await artifact_sanitize.validate_public_artifact(db, view)
+            except artifact_sanitize.SanitizationError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail={
+                        "error": "artifact failed public sanitization",
+                        "issues": exc.issues,
+                    },
+                )
+    compliance = meta.get("compliance") or []
+    if not isinstance(compliance, list):
+        compliance = []
+    await unified_assets.record_publish(
+        db,
+        asset_type="blueprint",
+        slug=row.slug,
+        signature=row.signature,
+        public_key=row.author_public_key,
+        author=row.author,
+        owner_user_id=ident.user.id,
+        version=row.version,
+        tier="blueprint",
+        industry=row.industry,
+        compliance=compliance,
+        manifest=meta,
+        readme_markdown=str(meta.get("readme_markdown") or ""),
+        file_name=row.file_name,
+        sha256=row.sha256,
+        tenant_id=ident.user.tenant_id,
+        visibility=visibility,
+    )
 
     return {
         "status": "published",

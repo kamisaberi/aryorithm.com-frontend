@@ -49,6 +49,31 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Return the caller when credentials are valid, otherwise ``None``.
+
+    Public catalog/detail endpoints use this to show private assets to their
+    owner/tenant without turning anonymous access into a 401.
+    """
+    token: str | None = None
+    if credentials:
+        token = credentials.credentials
+    if not token and request is not None:
+        token, _ = get_cookie_tokens(request)
+    user_id = decode_token(token, expected_type="access") if token else None
+    if not user_id:
+        return None
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return user
+
+
 async def get_current_admin(user: User = Depends(get_current_user)) -> User:
     """Ensure the current user has an admin-capable role."""
     if user.role not in ("super_admin", "tenant_admin", "admin"):

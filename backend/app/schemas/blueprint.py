@@ -64,6 +64,9 @@ class BlueprintSummary(BaseModel):
     compiled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    # Linked Hub production-blueprint artifact and its current visibility.
+    compiled_artifact: dict | None = None
+    visibility: str = "private"
 
 
 class BlueprintDetail(BlueprintSummary):

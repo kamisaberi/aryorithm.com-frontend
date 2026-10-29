@@ -40,7 +40,12 @@ async def _publish(ac, token, asset_type, filename, blob, manifest, sig):
         "/api/v1/hub/publish",
         headers={"Authorization": f"Bearer {token}"},
         files={"file": (filename, blob, "application/octet-stream")},
-        data={"asset_type": asset_type, "manifest": json.dumps(manifest), "signature": sig},
+        data={
+            "asset_type": asset_type,
+            "manifest": json.dumps(manifest),
+            "signature": sig,
+            "visibility": "public",
+        },
     )
 
 

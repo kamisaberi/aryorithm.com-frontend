@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     HUB_PACKAGE_DIR: str = "storage/packages"
     HUB_MAX_UPLOAD_BYTES: int = 104857600
     HUB_PUBLIC_BASE: str = "https://hub.aryorithm.com"
+    # Workspace frontend used when generating expiring share links.
+    WORKSPACE_PUBLIC_BASE: str = "https://app.aryorithm.com"
 
     # Signed production-site blueprints + official air-gapped appliance vaults.
     # Appliances are large (hundreds of MB), so they use a separate limit.

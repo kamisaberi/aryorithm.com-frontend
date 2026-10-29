@@ -291,7 +291,16 @@ async def resolve_artifact(db, kind: str, row) -> tuple[Path, str]:
     refreshes the row. The file always exists afterwards.
     """
     if row.artifact_path:
-        candidate = vault_root(kind) / row.artifact_path
+        relative = str(row.artifact_path).lstrip("/\\")
+        # Older publishers stored paths relative to HUB_PACKAGE_DIR instead
+        # of the per-kind vault root (``pcaps/<slug>/<file>``).  Normalize
+        # both forms so a fork/download never regenerates stand-in bytes.
+        for prefix in (kind, kind.rstrip("s")):
+            marker = f"{prefix}/"
+            if relative.startswith(marker):
+                relative = relative[len(marker):]
+                break
+        candidate = vault_root(kind) / relative
         if candidate.is_file():
             return candidate, hashlib.sha256(candidate.read_bytes()).hexdigest()
     dest, blob = materialize(kind, row.id, row.file_name)

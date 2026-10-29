@@ -15,9 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_optional_current_user
 from app.models.hub_appliances import HubApplianceRelease
 from app.models.user import User
+from app.routers.hub import _ensure_legacy_readable
 from app.schemas.hub_marketplace import (
     ApplianceDetailOut,
     ApplianceListOut,
@@ -113,10 +114,18 @@ async def list_appliances(
     industry: str | None = Query(default=None),
     license: str | None = Query(default=None),
     version: str | None = Query(default=None),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List official ``.aryopack`` releases matching the 3-axis selector."""
-    filters = [HubApplianceRelease.is_active.is_(True)]
+    from app.services import hub_assets as unified_assets
+
+    visible = await unified_assets.visible_key_set(db, user, "all")
+    visible_slugs = [slug for kind, slug in visible if kind == "appliance"]
+    filters = [
+        HubApplianceRelease.is_active.is_(True),
+        HubApplianceRelease.slug.in_(visible_slugs),
+    ]
     for field, value, allowed in (
         ("arch", arch, marketplace.MATRIX_ARCHITECTURE_IDS),
         ("industry", industry, marketplace.MATRIX_INDUSTRY_IDS),
@@ -151,14 +160,26 @@ async def list_appliances(
 
 
 @router.get("/{slug}", response_model=ApplianceDetailOut)
-async def get_appliance(slug: str, db: AsyncSession = Depends(get_db)):
+async def get_appliance(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
     """Specific release details, verification hashes and download counter."""
+    await _ensure_legacy_readable(db, "appliance", slug, user, share_token)
     return _detail(await _get_appliance_or_404(db, slug))
 
 
 @router.get("/{slug}/download")
-async def download_appliance(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the official self-extracting ``.aryopack`` installer (public)."""
+async def download_appliance(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the official self-extracting ``.aryopack`` installer."""
+    await _ensure_legacy_readable(db, "appliance", slug, user, share_token)
     row = await _get_appliance_or_404(db, slug)
     path = marketplace.artifact_path(marketplace.appliance_root(), row.file_path)
     if not path.is_file():
@@ -193,10 +214,17 @@ async def publish_appliance(
     file: UploadFile = File(...),
     metadata: str = Form(...),
     authority_signature: str = Form(...),
+    visibility: str = Form("public"),
     user: User = Depends(require_super_admin_publish),
     db: AsyncSession = Depends(get_db),
 ):
     """Publish an official ``.aryopack`` release (super_admin only)."""
+    visibility = (visibility or "private").strip().lower()
+    if visibility not in ("public", "private"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="visibility must be 'public' or 'private'",
+        )
     meta = marketplace.parse_manifest(metadata, field="metadata")
     slug_raw = str(marketplace.manifest_value(meta, "slug", default="") or "").strip()
     title = str(
@@ -324,6 +352,28 @@ async def publish_appliance(
         row.published_by = user.id
         row.created_at = hub.utcnow()
     await db.flush()
+
+    from app.services import hub_assets as unified_assets
+
+    await unified_assets.record_publish(
+        db,
+        asset_type="appliance",
+        slug=row.slug,
+        signature=row.authority_signature,
+        public_key=authority_key,
+        author="Aryorithm Authority",
+        owner_user_id=user.id,
+        version=row.version,
+        tier=row.license_tier,
+        industry=row.industry,
+        compliance=[],
+        manifest=meta,
+        readme_markdown=str(meta.get("readme_markdown") or ""),
+        file_name=row.file_name,
+        sha256=row.sha256_checksum,
+        tenant_id=user.tenant_id,
+        visibility=visibility,
+    )
 
     return {
         "status": "published",

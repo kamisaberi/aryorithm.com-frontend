@@ -90,6 +90,7 @@ async def test_scenario_publish_strips_archive_suffix_from_slug(client, tmp_path
                 "asset_type": "scenario",
                 "manifest": json.dumps(manifest),
                 "signature": signature,
+                "visibility": "public",
             },
         )
         assert r.status_code == 201, r.text
@@ -118,6 +119,7 @@ async def test_scenario_publish_strips_archive_suffix_from_slug(client, tmp_path
                 "asset_type": "scenario",
                 "manifest": json.dumps(tgz_manifest),
                 "signature": private.sign(tgz_blob).hex(),
+                "visibility": "public",
             },
         )
         assert r.status_code == 201, r.text

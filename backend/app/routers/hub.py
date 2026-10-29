@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_admin, get_current_user
+from app.dependencies import get_current_admin, get_current_user, get_optional_current_user
 from app.models.hub import HubApiToken, HubAuthor, HubPlugin, HubPluginVersion, HubStar, SentinelPackage
 from app.models.user import User
 from app.schemas.hub import (
@@ -1110,9 +1110,10 @@ async def list_packages(
     sector: str | None = Query(default=None, description="Case-insensitive substring match on sector"),
     tier: str | None = Query(default=None, description="Exact match: native | wasm | lua"),
     search: str | None = Query(default=None, description="Match across name, slug, short description, protocol"),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List verified sentinel packages with optional filters (public)."""
+    """List verified sentinel packages visible to the caller."""
     from sqlalchemy import or_
 
     from app.services import sentinel_packages as spkg
@@ -1138,19 +1139,35 @@ async def list_packages(
             SentinelPackage.sector.ilike(needle),
         ))
     rows = (await db.execute(stmt)).scalars().all()
-    return [SentinelPackageOut.model_validate(r) for r in rows]
+    visible = await _legacy_visible_keys(db, user)
+    return [
+        SentinelPackageOut.model_validate(r)
+        for r in rows
+        if ("package", r.slug) in visible
+    ]
 
 
 @packages_router.get("/{slug}", response_model=SentinelPackageOut)
-async def get_package(slug: str, db: AsyncSession = Depends(get_db)):
-    """Full technical details + compliance tags for one package (public)."""
+async def get_package(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full technical details + compliance tags for one package."""
+    await _ensure_legacy_readable(db, "package", slug, user, share_token)
     row = await _get_package_or_404(db, slug)
     return SentinelPackageOut.model_validate(row)
 
 
 @packages_router.get("/{slug}/download")
-async def download_package(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the `.spkg` file binary (public).
+async def download_package(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the `.spkg` file binary.
 
     Files live under ``<HUB_PACKAGE_DIR>/sentinel/<slug>/<file>`` and are
     materialized at seed time; if a file is missing it is regenerated
@@ -1159,6 +1176,7 @@ async def download_package(slug: str, db: AsyncSession = Depends(get_db)):
     """
     from app.services import sentinel_packages as spkg
 
+    _view, _link = await _ensure_legacy_readable(db, "package", slug, user, share_token)
     row = await _get_package_or_404(db, slug)
     blob, digest = await spkg.resolve_artifact_bytes(db, row)
     return StreamingResponse(
@@ -1237,6 +1255,33 @@ def _scenario_out(row) -> dict:
     return d
 
 
+async def _ensure_legacy_readable(
+    db: AsyncSession,
+    kind: str,
+    slug: str,
+    user: User | None,
+    share_token: str | None = None,
+):
+    """Enforce the new visibility model on historical per-type routes."""
+    from app.routers import hub_assets as unified_routes
+
+    view, link, _permissions = await unified_routes._authorized_view(
+        db,
+        kind,
+        slug,
+        user=user,
+        share_token=share_token,
+        allow_deprecated=True,
+    )
+    return view, link
+
+
+async def _legacy_visible_keys(db: AsyncSession, user: User | None) -> set[tuple[str, str]]:
+    from app.services import hub_assets as unified_assets
+
+    return await unified_assets.visible_key_set(db, user, "all")
+
+
 async def _download_artifact(db: AsyncSession, kind: str, row, media: str = "application/octet-stream"):
     from app.services import hub_library as lib
 
@@ -1257,9 +1302,10 @@ async def list_pcaps(
     category: str | None = Query(default=None, description="Exact match: SCADA_ICS | MALWARE_C2 | EXPLOIT_DOS | HEALTHCARE_IOMT | AEROSPACE_UAV"),
     protocol: str | None = Query(default=None, description="Case-insensitive substring match on target_protocol"),
     search: str | None = Query(default=None, description="Match across title, slug, attack type, protocol"),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List certified malware PCAP captures with optional filters (public)."""
+    """List certified malware PCAP captures visible to the caller."""
     from sqlalchemy import or_
 
     from app.models.hub import HubPcap
@@ -1284,18 +1330,35 @@ async def list_pcaps(
             HubPcap.attack_type.ilike(needle),
             HubPcap.target_protocol.ilike(needle),
         ))
-    return [_pcap_out(r) for r in (await db.execute(stmt)).scalars().all()]
+    visible = await _legacy_visible_keys(db, user)
+    return [
+        _pcap_out(r)
+        for r in (await db.execute(stmt)).scalars().all()
+        if ("pcap", r.slug) in visible
+    ]
 
 
 @pcaps_router.get("/{slug}", response_model=HubPcapOut)
-async def get_pcap(slug: str, db: AsyncSession = Depends(get_db)):
-    """Full PCAP metadata, MITRE mappings and recommended package (public)."""
+async def get_pcap(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full PCAP metadata, MITRE mappings and recommended package."""
+    await _ensure_legacy_readable(db, "pcap", slug, user, share_token)
     return _pcap_out(await _get_pcap_or_404(db, slug))
 
 
 @pcaps_router.get("/{slug}/download")
-async def download_pcap(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the `.pcap` capture binary (public)."""
+async def download_pcap(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the `.pcap` capture binary."""
+    await _ensure_legacy_readable(db, "pcap", slug, user, share_token)
     return await _download_artifact(db, "pcaps", await _get_pcap_or_404(db, slug))
 
 
@@ -1305,9 +1368,10 @@ async def list_datasets(
     format: str | None = Query(default=None, description="Exact match: SLAB_BINARY | PCAP_RAW | PARQUET_COMPACT | NETFLOW_IPFIX"),
     dimension: int | None = Query(default=None, description="Exact match on tensor_dimension"),
     search: str | None = Query(default=None, description="Match across name, slug, benchmark"),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List pre-converted SLAB research datasets with optional filters (public)."""
+    """List pre-converted SLAB research datasets visible to the caller."""
     from sqlalchemy import or_
 
     from app.models.hub import HubDataset
@@ -1331,18 +1395,35 @@ async def list_datasets(
             HubDataset.slug.ilike(needle),
             HubDataset.source_benchmark.ilike(needle),
         ))
-    return [_dataset_out(r) for r in (await db.execute(stmt)).scalars().all()]
+    visible = await _legacy_visible_keys(db, user)
+    return [
+        _dataset_out(r)
+        for r in (await db.execute(stmt)).scalars().all()
+        if ("dataset", r.slug) in visible
+    ]
 
 
 @datasets_router.get("/{slug}", response_model=HubDatasetOut)
-async def get_dataset(slug: str, db: AsyncSession = Depends(get_db)):
-    """Full SLAB dataset metadata, tensor shapes and paper refs (public)."""
+async def get_dataset(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full SLAB dataset metadata, tensor shapes and paper refs."""
+    await _ensure_legacy_readable(db, "dataset", slug, user, share_token)
     return _dataset_out(await _get_dataset_or_404(db, slug))
 
 
 @datasets_router.get("/{slug}/download")
-async def download_dataset(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the `.slab` dataset binary (public)."""
+async def download_dataset(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the `.slab` dataset binary."""
+    await _ensure_legacy_readable(db, "dataset", slug, user, share_token)
     return await _download_artifact(db, "datasets", await _get_dataset_or_404(db, slug))
 
 
@@ -1351,9 +1432,10 @@ async def download_dataset(slug: str, db: AsyncSession = Depends(get_db)):
 async def list_scenarios(
     sector: str | None = Query(default=None, description="Case-insensitive substring match on target_sector"),
     complexity: str | None = Query(default=None, description="Exact match: STARTER | INTERMEDIATE | ADVANCED_RED_TEAM"),
+    user: User | None = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List downloadable digital-twin scenario bundles (public)."""
+    """List downloadable digital-twin scenario bundles visible to the caller."""
     from app.models.hub import HubScenario
     from app.services import hub_library as lib
 
@@ -1368,18 +1450,35 @@ async def list_scenarios(
         stmt = stmt.where(HubScenario.complexity == complexity)
     if sector is not None and sector.strip():
         stmt = stmt.where(HubScenario.target_sector.ilike(f"%{sector.strip()}%"))
-    return [_scenario_out(r) for r in (await db.execute(stmt)).scalars().all()]
+    visible = await _legacy_visible_keys(db, user)
+    return [
+        _scenario_out(r)
+        for r in (await db.execute(stmt)).scalars().all()
+        if ("scenario", r.slug) in visible
+    ]
 
 
 @scenarios_router.get("/{slug}", response_model=HubScenarioOut)
-async def get_scenario(slug: str, db: AsyncSession = Depends(get_db)):
-    """Full scenario manifest: topology, attacks, SLA, pull command (public)."""
+async def get_scenario(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Full scenario manifest: topology, attacks, SLA, pull command."""
+    await _ensure_legacy_readable(db, "scenario", slug, user, share_token)
     return _scenario_out(await _get_scenario_or_404(db, slug))
 
 
 @scenarios_router.get("/{slug}/download")
-async def download_scenario(slug: str, db: AsyncSession = Depends(get_db)):
-    """Stream the `.tar.gz` scenario bundle (public)."""
+async def download_scenario(
+    slug: str,
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the `.tar.gz` scenario bundle."""
+    await _ensure_legacy_readable(db, "scenario", slug, user, share_token)
     return await _download_artifact(db, "scenarios", await _get_scenario_or_404(db, slug))
 
 
@@ -1389,13 +1488,23 @@ async def download_scenario(slug: str, db: AsyncSession = Depends(get_db)):
 publish_router = APIRouter(prefix="/hub/publish", tags=["Hub — Universal Publish"])
 hub_models_router = APIRouter(prefix="/hub/models", tags=["Hub — Model Downloads"])
 
-ASSET_TYPES = ("package", "pcap", "dataset", "model", "scenario")
+ASSET_TYPES = (
+    "package",
+    "pcap",
+    "dataset",
+    "model",
+    "scenario",
+    "blueprint",
+    "appliance",
+)
 _ASSET_URL_SEGMENT = {
     "package": "packages",
     "model": "models",
     "dataset": "datasets",
     "pcap": "pcaps",
     "scenario": "scenarios",
+    "blueprint": "blueprints",
+    "appliance": "appliances",
 }
 
 _TIER_DISPLAY = {
@@ -1565,16 +1674,15 @@ async def universal_publish(
     file: UploadFile = File(...),
     manifest: str = Form(...),
     signature: str = Form(...),
+    visibility: str = Form("private"),
     ident: HubIdentity = Depends(get_developer_identity),
     db: AsyncSession = Depends(get_db),
 ):
-    """Publish any hub asset: package (.spkg), pcap, dataset (.slab), model or scenario.
+    """Publish any of the seven Hub asset types.
 
-    Auth: ``Authorization: Bearer <developer API token>`` (CLI tokens need
-    the ``packages:publish`` scope; repo JWTs carry full developer rights).
-    The Ed25519 ``signature`` must verify over the raw file bytes with the
-    author's enrolled key (enrolled from ``manifest.author_public_key`` on
-    first publish).
+    ``visibility`` defaults to ``private`` and is bound to the caller's JWT
+    ``tenant_id``/``user_id``.  Appliances remain restricted to
+    ``super_admin`` and are verified against the Aryorithm Authority root.
     """
     require_publish_scope(ident)
     kind = (asset_type or "").strip().lower()
@@ -1583,16 +1691,34 @@ async def universal_publish(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown asset_type '{asset_type}'. Use one of: {', '.join(ASSET_TYPES)}.",
         )
+    visibility = (visibility or "private").strip().lower()
+    if visibility not in ("public", "private"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="visibility must be 'public' or 'private'",
+        )
+    role = str(getattr(ident.user.role, "value", ident.user.role))
+    if kind == "appliance" and role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Aryorithm Authority (super_admin) can publish .aryopack system bundles.",
+        )
+
+    max_bytes = (
+        settings.HUB_APPLIANCE_MAX_UPLOAD_BYTES
+        if kind == "appliance"
+        else settings.HUB_MAX_UPLOAD_BYTES
+    )
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="file is empty",
         )
-    if len(file_bytes) > settings.HUB_MAX_UPLOAD_BYTES:
+    if len(file_bytes) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds HUB_MAX_UPLOAD_BYTES ({settings.HUB_MAX_UPLOAD_BYTES})",
+            detail=f"File exceeds the configured upload limit ({max_bytes} bytes)",
         )
     meta = _parse_manifest(manifest)
     if meta.get("slug") is not None:
@@ -1603,37 +1729,72 @@ async def universal_publish(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="signature must be a 64-byte Ed25519 hex string",
         )
-    author = await _verified_author(db, ident, meta, file_bytes, sig)
     now = datetime.now(timezone.utc)
+    author = None
+    public_key = ""
+    file_name = file.filename or f"{meta.get('slug') or kind}.bin"
 
-    if kind == "package":
-        asset_id, dl_path = await _publish_package(db, author, file, file_bytes, meta)
-        default_version = "1.0.0"
-        tier = str(meta.get("tier") or "lua")
-    elif kind == "pcap":
-        asset_id, dl_path = await _publish_pcap(db, file, file_bytes, meta)
-        default_version = "1.0.0"
-        tier = str(meta.get("category") or "pcap")
-    elif kind == "dataset":
-        asset_id, dl_path = await _publish_dataset(db, file, file_bytes, meta)
-        default_version = "1.0.0"
-        tier = str(meta.get("format") or "dataset")
-    elif kind == "scenario":
-        asset_id, dl_path = await _publish_scenario(db, file, file_bytes, meta)
-        default_version = "1.0.0"
-        tier = "scenario"
+    if kind == "appliance":
+        asset_id, dl_path, file_name, public_key = await _publish_appliance_unified(
+            db, ident, file, file_bytes, meta, sig
+        )
+        author_name = "Aryorithm Authority"
+        version = str(meta.get("version") or "2.5.0")
+        tier = str(meta.get("license_tier") or meta.get("license") or "community")
+        sha256 = hashlib.sha256(file_bytes).hexdigest()
     else:
-        asset_id, dl_path = await _publish_model(db, file, file_bytes, meta, sig)
-        default_version = "v0.1.0"
-        tier = str(meta.get("tier") or "COMMUNITY")
+        author = await _verified_author(db, ident, meta, file_bytes, sig)
+        public_key = author.public_key
+        author_name = author.name or ident.user.name or ident.user.email
+        if kind == "package":
+            asset_id, dl_path = await _publish_package(db, author, file, file_bytes, meta)
+            default_version = "1.0.0"
+            tier = str(meta.get("tier") or "lua")
+        elif kind == "pcap":
+            asset_id, dl_path = await _publish_pcap(db, file, file_bytes, meta)
+            default_version = "1.0.0"
+            tier = str(meta.get("category") or "pcap")
+        elif kind == "dataset":
+            asset_id, dl_path = await _publish_dataset(db, file, file_bytes, meta)
+            default_version = "1.0.0"
+            tier = str(meta.get("format") or "dataset")
+        elif kind == "scenario":
+            asset_id, dl_path = await _publish_scenario(db, file, file_bytes, meta)
+            default_version = "1.0.0"
+            tier = "scenario"
+        elif kind == "blueprint":
+            asset_id, dl_path, file_name = await _publish_blueprint_unified(
+                db, ident, author, file, file_bytes, meta, sig
+            )
+            default_version = "1.0.0"
+            tier = "blueprint"
+        else:
+            asset_id, dl_path = await _publish_model(db, file, file_bytes, meta, sig)
+            default_version = "v0.1.0"
+            tier = str(meta.get("tier") or "COMMUNITY")
+        version = str(meta.get("version") or default_version)
+        sha256 = hashlib.sha256(file_bytes).hexdigest()
 
     slug = str(meta.get("slug") or "").strip()
-    version = str(meta.get("version") or default_version)
+    if not slug:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="manifest.slug is required",
+        )
 
-    # Persist the author signature / ownership so the unified
-    # /hub/assets/{type}/{slug}/signature endpoint can serve it.  The legacy
-    # publish response is intentionally unchanged.
+    from app.services import artifact_sanitize
     from app.services import hub_assets as unified_assets
+
+    if visibility == "public" and kind in ("pcap", "blueprint"):
+        view = await unified_assets.get_view(db, kind, slug, allow_deprecated=True)
+        if view is not None:
+            try:
+                await artifact_sanitize.validate_public_artifact(db, view)
+            except artifact_sanitize.SanitizationError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail={"error": "artifact failed public sanitization", "issues": exc.issues},
+                )
 
     compliance = meta.get("compliance") or meta.get("compliance_tags") or []
     if not isinstance(compliance, list):
@@ -1647,8 +1808,8 @@ async def universal_publish(
         asset_type=kind,
         slug=slug,
         signature=signature_hex,
-        public_key=author.public_key,
-        author=author.name or ident.user.name or ident.user.email,
+        public_key=public_key,
+        author=author_name,
         owner_user_id=ident.user.id,
         version=version,
         tier=tier,
@@ -1663,14 +1824,16 @@ async def universal_publish(
         compliance=compliance,
         manifest=meta,
         readme_markdown=str(meta.get("readme_markdown") or ""),
-        file_name=file.filename or f"{slug}.bin",
-        sha256=hashlib.sha256(file_bytes).hexdigest(),
+        file_name=file_name,
+        sha256=sha256,
+        tenant_id=ident.user.tenant_id,
+        visibility=visibility,
     )
 
     try:
-        signer_public_key = hub.decode_key_material(author.public_key, 32, "public key").hex()
+        signer_public_key = hub.decode_key_material(public_key, 32, "public key").hex()
     except ValueError:
-        signer_public_key = author.public_key
+        signer_public_key = public_key
     public_base = settings.HUB_PUBLIC_BASE.rstrip("/")
 
     return UniversalPublishOut(
@@ -1683,11 +1846,214 @@ async def universal_publish(
         version=version,
         url=f"{public_base}/{_ASSET_URL_SEGMENT[kind]}/{slug}",
         download_endpoint=f"/api/v1/hub/assets/{kind}/{slug}/download",
+        visibility=visibility,
         verification={
-            "sha256": hashlib.sha256(file_bytes).hexdigest(),
+            "sha256": sha256,
             "signature_verified": True,
             "signer_public_key": signer_public_key,
         },
+    )
+
+
+async def _publish_blueprint_unified(
+    db,
+    ident: HubIdentity,
+    author: HubAuthor,
+    file: UploadFile,
+    file_bytes: bytes,
+    meta: dict,
+    sig: str,
+):
+    """Unified-publish adapter for signed production blueprints."""
+    from app.models.hub_blueprints import HubBlueprint
+    from app.routers.hub_blueprints import _manifest_fields
+    from app.services import hub_marketplace as marketplace
+
+    fields = _manifest_fields(meta, ident)
+    slug = fields["slug"]
+    existing = (
+        await db.execute(select(HubBlueprint).where(HubBlueprint.slug == slug))
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Blueprint '{slug}' already exists",
+        )
+    filename = marketplace.safe_filename(
+        file.filename, slug, ".blueprint", marketplace.BLUEPRINT_EXTENSIONS
+    )
+    root = marketplace.blueprint_root()
+    temp_path = marketplace.temp_upload_path(root, slug)
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path.write_bytes(file_bytes)
+    final_path = None
+    try:
+        raw_dag = fields["raw_dag_yaml"] or marketplace.extract_raw_dag_from_path(
+            temp_path, filename
+        )
+        final_dir = root / slug
+        final_dir.mkdir(parents=True, exist_ok=True)
+        final_path = final_dir / filename
+        temp_path.replace(final_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+    row = HubBlueprint(
+        slug=slug,
+        name=fields["name"],
+        version=fields["version"],
+        target_site=fields["target_site"],
+        industry=fields["industry"],
+        target_architecture=fields["target_architecture"],
+        description=fields["description"],
+        primary_interface=fields["primary_interface"],
+        max_pipeline_latency_us=fields["max_pipeline_latency_us"],
+        dependencies_json=fields["dependencies"],
+        hardware_binding_json=fields["hardware_binding"],
+        sla_guarantees_json=fields["sla_guarantees"],
+        raw_dag_yaml=raw_dag,
+        sha256=hashlib.sha256(file_bytes).hexdigest(),
+        author=fields["author"],
+        author_public_key=author.public_key,
+        signature=marketplace.normalize_signature(sig),
+        owner_user_id=ident.user.id,
+        file_name=filename,
+        file_path=str(final_path.relative_to(root)),
+        file_size_bytes=len(file_bytes),
+        downloads=0,
+        verified_signature=True,
+        is_yanked=False,
+        created_at=hub.utcnow(),
+    )
+    db.add(row)
+    await db.flush()
+    return row.id, f"/api/v1/hub/blueprints/{slug}/download", filename
+
+
+async def _publish_appliance_unified(
+    db,
+    ident: HubIdentity,
+    file: UploadFile,
+    file_bytes: bytes,
+    meta: dict,
+    sig: str,
+):
+    """Unified-publish adapter for authority-signed appliance bundles."""
+    from app.models.hub_appliances import HubApplianceRelease
+    from app.services import hub_marketplace as marketplace
+
+    slug_raw = str(marketplace.manifest_value(meta, "slug", default="") or "").strip()
+    title = str(
+        marketplace.manifest_value(meta, "title", "name", default="") or ""
+    ).strip()
+    if not title:
+        title = slug_raw
+    if not title:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="metadata.title (or metadata.slug) is required",
+        )
+    slug = marketplace.validate_slug(
+        slug_raw if slug_raw else marketplace.slugify(title)
+    )
+    version = str(
+        marketplace.manifest_value(
+            meta, "version", default=marketplace.DEFAULT_APPLIANCE_VERSION
+        )
+        or marketplace.DEFAULT_APPLIANCE_VERSION
+    ).strip()
+    architecture = str(
+        marketplace.manifest_value(meta, "architecture", "arch", default="") or ""
+    ).strip().lower()
+    industry = str(
+        marketplace.manifest_value(meta, "industry", default="") or ""
+    ).strip().lower()
+    license_tier = str(
+        marketplace.manifest_value(meta, "license_tier", "license", default="community")
+        or "community"
+    ).strip().lower()
+    for label, value, allowed in (
+        ("architecture", architecture, marketplace.MATRIX_ARCHITECTURE_IDS),
+        ("industry", industry, marketplace.MATRIX_INDUSTRY_IDS),
+        ("license_tier", license_tier, marketplace.MATRIX_LICENSE_IDS),
+    ):
+        if value not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"metadata.{label} must be one of: {', '.join(sorted(allowed))}",
+            )
+    existing = (
+        await db.execute(
+            select(HubApplianceRelease).where(HubApplianceRelease.slug == slug)
+        )
+    ).scalar_one_or_none()
+    if existing is not None and existing.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Appliance release '{slug}' already exists",
+        )
+    authority_key = marketplace.authority_public_key()
+    if not hub.verify_ed25519(authority_key, sig, file_bytes):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Ed25519 signature does not verify against the Aryorithm Authority Root",
+        )
+    filename = marketplace.safe_filename(
+        file.filename, slug, ".aryopack", marketplace.APPLIANCE_EXTENSIONS
+    )
+    root = marketplace.appliance_root()
+    final_dir = root / slug
+    final_dir.mkdir(parents=True, exist_ok=True)
+    final_path = final_dir / filename
+    final_path.write_bytes(file_bytes)
+    digest = hashlib.sha256(file_bytes).hexdigest()
+    row = existing
+    if row is None:
+        row = HubApplianceRelease(
+            slug=slug,
+            title=title,
+            version=version,
+            architecture=architecture,
+            industry=industry,
+            license_tier=license_tier,
+            file_name=filename,
+            file_path=str(final_path.relative_to(root)),
+            file_size_bytes=len(file_bytes),
+            sha256_checksum=digest,
+            authority_signature=marketplace.normalize_signature(sig),
+            verified_health_checks=str(
+                marketplace.manifest_value(meta, "verified_health_checks", default="21/21")
+                or "21/21"
+            ),
+            download_count=0,
+            is_active=True,
+            published_by=ident.user.id,
+            created_at=hub.utcnow(),
+        )
+        db.add(row)
+    else:
+        row.title = title
+        row.version = version
+        row.architecture = architecture
+        row.industry = industry
+        row.license_tier = license_tier
+        row.file_name = filename
+        row.file_path = str(final_path.relative_to(root))
+        row.file_size_bytes = len(file_bytes)
+        row.sha256_checksum = digest
+        row.authority_signature = marketplace.normalize_signature(sig)
+        row.verified_health_checks = str(
+            marketplace.manifest_value(meta, "verified_health_checks", default="21/21")
+            or "21/21"
+        )
+        row.is_active = True
+        row.published_by = ident.user.id
+        row.created_at = hub.utcnow()
+    await db.flush()
+    return (
+        row.id,
+        f"/api/v1/hub/appliances/{slug}/download",
+        filename,
+        authority_key,
     )
 
 
@@ -1781,7 +2147,7 @@ async def _publish_pcap(db, file: UploadFile, file_bytes: bytes, meta: dict) -> 
         recommended_spkg_id=meta.get("recommended_spkg_id"),
         short_description=str(meta.get("short_description") or ""),
         technical_analysis=str(meta.get("technical_analysis") or ""),
-        artifact_path=str(dest.relative_to(lib.vault_root("pcaps").parent)),
+        artifact_path=str(dest.relative_to(lib.vault_root("pcaps"))),
     )
     db.add(row)
     await db.flush()
@@ -1826,7 +2192,7 @@ async def _publish_dataset(db, file: UploadFile, file_bytes: bytes, meta: dict) 
         paper_reference=str(meta.get("paper_reference") or ""),
         streaming_throughput_eps=meta.get("streaming_throughput_eps"),
         short_description=str(meta.get("short_description") or ""),
-        artifact_path=str(dest.relative_to(lib.vault_root("datasets").parent)),
+        artifact_path=str(dest.relative_to(lib.vault_root("datasets"))),
     )
     db.add(row)
     await db.flush()
@@ -2000,9 +2366,11 @@ async def download_hub_model(
     slug: str,
     format: str | None = Query(default=None, description="Exact match, e.g. ONNX"),
     precision: str | None = Query(default=None, description="Exact match, e.g. INT8"),
+    user: User | None = Depends(get_optional_current_user),
+    share_token: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Download a model artifact by slug (public, developer channel).
+    """Download a model artifact by slug (developer channel).
 
     Resolves the latest rollout version (highest stage, then version string)
     and serves the first artifact matching ``format``/``precision`` (or the
@@ -2014,6 +2382,7 @@ async def download_hub_model(
     from app.services import model_vault as vault
     from fastapi.responses import FileResponse as _FileResponse
 
+    await _ensure_legacy_readable(db, "model", slug, user, share_token)
     await vault.ensure_seed(db)
     model = (
         await db.execute(select(AIModel).where(AIModel.slug == slug))

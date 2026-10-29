@@ -1,11 +1,10 @@
 """Unified hub asset metadata (signatures / ownership / readme / manifest).
 
-The five public catalogs (``sentinel_packages``, ``ai_models``,
-``hub_pcaps``, ``hub_datasets``, ``hub_scenarios``) predate the unified
-``/hub/assets/{asset_type}/{slug}`` API.  This side table keeps the fields
-that do not exist on those legacy rows — Ed25519 signature, enrolled author
-key, owner, manifest JSON and rendered readme — without altering any
-existing table or route.
+This side table is the tenancy/visibility/forking authority for all seven
+Hub artifact types (package, model, dataset, pcap, scenario, blueprint and
+appliance).  The source catalog tables keep their historical public/global
+shape; this table adds the fields required by workspaces without forcing a
+destructive migration of the existing catalogs.
 """
 
 from __future__ import annotations
@@ -20,7 +19,7 @@ from app.database import Base
 
 
 class HubAssetMeta(Base):
-    """Per-asset publication metadata shared by all five asset types."""
+    """Per-asset publication, ownership, visibility and lineage metadata."""
 
     __tablename__ = "hub_asset_meta"
     __table_args__ = (UniqueConstraint("asset_type", "slug", name="uq_hub_asset_meta"),)
@@ -46,7 +45,31 @@ class HubAssetMeta(Base):
     owner_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
+    tenant_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tenants.id"), nullable=True, index=True
+    )
+
+    # ``public`` is visible to everyone; ``private`` is visible to the owning
+    # tenant/user and to explicit share grantees.  Legacy assets without a
+    # meta row are treated as public for backwards compatibility.
+    visibility: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="private", index=True
+    )
+
+    # Fork lineage.  ``forked_from_*`` points at the immediate parent asset.
+    forked_from_type: Mapped[str | None] = mapped_column(
+        String(16), nullable=True, index=True
+    )
+    forked_from_slug: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True
+    )
+    fork_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # A deleted root that still has descendants is retained on disk so the
+    # children remain downloadable.  It is hidden from all catalogs.
+    orphaned_root: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     yanked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

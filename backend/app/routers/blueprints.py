@@ -6,6 +6,7 @@ fleet deployment trigger.
 """
 
 import hashlib
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_admin, get_current_user
 from app.models.blueprint import BlueprintStatus, ThreatBlueprint
+from app.models.hub_assets import HubAssetMeta
+from app.models.hub_blueprints import HubBlueprint
 from app.models.user import User
 from app.schemas.blueprint import (
     BlueprintDetail,
@@ -54,7 +57,12 @@ async def _get_owned_blueprint(
     return row
 
 
-def _summary(row: ThreatBlueprint) -> BlueprintSummary:
+def _summary(
+    row: ThreatBlueprint,
+    *,
+    compiled_artifact: dict | None = None,
+    visibility: str = "private",
+) -> BlueprintSummary:
     return BlueprintSummary(
         blueprint_id=row.blueprint_id,
         name=row.name,
@@ -67,6 +75,8 @@ def _summary(row: ThreatBlueprint) -> BlueprintSummary:
         compiled_at=row.compiled_at,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        compiled_artifact=compiled_artifact,
+        visibility=visibility,
     )
 
 
@@ -108,7 +118,71 @@ async def list_blueprints(
             .order_by(ThreatBlueprint.updated_at.desc())
         )
     ).scalars().all()
-    return [_summary(row) for row in rows]
+
+    # Link visual blueprints to their compiled Hub production artifact.  The
+    # visual ``blueprint_id`` is the canonical key; a slugified name is kept
+    # as a fallback for bundles published before the editor existed.
+    compiled_rows = (
+        await db.execute(
+            select(HubBlueprint).where(HubBlueprint.is_yanked.is_(False))
+        )
+    ).scalars().all()
+    compiled_by_slug = {row.slug: row for row in compiled_rows}
+    metas = {
+        meta.slug: meta
+        for meta in (
+            await db.execute(
+                select(HubAssetMeta).where(HubAssetMeta.asset_type == "blueprint")
+            )
+        ).scalars().all()
+    }
+
+    def slugify(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
+
+    payload = []
+    for row in rows:
+        match = compiled_by_slug.get(row.blueprint_id) or compiled_by_slug.get(
+            slugify(row.name)
+        )
+        meta = metas.get(match.slug) if match is not None else None
+        visibility = (meta.visibility if meta is not None else "public")
+        artifact = None
+        if match is not None:
+            artifact = {
+                "asset_type": "blueprint",
+                "slug": match.slug,
+                "version": match.version,
+                "visibility": visibility,
+                "download_url": f"/api/v1/hub/assets/blueprint/{match.slug}/download",
+                "compiled_at": (
+                    (meta.created_at if meta is not None else match.created_at)
+                ).isoformat()
+                if (meta is not None or match.created_at)
+                else None,
+                "sha256": match.sha256,
+                "has_compiled_yaml": bool((row.compiled_yaml or "").strip()),
+            }
+        elif (row.compiled_yaml or "").strip():
+            visibility = "private"
+            artifact = {
+                "asset_type": "blueprint",
+                "slug": row.blueprint_id,
+                "version": None,
+                "visibility": "private",
+                "download_url": None,
+                "compiled_at": row.compiled_at.isoformat()
+                if row.compiled_at
+                else None,
+                "sha256": hashlib.sha256(
+                    row.compiled_yaml.encode("utf-8")
+                ).hexdigest(),
+                "has_compiled_yaml": True,
+            }
+        payload.append(
+            _summary(row, compiled_artifact=artifact, visibility=visibility)
+        )
+    return payload
 
 
 @router.get("/node-catalog", response_model=NodeCatalogResponse)
