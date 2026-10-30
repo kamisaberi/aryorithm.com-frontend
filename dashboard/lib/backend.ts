@@ -896,6 +896,169 @@ export interface HubDataset {
   created_at: string;
 }
 
+/* ---------- Universal artifact workspace, forks and sharing ---------- */
+
+export type ArtifactType =
+  | "package"
+  | "model"
+  | "dataset"
+  | "pcap"
+  | "scenario"
+  | "blueprint"
+  | "appliance";
+
+export type ArtifactVisibility = "public" | "private";
+
+export interface ArtifactForkRef {
+  asset_type: string;
+  slug: string;
+  version?: string | null;
+  commit_sha256?: string | null;
+}
+
+export interface UnifiedArtifact {
+  id: string;
+  slug: string;
+  name: string;
+  asset_type: ArtifactType | string;
+  tier: string;
+  version: string;
+  author: string;
+  author_public_key: string;
+  target_protocol: string;
+  latency_sla_ns: number;
+  downloads: number;
+  size_bytes: number;
+  verified_signature: boolean;
+  compliance: string[];
+  published_at: string;
+  description: string;
+  industry: string;
+  download_url: string;
+  visibility: ArtifactVisibility;
+  owner_user_id: string | null;
+  owner_tenant_id: string | null;
+  forked_from: ArtifactForkRef | null;
+  fork_count: number;
+  orphaned_root: boolean;
+  permissions: string[];
+}
+
+export interface UnifiedArtifactDetail extends UnifiedArtifact {
+  merkle_sha256: string;
+  signature_status: string;
+  file_size: number;
+  manifest: Record<string, unknown>;
+  readme_url: string;
+  sla_url: string;
+  signature_url: string;
+  fork_url: string;
+  forks_url: string;
+  lineage_url: string;
+  shares_url: string;
+  share_links_url: string;
+  file_name?: string;
+  readme_markdown?: string;
+}
+
+export interface ArtifactPage {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  results: UnifiedArtifact[];
+}
+
+export interface ArtifactLineageRef {
+  asset_type: string;
+  slug: string;
+  name: string;
+  version?: string | null;
+  visibility?: ArtifactVisibility;
+  owner_user_id?: string | null;
+  owner_tenant_id?: string | null;
+  forked_from?: ArtifactForkRef | null;
+  fork_count?: number;
+  created_at?: string | null;
+}
+
+export interface ArtifactLineage {
+  asset: ArtifactLineageRef;
+  ancestors: ArtifactLineageRef[];
+  children: ArtifactLineageRef[];
+  descendants?: ArtifactLineageRef[];
+  permissions?: string[];
+}
+
+export interface ArtifactShare {
+  id: string;
+  asset_type: string;
+  slug: string;
+  grantee_type: "user" | "tenant" | "email";
+  grantee_id: string | null;
+  grantee_email: string | null;
+  permission: "VIEW" | "FORK" | "DEPLOY" | "ADMIN";
+  expires_at: string | null;
+  created_at: string | null;
+}
+
+export interface ArtifactShareLink {
+  id: string;
+  asset_type: string;
+  slug: string;
+  permission: "VIEW" | "FORK" | "DEPLOY";
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  revoked: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+  token?: string;
+  url?: string;
+}
+
+export interface ShareLinkResolution {
+  valid: boolean;
+  link: ArtifactShareLink;
+  asset: UnifiedArtifactDetail;
+  download_url: string;
+}
+
+export interface WorkspaceUploadResult {
+  status: string;
+  asset_type: ArtifactType | string;
+  slug: string;
+  asset_id: string;
+  visibility: ArtifactVisibility;
+  download_url: string;
+  detail: UnifiedArtifactDetail | null;
+}
+
+export interface WorkspaceArtifactQuery {
+  scope?: "private" | "shared" | "public" | "all";
+  type?: ArtifactType | "all";
+  q?: string;
+  industry?: string;
+  page?: number;
+  limit?: number;
+  sort?: "downloads" | "latest" | "name" | "sla";
+}
+
+export interface CreateShareBody {
+  grantee_type: "user" | "tenant" | "email";
+  grantee_id?: string | null;
+  grantee_email?: string | null;
+  permission?: "VIEW" | "FORK" | "DEPLOY" | "ADMIN";
+  expires_at?: string | null;
+}
+
+export interface CreateShareLinkBody {
+  permission?: "VIEW" | "FORK" | "DEPLOY";
+  expires_in_hours?: number | null;
+  expires_at?: string | null;
+  max_uses?: number | null;
+}
+
 /* ---------- Visual Threat Blueprints ---------- */
 export interface BlueprintPosition {
   x: number;
@@ -928,6 +1091,18 @@ export interface BlueprintSummary {
   compiled_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Linked Hub production artifact (compiled `.blueprint`). */
+  compiled_artifact: {
+    asset_type: string;
+    slug: string;
+    version: string | null;
+    visibility: string;
+    download_url: string | null;
+    compiled_at: string | null;
+    sha256: string | null;
+    has_compiled_yaml: boolean;
+  } | null;
+  visibility: string;
 }
 export interface BlueprintDetail extends BlueprintSummary {
   nodes: BlueprintNode[];
@@ -1062,6 +1237,150 @@ export const backend = {
     get<HubPcap[]>("/hub/pcaps", t),
   hubDatasets: (t: string | null) =>
     get<HubDataset[]>("/hub/datasets", t),
+
+  // Universal artifact workspace, forks & sovereign sharing
+  workspaceArtifacts: (t: string | null, params?: WorkspaceArtifactQuery) => {
+    const q = new URLSearchParams();
+    if (params?.scope) q.set("scope", params.scope);
+    if (params?.type && params.type !== "all") q.set("type", params.type);
+    if (params?.q) q.set("q", params.q);
+    if (params?.industry) q.set("industry", params.industry);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.sort) q.set("sort", params.sort);
+    const qs = q.toString();
+    return get<ArtifactPage>(`/workspace/artifacts${qs ? `?${qs}` : ""}`, t);
+  },
+  workspaceArtifact: (t: string | null, assetType: string, slug: string) =>
+    get<UnifiedArtifactDetail>(
+      `/workspace/artifacts/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`,
+      t
+    ),
+  workspaceUpload: (t: string | null, form: FormData) =>
+    api.postForm<WorkspaceUploadResult>("/workspace/artifacts", form, t),
+  workspacePatch: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    body: Partial<{
+      name: string;
+      description: string;
+      readme_markdown: string;
+      manifest: Record<string, unknown>;
+      visibility: ArtifactVisibility;
+    }>
+  ) =>
+    api.patch<UnifiedArtifactDetail>(
+      `/workspace/artifacts/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`,
+      body,
+      t
+    ),
+  workspaceDelete: (t: string | null, assetType: string, slug: string) =>
+    api.delete<{ status: string; asset_type: string; slug: string }>(
+      `/workspace/artifacts/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`,
+      t
+    ),
+  downloadArtifactBlob: (t: string | null, assetType: string, slug: string) =>
+    api.getBlob(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/download`,
+      t
+    ),
+  forkArtifact: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    body?: { new_slug?: string }
+  ) =>
+    api.post<UnifiedArtifactDetail>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/fork`,
+      body ?? {},
+      t
+    ),
+  artifactForks: (t: string | null, assetType: string, slug: string) =>
+    get<{ total: number; results: UnifiedArtifact[] }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/forks`,
+      t
+    ),
+  artifactLineage: (t: string | null, assetType: string, slug: string) =>
+    get<ArtifactLineage>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/lineage`,
+      t
+    ),
+  setArtifactVisibility: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    visibility: ArtifactVisibility
+  ) =>
+    api.put<{
+      asset_type: string;
+      slug: string;
+      visibility: ArtifactVisibility;
+      published_to_hub_at: string | null;
+    }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/visibility`,
+      { visibility },
+      t
+    ),
+  artifactShares: (t: string | null, assetType: string, slug: string) =>
+    get<{ asset_type: string; slug: string; total: number; results: ArtifactShare[] }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/shares`,
+      t
+    ),
+  createArtifactShare: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    body: CreateShareBody
+  ) =>
+    api.post<ArtifactShare>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/shares`,
+      body,
+      t
+    ),
+  deleteArtifactShare: (t: string | null, assetType: string, slug: string, shareId: string) =>
+    api.delete<{ status: string; share_id: string }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/shares/${encodeURIComponent(shareId)}`,
+      t
+    ),
+  artifactShareLinks: (t: string | null, assetType: string, slug: string) =>
+    get<{
+      asset_type: string;
+      slug: string;
+      total: number;
+      results: ArtifactShareLink[];
+    }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/share-links`,
+      t
+    ),
+  createArtifactShareLink: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    body: CreateShareLinkBody
+  ) =>
+    api.post<ArtifactShareLink>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/share-links`,
+      body,
+      t
+    ),
+  revokeArtifactShareLink: (
+    t: string | null,
+    assetType: string,
+    slug: string,
+    linkId: string
+  ) =>
+    api.delete<{ status: string; link_id: string }>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/share-links/${encodeURIComponent(linkId)}`,
+      t
+    ),
+  receivedShares: (t: string | null) =>
+    get<{ total: number; results: (UnifiedArtifact & { shares: ArtifactShare[] })[] }>(
+      "/hub/shares/received",
+      t
+    ),
+  resolveShareLink: (token: string) =>
+    api.get<ShareLinkResolution>(`/hub/shares/links/${encodeURIComponent(token)}`),
 
   // Threats
   threatEvents: (t: string | null) =>

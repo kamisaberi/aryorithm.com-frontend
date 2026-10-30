@@ -54,6 +54,12 @@ export default function HomePage() {
                 >
                   [ Read Academic Preprint (PDF) ]
                 </Link>
+                <a
+                  href="https://app.aryorithm.com/artifacts"
+                  className="rounded-md border border-cyan/30 bg-cyan/5 px-6 py-3.5 font-mono text-[12px] uppercase tracking-[0.1em] text-cyan hover:border-cyan/60 hover:bg-cyan/10"
+                >
+                  [ Artifact Workspace ]
+                </a>
               </div>
               <dl className="mt-8 grid gap-px overflow-hidden rounded-md border border-hairline bg-hairline/50 sm:grid-cols-3">
                 {[

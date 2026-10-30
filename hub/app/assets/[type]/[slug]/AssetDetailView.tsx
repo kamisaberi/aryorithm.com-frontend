@@ -8,17 +8,14 @@ import Markdown from "@/components/hub/Markdown";
 import { HUB_BACKEND_ORIGIN } from "@/lib/api";
 import { bytes, compact } from "@/lib/format";
 import {
-  appliances,
   blueprints,
   hubAssets,
-  type ApplianceDetail,
-  type BlueprintDetail,
   type HubAssetDetail,
-  type HubAssetReadme,
-  type HubAssetSla,
+  type HubAssetLineage,
 } from "@/lib/hub";
+import { dashboardUrl } from "@/lib/session";
 
-type Tab = "overview" | "specs" | "manifest" | "security";
+type Tab = "overview" | "specs" | "manifest" | "security" | "lineage";
 type AssetKind = "package" | "model" | "dataset" | "pcap" | "scenario" | "blueprint" | "appliance";
 
 interface ViewData {
@@ -50,6 +47,14 @@ interface ViewData {
   rawDagUrl?: string;
   fileHealth?: string;
   authoritySignature?: string;
+  visibility: "public" | "private";
+  ownerUserId: string | null;
+  ownerTenantId: string | null;
+  forkedFrom: HubAssetDetail["forked_from"];
+  forkCount: number;
+  orphanedRoot: boolean;
+  permissions: string[];
+  fileName?: string;
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -57,6 +62,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "specs", label: "Specs & Latency SLA" },
   { id: "manifest", label: "Dependencies & Manifest" },
   { id: "security", label: "Security & Provenance" },
+  { id: "lineage", label: "Fork Lineage" },
 ];
 
 const TYPE_ALIASES: Record<string, AssetKind> = {
@@ -135,6 +141,11 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
   const [data, setData] = useState<ViewData | null>(null);
   const [readme, setReadme] = useState("");
   const [rawDag, setRawDag] = useState("");
+  const [lineage, setLineage] = useState<HubAssetLineage | null>(null);
+  const [lineageLoading, setLineageLoading] = useState(false);
+  const [forking, setForking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,116 +164,8 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
     const currentKind = kind;
 
     async function load() {
-      if (currentKind === "blueprint") {
-        const row = await blueprints.detail(slug);
-        const detail = row as BlueprintDetail;
-        if (cancelled) return;
-        const model: ViewData = {
-          kind: "blueprint",
-          name: detail.name,
-          slug: detail.slug,
-          version: detail.version,
-          description: detail.description,
-          author: detail.author,
-          authorPublicKey: detail.author_public_key,
-          industry: detail.industry,
-          targetProtocol: detail.target_site || "site blueprint",
-          targetArchitecture: detail.target_architecture,
-          license: "Site blueprint",
-          downloads: detail.downloads,
-          sizeBytes: detail.file_size_bytes,
-          verified: detail.verified_signature,
-          publishedAt: detail.published_at,
-          latencyDisplay: detail.max_pipeline_latency_us
-            ? `< ${detail.max_pipeline_latency_us} µs`
-            : "—",
-          sha256: detail.sha256,
-          downloadUrl: detail.download_url,
-          compliance: [],
-          manifest: {
-            target_site: detail.target_site,
-            industry: detail.industry,
-            target_architecture: detail.target_architecture,
-            primary_interface: detail.primary_interface,
-            dependencies: detail.dependencies,
-          },
-          benchmark: {
-            max_pipeline_latency_us: detail.max_pipeline_latency_us,
-            primary_interface: detail.primary_interface,
-          },
-          hardwareBinding: detail.hardware_binding,
-          slaGuarantees: detail.sla_guarantees,
-          dependencies: detail.dependencies,
-          rawDagUrl: detail.raw_dag_url,
-        };
-        setData(model);
-        setReadme(
-          `# ${detail.name}\n\n${detail.description || "Signed production-site blueprint."}\n\n` +
-            `**Target site:** ${detail.target_site || "—"}\n\n` +
-            `**Primary interface:** \`${detail.primary_interface}\`\n\n` +
-            `**Architecture:** \`${detail.target_architecture}\``
-        );
-        blueprints
-          .rawDag(slug)
-          .then((dag) => {
-            if (!cancelled) setRawDag(dag);
-          })
-          .catch(() => {
-            /* Raw DAG is optional */
-          });
-        return;
-      }
-
-      if (currentKind === "appliance") {
-        const row = (await appliances.detail(slug)) as ApplianceDetail;
-        if (cancelled) return;
-        setData({
-          kind: "appliance",
-          name: row.title,
-          slug: row.slug,
-          version: row.version,
-          description:
-            "Official, root-signed .aryopack appliance distribution for air-gapped deployment.",
-          author: "Aryorithm Authority",
-          authorPublicKey: "",
-          industry: row.industry,
-          targetProtocol: "appliance image",
-          targetArchitecture: row.architecture,
-          license: row.license_tier,
-          downloads: row.download_count,
-          sizeBytes: row.file_size_bytes,
-          verified: true,
-          publishedAt: row.published_at,
-          latencyDisplay: "—",
-          sha256: row.sha256_checksum,
-          downloadUrl: row.download_url,
-          compliance: [],
-          manifest: {
-            file_name: row.file_name,
-            architecture: row.architecture,
-            industry: row.industry,
-            license_tier: row.license_tier,
-            verified_health_checks: row.verified_health_checks,
-          },
-          benchmark: { verified_health_checks: row.verified_health_checks },
-          hardwareBinding: { architecture: row.architecture },
-          slaGuarantees: {},
-          dependencies: { packages: [], models: [] },
-          fileHealth: row.verified_health_checks,
-          authoritySignature: row.authority_signature,
-        });
-        setReadme(
-          `# ${row.title}\n\nOfficial signed .aryopack appliance distribution. **File:** \`${row.file_name}\`\n\n` +
-            `## Air-gapped bootstrap\n\n1. Transfer the image to the target host using a USB drive.\n2. \`chmod +x ${row.file_name}\`\n3. \`sudo ./${row.file_name}\`\n\n` +
-            `The installer verifies the embedded Aryorithm Authority Root signature before making any system changes. No cloud egress is required.`
-        );
-        return;
-      }
-
       const detail = (await hubAssets.detail(currentKind, slug)) as HubAssetDetail;
-      let readmeDoc: HubAssetReadme | null = null;
-      let slaDoc: HubAssetSla | null = null;
-      [readmeDoc, slaDoc] = await Promise.all([
+      const [readmeDoc, slaDoc] = await Promise.all([
         hubAssets.readme(currentKind, slug).catch(() => null),
         hubAssets.sla(currentKind, slug).catch(() => null),
       ]);
@@ -278,6 +181,12 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
         (manifest.architecture as string | undefined) ||
         (manifest.target_hardware as string | undefined) ||
         "universal";
+      const rawDagUrl =
+        (manifest.raw_dag_url as string | undefined) ||
+        (manifest.model_routes_url as string | undefined) ||
+        (currentKind === "blueprint"
+          ? `/api/v1/hub/blueprints/${encodeURIComponent(slug)}/raw-dag`
+          : undefined);
       setData({
         kind: currentKind,
         name: detail.name,
@@ -303,19 +212,38 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
         benchmark: slaDoc?.benchmark || {},
         hardwareBinding:
           (manifest.hardware_binding as Record<string, unknown> | undefined) || {},
-        slaGuarantees: (manifest.sla_guarantees as Record<string, unknown> | undefined) || {},
+        slaGuarantees:
+          (manifest.sla_guarantees as Record<string, unknown> | undefined) || {},
         dependencies: {
           packages: dependencies.packages || [],
           models: dependencies.models || [],
         },
-        rawDagUrl:
-          (manifest.raw_dag_url as string | undefined) ||
-          (manifest.model_routes_url as string | undefined),
+        rawDagUrl,
+        fileHealth: String(manifest.verified_health_checks || ""),
+        authoritySignature: String(manifest.authority_signature || ""),
+        visibility: detail.visibility || "public",
+        ownerUserId: detail.owner_user_id,
+        ownerTenantId: detail.owner_tenant_id,
+        forkedFrom: detail.forked_from,
+        forkCount: detail.fork_count || 0,
+        orphanedRoot: !!detail.orphaned_root,
+        permissions: detail.permissions || [],
+        fileName: detail.file_name,
       });
       setReadme(
         readmeDoc?.content_markdown ||
           `# ${detail.name}\n\n${detail.description || "No README was published for this asset."}`
       );
+      if (currentKind === "blueprint") {
+        blueprints
+          .rawDag(slug)
+          .then((dag) => {
+            if (!cancelled) setRawDag(dag);
+          })
+          .catch(() => {
+            /* Raw DAG is optional */
+          });
+      }
     }
 
     load().catch((err: unknown) => {
@@ -330,6 +258,47 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
       cancelled = true;
     };
   }, [kind, slug, type]);
+
+  useEffect(() => {
+    if (tab !== "lineage" || !kind) return;
+    let cancelled = false;
+    setLineageLoading(true);
+    hubAssets
+      .lineage(kind, slug)
+      .then((result) => {
+        if (!cancelled) setLineage(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLineage(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLineageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, kind, slug]);
+
+  async function handleFork() {
+    if (!kind || !data) return;
+    setForking(true);
+    setNotice(null);
+    setActionError(null);
+    try {
+      const child = await hubAssets.fork(kind, slug);
+      setNotice(
+        `Forked into your private workspace as “${child.slug}”. The upstream artifact was not changed.`
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "The fork could not be created. Sign in with a member account and retry."
+      );
+    } finally {
+      setForking(false);
+    }
+  }
 
   const downloadHref = useMemo(() => absolute(data?.downloadUrl), [data?.downloadUrl]);
   const signatureHref = useMemo(() => absolute(data?.signatureUrl), [data?.signatureUrl]);
@@ -396,10 +365,15 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="cyan">{data.kind}</Badge>
                 <Badge variant="muted">v{data.version || "—"}</Badge>
+                <Badge variant={data.visibility === "public" ? "cyan" : "muted"}>
+                  {data.visibility === "public" ? "Public" : "Private"}
+                </Badge>
                 <Badge variant={data.verified ? "kernel" : "telemetry"}>
                   {data.verified ? "Ed25519 Verified" : "Signature unverified"}
                 </Badge>
                 {data.kind === "appliance" && <Badge variant="kernel">Authority Root</Badge>}
+                {data.forkedFrom && <Badge variant="telemetry">Forked</Badge>}
+                {data.orphanedRoot && <Badge variant="threat">Orphaned root</Badge>}
               </div>
               <h1 className="mt-3 font-display text-[30px] font-bold leading-tight text-ink lg:text-[38px]">
                 {data.name}
@@ -420,6 +394,22 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
                   ↓ Download Asset
                 </a>
               )}
+              {data.permissions.includes("FORK") && (
+                <button
+                  type="button"
+                  onClick={() => void handleFork()}
+                  className="rounded-md border border-cyan/50 px-5 py-3 text-center font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-cyan transition-colors hover:bg-cyan/10 disabled:opacity-50"
+                  disabled={forking}
+                >
+                  {forking ? "Forking…" : "⑂ Fork to workspace"}
+                </button>
+              )}
+              <a
+                href={dashboardUrl("/artifacts")}
+                className="rounded-md border border-hairline px-5 py-3 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-muted transition-colors hover:border-cyan/40 hover:text-cyan"
+              >
+                Open workspace ↗
+              </a>
               <CopyButton
                 text={cliFor(data.kind, data.slug)}
                 label="Copy CLI command"
@@ -468,6 +458,40 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
           </div>
         </div>
       </section>
+
+      {(notice || actionError || data.forkedFrom) && (
+        <div className="mt-4 space-y-2">
+          {notice && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-kernel/30 bg-kernel/5 px-4 py-3 text-[12px] text-kernel">
+              <span>{notice}</span>
+              <a
+                href={dashboardUrl("/artifacts")}
+                className="font-mono text-[10px] uppercase tracking-[0.1em] underline underline-offset-2"
+              >
+                Open workspace →
+              </a>
+            </div>
+          )}
+          {actionError && (
+            <div className="rounded-md border border-threat/30 bg-threat/5 px-4 py-3 text-[12px] text-threat">
+              {actionError}
+            </div>
+          )}
+          {data.forkedFrom && (
+            <div className="rounded-md border border-cyan/30 bg-cyan/5 px-4 py-3 text-[12px] text-cyan">
+              Forked from{" "}
+              <Link
+                href={`/assets/${data.forkedFrom.asset_type}/${data.forkedFrom.slug}`}
+                className="underline underline-offset-2"
+              >
+                {data.forkedFrom.asset_type}/{data.forkedFrom.slug}
+              </Link>
+              {data.forkedFrom.version ? `:v${data.forkedFrom.version}` : ""}. This copy is privately
+              owned and never mutates its upstream parent.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 overflow-x-auto border-b border-hairline">
         <div className="flex min-w-max gap-1">
@@ -519,6 +543,29 @@ export default function AssetDetailView({ type, slug }: { type: string; slug: st
                   </p>
                 </div>
               )}
+              <div className="rounded-md border border-hairline bg-void/40 p-4">
+                <p className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-muted">
+                  Your access
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {data.permissions.length === 0 ? (
+                    <span className="text-[12px] text-muted">View only</span>
+                  ) : (
+                    data.permissions.map((permission) => (
+                      <Badge key={permission} variant={permission === "ADMIN" ? "kernel" : "muted"}>
+                        {permission}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                  {data.visibility === "public"
+                    ? "Public artifact — authenticated members can fork and deploy."
+                    : data.ownerUserId
+                      ? "Private artifact owned by a member workspace."
+                      : "Private tenant artifact — access is restricted to grants."}
+                </p>
+              </div>
               <div className="rounded-md border border-hairline bg-void/40 p-4">
                 <p className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-muted">
                   File size
@@ -724,6 +771,109 @@ ${data.sha256}`}
                 </pre>
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "lineage" && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-hairline bg-void/40 px-4 py-3">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+                  Fork lineage
+                </p>
+                <p className="mt-1 text-[12.5px] text-ink">
+                  {data.name}{" "}
+                  <span className="font-mono text-[10px] text-muted">
+                    {data.kind}/{data.slug}
+                  </span>
+                </p>
+              </div>
+              <Badge variant="muted">
+                {data.forkCount} downstream fork{data.forkCount === 1 ? "" : "s"}
+              </Badge>
+            </div>
+
+            {lineageLoading ? (
+              <p className="py-8 text-center font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted">
+                Walking fork lineage…
+              </p>
+            ) : !lineage ? (
+              <p className="rounded-md border border-hairline bg-void/40 px-4 py-3 text-[12px] text-muted">
+                Lineage is unavailable for this artifact.
+              </p>
+            ) : (
+              <div className="grid gap-5 lg:grid-cols-2">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+                    Upstream ancestry
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {lineage.ancestors.length === 0 ? (
+                      <p className="rounded-md border border-hairline bg-void/40 px-4 py-3 text-[12px] text-muted">
+                        This is a root artifact. It has no upstream parent.
+                      </p>
+                    ) : (
+                      lineage.ancestors.map((item) => (
+                        <Link
+                          key={`${item.asset_type}-${item.slug}`}
+                          href={`/assets/${item.asset_type}/${item.slug}`}
+                          className="flex items-center gap-2 rounded-md border border-hairline bg-void/40 px-4 py-3 transition-colors hover:border-cyan/40"
+                        >
+                          <span className="font-mono text-[11px] text-cyan">↑</span>
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
+                            {item.name || item.slug}
+                          </span>
+                          <span className="font-mono text-[9.5px] text-muted">
+                            {item.asset_type}/{item.slug}
+                          </span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+                    Downstream forks
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {lineage.children.length === 0 ? (
+                      <p className="rounded-md border border-hairline bg-void/40 px-4 py-3 text-[12px] text-muted">
+                        No one has forked this artifact yet.
+                      </p>
+                    ) : (
+                      lineage.children.map((item) => (
+                        <Link
+                          key={`${item.asset_type}-${item.slug}`}
+                          href={`/assets/${item.asset_type}/${item.slug}`}
+                          className="flex items-center gap-2 rounded-md border border-hairline bg-void/40 px-4 py-3 transition-colors hover:border-cyan/40"
+                        >
+                          <span className="font-mono text-[11px] text-cyan">↓</span>
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
+                            {item.name || item.slug}
+                          </span>
+                          <Badge variant={item.visibility === "public" ? "cyan" : "muted"}>
+                            {item.visibility || "unknown"}
+                          </Badge>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-md border border-hairline bg-void/40 p-4">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+                Fork contract
+              </p>
+              <p className="mt-2 text-[12px] leading-relaxed text-muted">
+                Forks inherit the parent manifest, README and immutable bytes at fork time. A fork
+                becomes an independent private artifact in the destination workspace; deleting or
+                editing it never modifies this parent. If this root is deleted while forks exist,
+                the bytes remain available to descendants and the root is marked{" "}
+                <span className="font-mono text-threat">orphaned_root</span>.
+              </p>
+            </div>
           </div>
         )}
       </section>

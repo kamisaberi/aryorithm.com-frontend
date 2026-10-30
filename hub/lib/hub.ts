@@ -471,17 +471,62 @@ export interface HubAssetListItem {
   description: string;
   industry: string;
   download_url: string;
+  visibility: "public" | "private";
+  owner_user_id: string | null;
+  owner_tenant_id: string | null;
+  forked_from: {
+    asset_type: string;
+    slug: string;
+    version?: string | null;
+    commit_sha256?: string | null;
+  } | null;
+  fork_count: number;
+  orphaned_root: boolean;
+  permissions: string[];
 }
 
 export interface HubAssetDetail extends HubAssetListItem {
   merkle_sha256: string;
   signature_status: string;
   file_size: number;
+  file_name?: string;
   manifest: Record<string, unknown>;
   readme_url: string;
   sla_url: string;
   signature_url: string;
+  fork_url?: string;
+  forks_url?: string;
+  lineage_url?: string;
+  shares_url?: string;
+  share_links_url?: string;
 }
+
+export interface HubAssetLineageRef {
+  asset_type: string;
+  slug: string;
+  name?: string;
+  version?: string | null;
+  visibility?: "public" | "private";
+  owner_user_id?: string | null;
+  owner_tenant_id?: string | null;
+  forked_from?: HubAssetListItem["forked_from"];
+  fork_count?: number;
+  created_at?: string | null;
+}
+
+export interface HubAssetLineage {
+  asset: HubAssetLineageRef;
+  ancestors: HubAssetLineageRef[];
+  children: HubAssetLineageRef[];
+  descendants?: HubAssetLineageRef[];
+  permissions?: string[];
+}
+
+export interface HubAssetForks {
+  total: number;
+  results: HubAssetListItem[];
+}
+
 
 export interface HubAssetSla {
   slug: string;
@@ -527,11 +572,12 @@ export interface HubSearchResult {
 
 export interface HubSearchQuery {
   q?: string;
-  type?: Exclude<HubAssetType, "appliance"> | "all";
+  type?: HubAssetType | "all";
   industry?: string;
   page?: number;
   limit?: number;
   sort?: "downloads" | "latest" | "name" | "sla";
+  scope?: "all" | "public" | "private" | "shared";
 }
 
 export const hubAssets = {
@@ -543,10 +589,14 @@ export const hubAssets = {
     if (params?.page) q.set("page", String(params.page));
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.sort) q.set("sort", params.sort);
+    if (params?.scope) q.set("scope", params.scope);
     const qs = q.toString();
     return api.get<HubSearchResult>(`/hub/search${qs ? `?${qs}` : ""}`);
   },
-  categories: () => api.get<HubCategories>("/hub/categories"),
+  categories: (params?: { scope?: "all" | "public" | "private" | "shared" }) => {
+    const qs = params?.scope ? `?scope=${encodeURIComponent(params.scope)}` : "";
+    return api.get<HubCategories>(`/hub/categories${qs}`);
+  },
   detail: (assetType: string, slug: string) =>
     api.get<HubAssetDetail>(
       `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`
@@ -559,7 +609,21 @@ export const hubAssets = {
     api.get<HubAssetSla>(
       `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/sla`
     ),
+  forks: (assetType: string, slug: string) =>
+    api.get<HubAssetForks>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/forks`
+    ),
+  lineage: (assetType: string, slug: string) =>
+    api.get<HubAssetLineage>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/lineage`
+    ),
+  fork: (assetType: string, slug: string, newSlug?: string) =>
+    api.post<HubAssetDetail>(
+      `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/fork`,
+      newSlug ? { new_slug: newSlug } : {}
+    ),
 };
+
 
 export interface BlueprintDependencies {
   packages: string[];

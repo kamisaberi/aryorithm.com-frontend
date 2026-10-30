@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CommandMenu from "@/components/search/CommandMenu";
 import {
+  dashboardUrl,
   getSession,
   hubLogout,
   isAdminRole,
@@ -133,6 +134,13 @@ export default function Header() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
+            <a
+              href={dashboardUrl("/artifacts")}
+              title="Open your private artifact workspace"
+              className="hidden h-9 items-center rounded-md border border-cyan/40 bg-cyan/5 px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] text-cyan transition-colors hover:bg-cyan/10 md:inline-flex"
+            >
+              Workspace
+            </a>
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
@@ -239,6 +247,13 @@ export default function Header() {
               >
                 Search all assets ⌘K
               </button>
+              <a
+                href={dashboardUrl("/artifacts")}
+                onClick={() => setMobileOpen(false)}
+                className="block rounded-md border border-cyan/40 bg-cyan/5 px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-cyan"
+              >
+                Artifact Workspace
+              </a>
               {session ? (
                 <>
                   <a

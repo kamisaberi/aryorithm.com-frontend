@@ -29,6 +29,11 @@ export const NAV: NavGroup[] = [
       { name: "Research Papers & Preprints", desc: "Preprint Downloads & CERN/Zenodo DOI", to: "/papers" },
     ],
   },
+  {
+    label: "Workspace",
+    match: ["/workspace"],
+    to: "https://app.aryorithm.com/artifacts",
+  },
   { label: "Pricing", match: ["/pricing"], to: "/pricing" },
   {
     label: "Resources",
@@ -112,6 +117,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Support, Access & Legal",
     links: [
+      { label: "Artifact Workspace (7 asset classes)", to: "https://app.aryorithm.com/artifacts" },
       { label: "Customer Enclave Portal", to: "/portal" },
       { label: "Help Desk & Knowledge Base", to: "/help" },
       { label: "Frequently Asked Questions", to: "/faq" },

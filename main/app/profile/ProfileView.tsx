@@ -124,6 +124,12 @@ export default function ProfileView() {
             >
               Extension hub <span className="font-mono text-[11px] text-muted">→ hub.aryorithm.com</span>
             </a>
+            <a
+              href={dashboardUrl("/artifacts")}
+              className="block rounded-md border border-cyan/30 bg-cyan/[0.04] px-4 py-3 text-[13.5px] text-cyan transition-colors hover:border-cyan/60 hover:bg-cyan/[0.08]"
+            >
+              Artifact workspace <span className="font-mono text-[11px] opacity-70">→ 7 asset classes, forks & sharing</span>
+            </a>
             {isAdminRole(session.role) && (
               <a
                 href={dashboardUrl("/settings")}

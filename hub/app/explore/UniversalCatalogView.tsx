@@ -8,11 +8,7 @@ import CopyButton from "@/components/ui/CopyButton";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { compact } from "@/lib/format";
 import {
-  appliances,
-  blueprints,
   hubAssets,
-  type ApplianceRelease,
-  type BlueprintListItem,
   type HubAssetType,
   type HubCategories,
   type HubAssetListItem,
@@ -20,10 +16,9 @@ import {
 
 type CatalogKind = HubAssetType | "all";
 type SortKey = "downloads" | "latest" | "name" | "sla";
+type ScopeKey = "all" | "public" | "private" | "shared";
 
-interface CatalogItem extends HubAssetListItem {
-  target_architecture: string;
-}
+type CatalogItem = HubAssetListItem;
 
 const TYPES: { id: CatalogKind; label: string; icon: string }[] = [
   { id: "all", label: "All Assets", icon: "▦" },
@@ -55,10 +50,11 @@ interface UniversalCatalogViewProps {
   searchPlaceholder?: string;
 }
 
-const ARCHITECTURES = [
-  { id: "x86_64", label: "x86_64 (OpenVINO / Generic)" },
-  { id: "aarch64", label: "aarch64 (Jetson / Rockchip)" },
-  { id: "universal", label: "Universal" },
+const SCOPES: { id: ScopeKey; label: string; hint: string }[] = [
+  { id: "all", label: "All visible", hint: "Public plus your private and shared assets" },
+  { id: "public", label: "Public", hint: "Global hub marketplace" },
+  { id: "private", label: "Private", hint: "Your tenant workspace" },
+  { id: "shared", label: "Shared with me", hint: "Explicit grants" },
 ];
 
 const FALLBACK_INDUSTRIES = [
@@ -132,72 +128,6 @@ function latencyLabel(ns: number): string {
     return `< ${us >= 10 ? us.toFixed(0) : us.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")} µs`;
   }
   return `< ${ns} ns`;
-}
-
-function blueprintToItem(row: BlueprintListItem): CatalogItem {
-  return {
-    id: `blueprint-${row.slug}`,
-    slug: row.slug,
-    name: row.name,
-    asset_type: "blueprint",
-    tier: "blueprint",
-    version: row.version,
-    author: row.author,
-    author_public_key: row.author_public_key,
-    target_protocol: row.target_site || row.industry,
-    latency_sla_ns: Math.round((row.max_pipeline_latency_us || 0) * 1000),
-    downloads: row.downloads,
-    size_bytes: 0,
-    verified_signature: row.verified_signature,
-    compliance: [],
-    published_at: row.published_at,
-    description: row.target_site
-      ? `Production blueprint for ${row.target_site}.`
-      : "Signed production-site pipeline blueprint.",
-    industry: row.industry,
-    download_url: row.download_url,
-    target_architecture: row.target_architecture || "universal",
-  };
-}
-
-function applianceToItem(row: ApplianceRelease): CatalogItem {
-  return {
-    id: `appliance-${row.slug}`,
-    slug: row.slug,
-    name: row.title,
-    asset_type: "appliance",
-    tier: row.license_tier,
-    version: row.version,
-    author: "Aryorithm Authority",
-    author_public_key: "",
-    target_protocol: "aryopack",
-    latency_sla_ns: 0,
-    downloads: 0,
-    size_bytes: row.file_size_bytes,
-    verified_signature: true,
-    compliance: [],
-    published_at: row.published_at,
-    description: `Official, root-signed .aryopack image for ${pretty(row.industry)} and ${pretty(
-      row.architecture
-    )} targets.`,
-    industry: row.industry,
-    download_url: row.download_url,
-    target_architecture: row.architecture,
-  };
-}
-
-function asItem(item: HubAssetListItem): CatalogItem {
-  const manifest = (item as unknown as { manifest?: Record<string, unknown> }).manifest;
-  const raw =
-    (manifest?.target_architecture as string | undefined) ||
-    (manifest?.target_arch as string | undefined) ||
-    (manifest?.architecture as string | undefined) ||
-    (manifest?.target_hardware as string | undefined) ||
-    "";
-  return {
-    ...item,
-    target_architecture: raw ? raw.toLowerCase() : "universal",
-  };
 }
 
 function TypeIcon({ type }: { type: string }) {
@@ -277,9 +207,11 @@ export default function UniversalCatalogView({
   );
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [sort, setSort] = useState<SortKey>((params.get("sort") as SortKey) || "downloads");
+  const [scope, setScope] = useState<ScopeKey>(
+    (params.get("scope") as ScopeKey) || "all"
+  );
   const [industry, setIndustry] = useState(params.get("industry") ?? params.get("sector") ?? "all");
   const [tier, setTier] = useState(params.get("tier") ?? "all");
-  const [architecture, setArchitecture] = useState("all");
   const [compliance, setCompliance] = useState("all");
   const [protocol, setProtocol] = useState("all");
   const [page, setPage] = useState(1);
@@ -301,6 +233,11 @@ export default function UniversalCatalogView({
       );
     }
     setQuery(params.get("q") ?? params.get("search") ?? "");
+    setScope(
+      ["all", "public", "private", "shared"].includes(params.get("scope") ?? "")
+        ? (params.get("scope") as ScopeKey)
+        : "all"
+    );
     setIndustry(params.get("industry") ?? params.get("sector") ?? "all");
     setTier(params.get("tier") ?? "all");
     const nextSort = params.get("sort");
@@ -317,25 +254,16 @@ export default function UniversalCatalogView({
     setError(null);
 
     Promise.all([
-      hubAssets.search({ limit: 100, sort: "downloads" }).catch(() => null),
-      blueprints.list({ limit: 100, sort: "downloads" }).catch(() => null),
-      appliances.list().catch(() => null),
-      hubAssets.categories().catch(() => null),
+      hubAssets.search({ limit: 100, sort: "downloads", scope }).catch(() => null),
+      hubAssets.categories({ scope }).catch(() => null),
     ])
-      .then(([search, blueprintResult, applianceResult, cats]) => {
+      .then(([search, cats]) => {
         if (cancelled) return;
-        const unified = (search?.results || []).map(asItem);
-        const extra = (blueprintResult?.results || []).map(blueprintToItem);
-        const applianceItems = (applianceResult?.releases || []).map(applianceToItem);
-        setItems([...unified, ...extra, ...applianceItems]);
+        setItems((search?.results || []) as CatalogItem[]);
         if (cats) setCategories(cats);
-        const failed = [search, blueprintResult, applianceResult].filter(
-          (result) => result === null
-        ).length;
-        if (failed === 3) {
+        const failed = [search].filter((result) => result === null).length;
+        if (failed === 1) {
           setError("The Hub registry is unreachable.");
-        } else if (failed > 0) {
-          setError("Some registry endpoints are temporarily unavailable; showing partial results.");
         }
       })
       .catch((err: unknown) => {
@@ -349,11 +277,11 @@ export default function UniversalCatalogView({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     setPage(1);
-  }, [kind, query, sort, industry, tier, architecture, compliance, protocol, limit]);
+  }, [kind, query, sort, scope, industry, tier, compliance, protocol, limit]);
 
   const industryValues = useMemo(() => {
     const counts = new Map<string, number>();
@@ -428,13 +356,6 @@ export default function UniversalCatalogView({
           .filter(Boolean);
         if (!needles.some((part) => hay.includes(part))) return false;
       }
-      if (architecture !== "all" && architecture !== "universal") {
-        if (!item.target_architecture.toLowerCase().includes(architecture)) return false;
-      }
-      if (architecture === "universal") {
-        const arch = item.target_architecture.toLowerCase();
-        if (arch && !arch.includes("universal") && arch !== "generic") return false;
-      }
       if (compliance !== "all" && !(item.compliance || []).includes(compliance)) return false;
       if (tier !== "all" && String(item.tier || "").toLowerCase() !== tier) return false;
       if (protocol !== "all" && item.target_protocol !== protocol) return false;
@@ -465,7 +386,7 @@ export default function UniversalCatalogView({
       }
       return b.downloads - a.downloads;
     });
-  }, [items, kind, query, sort, industry, tier, architecture, compliance, protocol]);
+  }, [items, kind, query, sort, industry, tier, compliance, protocol]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
   const currentPage = Math.min(page, totalPages);
@@ -511,12 +432,6 @@ export default function UniversalCatalogView({
             onPick={setTier}
           />
           <FacetGroup
-            title="Target Architecture"
-            values={ARCHITECTURES.map((a) => ({ id: a.id, label: a.label }))}
-            active={architecture}
-            onPick={setArchitecture}
-          />
-          <FacetGroup
             title="Compliance"
             values={complianceValues}
             active={compliance}
@@ -531,6 +446,29 @@ export default function UniversalCatalogView({
         </aside>
 
         <section className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-md border border-hairline bg-panel p-2">
+            <span className="px-1.5 font-mono text-[9.5px] uppercase tracking-[0.16em] text-muted">
+              Scope
+            </span>
+            {SCOPES.map((item) => {
+              const active = scope === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  title={item.hint}
+                  onClick={() => setScope(item.id)}
+                  className={`rounded border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] transition-colors ${
+                    active
+                      ? "border-cyan/50 bg-cyan/10 text-cyan"
+                      : "border-hairline text-muted hover:border-cyan/30 hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
           <div className="rounded-md border border-hairline bg-panel p-3">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
               <label className="relative flex-1">
@@ -631,7 +569,7 @@ export default function UniversalCatalogView({
 
           {error && (
             <div className="mt-4 rounded-md border border-telemetry/30 bg-telemetry/10 px-4 py-3 text-[12.5px] text-telemetry">
-              Live catalog unavailable: {error}. Showing locally known results.
+              Live catalog unavailable: {error}.
             </div>
           )}
 
@@ -652,10 +590,10 @@ export default function UniversalCatalogView({
                     setQuery("");
                     setIndustry("all");
                     setTier("all");
-                    setArchitecture("all");
                     setCompliance("all");
                     setProtocol("all");
                     setKind(fixedType ?? "all");
+                    setScope("all");
                   }}
                   className="mt-4 rounded-md border border-cyan/50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-cyan hover:bg-cyan/10"
                 >
@@ -697,12 +635,16 @@ export default function UniversalCatalogView({
                     <Badge variant={item.verified_signature ? "kernel" : "telemetry"}>
                       {item.verified_signature ? "Ed25519 Verified" : "Unsigned"}
                     </Badge>
-                    {item.industry && <Badge variant="muted">{pretty(item.industry)}</Badge>}
-                    <Badge variant="cyan">
-                      {item.target_architecture === "universal"
-                        ? "Universal"
-                        : pretty(item.target_architecture)}
+                    <Badge variant={item.visibility === "public" ? "cyan" : "muted"}>
+                      {item.visibility === "public" ? "Public" : "Private"}
                     </Badge>
+                    {item.forked_from && <Badge variant="telemetry">Forked</Badge>}
+                    {item.fork_count > 0 && (
+                      <Badge variant="muted">
+                        {item.fork_count} fork{item.fork_count === 1 ? "" : "s"}
+                      </Badge>
+                    )}
+                    {item.industry && <Badge variant="muted">{pretty(item.industry)}</Badge>}
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-2 rounded border border-hairline/70 bg-void/50 px-2 py-1.5">
