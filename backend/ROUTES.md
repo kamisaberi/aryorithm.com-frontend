@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (142 tests — 139 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (144 tests — 141 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -50,7 +50,7 @@ default role `TENANT_ADMIN`, password `password123`); use
 | `POST /api/v1/auth/login` | none | `{email, password}` | `200` tokens; `401` bad credentials, `403` deactivated account |
 | `POST /api/v1/auth/refresh` | none | `{refresh_token?}` (omissible — falls back to the `ary_refresh` SSO cookie) | `200` fresh access token (+ refreshed cookies); `401` unknown/expired/revoked token |
 | `POST /api/v1/auth/logout` | user (Bearer or SSO cookie) | — | revokes **all** refresh tokens of the caller (logout everywhere) + clears SSO cookies |
-| `GET /api/v1/auth/me` | user | — | `{user_id, email, name, role, tenants:[{id,name}]}` |
+| `GET /api/v1/auth/me` | user (Bearer or SSO cookie) | — | `{user_id, email, name, role, tenants:[{id,name}], author_public_key}`; key is normalized 64-char hex or `null` when unenrolled |
 | `GET /api/v1/auth/tenants` | admin | — | all tenants for `super_admin`, else own tenant only |
 | `POST /api/v1/auth/tenants` | admin | `{name, tier: STARTER\|PRO\|ENTERPRISE}` | `201`; `400` bad tier |
 | `POST /api/v1/auth/webauthn/challenge` | none | `{email}` | stub `{challenge, timeout: 60000}` (TODO) |
@@ -369,9 +369,10 @@ Remainder (versions, download, security, star, publish, yank, tokens) in full:
 | `POST /api/v1/plugins/{slug}/star` | user (JWT) | — | star/unstar toggle `{starred, total_stars}` |
 | `POST /api/v1/registry/publish` | JWT or `ApiKey` + `packages:publish` | multipart `package_file!` + `manifest_file!` (splugin.yaml) + `signature_file!` + optional `title/short_description/category/tags/ports/silicon/author_public_key…` | `201` published version; `422` spec-shaped lint/arch/key errors; author key enrolled on first publish |
 | `DELETE /api/v1/registry/{slug}/versions/{version}` | author or admin (JWT or ApiKey) | — | yank: hides from fresh installs, history stays downloadable; `404` unknown |
-| `POST /api/v1/registry/tokens` | user (JWT) | `{name!, scopes=[packages:publish, packages:validate], expires_in_days=365?}` | `201` + raw `api_key` **shown once** (only the hash is stored) |
+| `PUT /api/v1/hub/author/key` | user (JWT or SSO cookie) | `{author_public_key!}` — exactly 64 hex chars | `200 {status:"UPDATED", author_id, author_public_key, updated_at}`; enrolls or rotates the user's Ed25519 key; `422` bad key format |
+| `POST /api/v1/registry/tokens` | user (JWT) | `{name!, scopes=[packages:publish, packages:validate], expires_in_days=365?}` | `201` + raw `api_key` **shown once** (only the hash is stored) plus `scopes`, `expires_at`, `created_at` and the caller's `author_public_key` |
 | `GET /api/v1/registry/tokens` | user (JWT) | — | caller's tokens (secrets never returned) |
-| `GET /api/v1/registry/tokens/validate` | Bearer JWT, Bearer API key or `ApiKey` | — | `200 {valid, token_id, name, key_prefix, scopes, expires_at, revoked, last_used, created_at, user, quota}`; `401` invalid/expired |
+| `GET /api/v1/registry/tokens/validate` | Bearer JWT, Bearer API key or `ApiKey` | — | `200 {valid, token_id, name, key_prefix, scopes, expires_at, author_public_key, revoked, last_used, created_at, user, quota}`; `401` invalid/expired |
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|

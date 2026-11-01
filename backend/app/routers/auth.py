@@ -21,6 +21,7 @@ from app.schemas.auth import (
     WebAuthnChallengeRequest,
     WebAuthnVerifyRequest,
 )
+from app.services.hub_author_keys import author_public_key_for_user
 from app.utils.cookies import clear_auth_cookies, get_cookie_tokens, set_auth_cookies
 from app.utils.security import (
     create_access_token,
@@ -33,7 +34,11 @@ from app.utils.security import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def _user_to_response(user: User, tenant: Tenant | None) -> UserResponse:
+def _user_to_response(
+    user: User,
+    tenant: Tenant | None,
+    author_public_key: str | None = None,
+) -> UserResponse:
     tenants = []
     if tenant is not None:
         tenants = [{"id": tenant.id, "name": tenant.name}]
@@ -43,6 +48,7 @@ def _user_to_response(user: User, tenant: Tenant | None) -> UserResponse:
         name=user.name,
         role=user.role.value if isinstance(user.role, UserRole) else str(user.role),
         tenants=tenants,
+        author_public_key=author_public_key,
     )
 
 
@@ -225,9 +231,10 @@ async def get_current_user_info(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Current authenticated user profile & permissions."""
+    """Current authenticated user profile, permissions & author identity."""
     tenant = await db.get(Tenant, user.tenant_id)
-    return _user_to_response(user, tenant)
+    author_public_key = await author_public_key_for_user(db, user.id)
+    return _user_to_response(user, tenant, author_public_key)
 
 
 @router.get("/tenants", response_model=TenantListResponse)

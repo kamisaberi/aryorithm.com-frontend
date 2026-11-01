@@ -15,6 +15,7 @@ export interface User {
   name: string;
   role: string;
   tenants: TenantRef[];
+  author_public_key?: string | null;
 }
 
 export interface AuthResponse {

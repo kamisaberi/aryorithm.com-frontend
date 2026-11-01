@@ -28,6 +28,7 @@ export interface SiteSession {
   name: string;
   role: string;
   tenants: { id: string; name: string }[];
+  author_public_key?: string | null;
 }
 
 const TOKEN_KEY = "aryorithm_token";

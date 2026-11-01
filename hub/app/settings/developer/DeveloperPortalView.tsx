@@ -28,12 +28,16 @@ interface TokenCreate {
   token_id: string;
   name: string;
   api_key: string;
+  scopes: string[];
+  expires_at: string | null;
+  author_public_key: string | null;
   created_at: string;
 }
 
 interface Validation {
   valid: boolean;
   scopes: string[];
+  author_public_key?: string | null;
   quota: { max_upload_bytes: number; scopes: string[] };
   user: { user_id: string; email: string; name: string; role: string };
 }
@@ -145,7 +149,11 @@ export default function DeveloperPortalView() {
         names.has((row.author || "").toLowerCase())
       );
       setPublicKey(
-        unifiedMatch?.author_public_key || blueprintMatch?.author_public_key || ""
+        me.author_public_key ||
+          validationResult?.author_public_key ||
+          unifiedMatch?.author_public_key ||
+          blueprintMatch?.author_public_key ||
+          ""
       );
     }
 
@@ -209,6 +217,7 @@ export default function DeveloperPortalView() {
         { token }
       );
       setNewSecret(created);
+      if (created.author_public_key) setPublicKey(created.author_public_key);
       setCreateOpen(false);
       setTokenName("");
       setSelectedScopes([...SCOPES]);
@@ -405,7 +414,7 @@ export default function DeveloperPortalView() {
               </Badge>
             </div>
             <code className="mt-2 block break-all font-mono text-[11px] leading-relaxed text-ink">
-              {publicKey || "No public asset has been published with this identity yet. Your key is enrolled automatically on the first signed publish."}
+              {publicKey || "No author key is enrolled yet. Your key is enrolled automatically on the first signed publish, or can be rotated through the author-key API."}
             </code>
             {publicKey && <CopyButton text={publicKey} label="Copy key" className="mt-3" />}
           </div>

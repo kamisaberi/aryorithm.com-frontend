@@ -15,6 +15,7 @@ export interface HubSession {
   email: string;
   name: string;
   role: string;
+  author_public_key?: string | null;
 }
 
 const TOKEN_KEY = "aryorithm_token";

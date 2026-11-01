@@ -43,6 +43,7 @@ class UserResponse(BaseModel):
     name: str
     role: str
     tenants: list[dict] = []
+    author_public_key: str | None = None
 
 
 class TenantCreate(BaseModel):

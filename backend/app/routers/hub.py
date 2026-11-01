@@ -33,6 +33,8 @@ from app.models.hub import HubApiToken, HubAuthor, HubPlugin, HubPluginVersion, 
 from app.models.user import User
 from app.schemas.hub import (
     AirgapBundleRequest,
+    AuthorKeyOut,
+    AuthorKeyUpdate,
     CheckUpdatesOut,
     CheckUpdatesRequest,
     FacetsOut,
@@ -65,10 +67,12 @@ from app.schemas.hub import (
     YankRequest,
     PaginatedPluginsOut,
 )
+from app.services import hub_author_keys as author_keys
 from app.services import hub_service as hub
 
 plugins_router = APIRouter(prefix="/plugins", tags=["Hub — Catalog"])
 registry_router = APIRouter(prefix="/registry", tags=["Hub — Registry"])
+author_router = APIRouter(prefix="/hub/author", tags=["Hub — Author Identity"])
 sync_router = APIRouter(prefix="/sync", tags=["Hub — Sync"])
 telemetry_router = APIRouter(prefix="/telemetry", tags=["Hub — Telemetry"])
 packages_router = APIRouter(prefix="/hub/packages", tags=["Hub — Sentinel Packages"])
@@ -309,6 +313,29 @@ async def _author_for_identity(db: AsyncSession, ident: HubIdentity) -> HubAutho
     db.add(row)
     await db.flush()
     return row
+
+
+@author_router.put("/key", response_model=AuthorKeyOut)
+async def enroll_author_public_key(
+    body: AuthorKeyUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enroll or rotate the signed-in user's Ed25519 author public key.
+
+    The key is the 32-byte Ed25519 public key as 64 hex characters.  Existing
+    authors keep their author id and published assets; only future signature
+    verification uses the new key.
+    """
+    author = await _author_for_identity(db, HubIdentity(user=user, token=None))
+    author.public_key = body.author_public_key.lower()
+    await db.flush()
+    return AuthorKeyOut(
+        status="UPDATED",
+        author_id=author.id,
+        author_public_key=author.public_key,
+        updated_at=hub.to_zulu(datetime.now(timezone.utc)),
+    )
 
 
 def _artifact_bytes(plugin: HubPlugin, row: HubPluginVersion) -> bytes:
@@ -901,12 +928,22 @@ async def create_cli_token(
         row.token_id = hub.new_token_id()
     db.add(row)
     await db.flush()
-    return TokenCreateOut(token_id=row.token_id, name=row.name, api_key=raw, created_at=hub.to_zulu(row.created_at))
+    author_public_key = await author_keys.author_public_key_for_user(db, user.id)
+    return TokenCreateOut(
+        token_id=row.token_id,
+        name=row.name,
+        api_key=raw,
+        scopes=list(row.scopes or []),
+        expires_at=hub.to_zulu(row.expires_at) if row.expires_at else None,
+        author_public_key=author_public_key,
+        created_at=hub.to_zulu(row.created_at),
+    )
 
 
 @registry_router.get("/tokens/validate")
 async def validate_cli_token(
     ident: HubIdentity = Depends(get_token_validation_identity),
+    db: AsyncSession = Depends(get_db),
 ):
     """Verify the presented CLI token / JWT and return its quota envelope.
 
@@ -915,6 +952,7 @@ async def validate_cli_token(
     a normal Bearer JWT.
     """
     token = ident.token
+    author_public_key = await author_keys.author_public_key_for_user(db, ident.user.id)
     return {
         "valid": True,
         "token_id": token.token_id if token else None,
@@ -922,6 +960,7 @@ async def validate_cli_token(
         "key_prefix": token.key_prefix if token else "",
         "scopes": list(token.scopes or []) if token else [],
         "expires_at": hub.to_zulu(token.expires_at) if token and token.expires_at else None,
+        "author_public_key": author_public_key,
         "revoked": bool(token.revoked) if token else False,
         "last_used": hub.to_zulu(token.last_used) if token and token.last_used else None,
         "created_at": hub.to_zulu(token.created_at) if token and token.created_at else None,

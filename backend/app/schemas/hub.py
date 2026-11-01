@@ -164,6 +164,9 @@ class TokenCreateOut(BaseModel):
     token_id: str
     name: str
     api_key: str = Field(description="Full key — shown once, never again")
+    scopes: list[str] = []
+    expires_at: str | None = None
+    author_public_key: str | None = None
     created_at: str
 
 
@@ -178,6 +181,20 @@ class TokenOut(BaseModel):
     revoked: bool = False
     last_used: str | None = None
     created_at: str | None = None
+
+
+class AuthorKeyUpdate(BaseModel):
+    author_public_key: str = Field(
+        pattern=r"^[0-9a-fA-F]{64}$",
+        description="32-byte Ed25519 public key as 64 hexadecimal characters",
+    )
+
+
+class AuthorKeyOut(BaseModel):
+    status: str = "UPDATED"
+    author_id: str
+    author_public_key: str
+    updated_at: str
 
 
 # ---------------------------------------------------------------------------
