@@ -44,7 +44,8 @@ const TYPES: {
 const TYPE_BY_ID = new Map(TYPES.map((item) => [item.id, item]));
 
 const SCOPES: { id: Scope; label: string; hint: string }[] = [
-  { id: "private", label: "My Workspace", hint: "Tenant-owned private assets" },
+  { id: "owned", label: "My Artifacts", hint: "Artifacts you uploaded" },
+  { id: "private", label: "Tenant Workspace", hint: "Tenant-owned private assets" },
   { id: "shared", label: "Shared with Me", hint: "Explicit user / tenant grants" },
   { id: "public", label: "Public Hub", hint: "Published marketplace assets" },
   { id: "all", label: "All Visible", hint: "Everything you can access" },
@@ -263,7 +264,7 @@ function Field({
 const inputClass =
   "mt-1.5 w-full rounded-md border border-hairline bg-void px-3 py-2 text-[12.5px] text-ink placeholder:text-muted/50 focus:border-cyan/60 focus:outline-none";
 
-const HUB_SCOPE_ORDER: Scope[] = ["all", "public", "private", "shared"];
+const HUB_SCOPE_ORDER: Scope[] = ["all", "public", "owned", "private", "shared"];
 
 interface ArtifactsExplorerProps {
   /** Initial discovery scope. Workspace defaults to private; Hub discovery defaults to all. */
@@ -519,15 +520,29 @@ export default function ArtifactsExplorer({
       )
     : SCOPES;
 
+  const activeScope = SCOPES.find((item) => item.id === scope);
+  const workspaceTitle =
+    scope === "owned"
+      ? "My Artifacts"
+      : scope === "shared"
+        ? "Shared with Me"
+        : "Artifact Workspace";
+  const workspaceDescription =
+    scope === "owned"
+      ? "Every artifact you uploaded — inspect, download, fork, share, update visibility or remove it from your workspace."
+      : scope === "shared"
+        ? "Artifacts other members and tenants explicitly shared with you, including direct grants and expiring links."
+        : "Seven artifact classes, one sovereign control plane — inspect, fork, share and publish without leaving your tenant.";
+  const pageTitle = hubMode ? "Artifact Hub" : workspaceTitle;
+  const pageDescription = hubMode
+    ? "Search every authorized artifact, inspect provenance, download, fork and share — the Hub discovery experience inside your dashboard."
+    : workspaceDescription;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title={hubMode ? "Artifact Hub" : "Artifact Workspace"}
-        description={
-          hubMode
-            ? "Search every authorized artifact, inspect provenance, download, fork and share — the Hub discovery experience inside your dashboard."
-            : "Seven artifact classes, one sovereign control plane — inspect, fork, share and publish without leaving your tenant."
-        }
+        title={pageTitle}
+        description={pageDescription}
         breadcrumbs={
           hubMode
             ? [
@@ -536,13 +551,13 @@ export default function ArtifactsExplorer({
               ]
             : [
                 { label: "AI & Sentinel-Hub", href: "/hub/store" },
-                { label: "Artifacts" },
+                { label: workspaceTitle },
               ]
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="cyan">
-              {hubMode ? "Hub search & actions" : "7 artifact types"}
+              {hubMode ? "Hub search & actions" : `${activeScope?.label ?? "Workspace"} · 7 types`}
             </Badge>
             <Button onClick={() => setUploadOpen(true)}>↑ Upload artifact</Button>
           </div>
@@ -759,8 +774,12 @@ export default function ArtifactsExplorer({
           onClose={() => setUploadOpen(false)}
           onUploaded={async (detail) => {
             setUploadOpen(false);
-            setNotice(`Uploaded ${detail.slug} to your private workspace.`);
-            setScope("private");
+            setNotice(
+              detail.visibility === "public"
+                ? `Published ${detail.slug} to the public Hub.`
+                : `Uploaded ${detail.slug} to your workspace.`
+            );
+            setScope(detail.visibility === "public" ? "public" : "owned");
             await refreshList();
             await openDetail(detail.asset_type, detail.slug);
           }}
@@ -1129,7 +1148,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   );
 }
 
-function UploadModal({
+export function UploadModal({
   token,
   isSuperAdmin,
   onClose,
@@ -1168,7 +1187,10 @@ function UploadModal({
   };
 
   const submit = async () => {
-    if (!token) return;
+    if (!token) {
+      setError("Sign in to upload artifacts.");
+      return;
+    }
     setError(null);
     if (!file) {
       setError("Choose a file to upload.");

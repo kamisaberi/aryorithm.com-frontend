@@ -1035,7 +1035,7 @@ export interface WorkspaceUploadResult {
 }
 
 export interface WorkspaceArtifactQuery {
-  scope?: "private" | "shared" | "public" | "all";
+  scope?: "owned" | "private" | "shared" | "public" | "all";
   type?: ArtifactType | "all";
   q?: string;
   industry?: string;

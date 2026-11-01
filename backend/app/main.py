@@ -24,6 +24,7 @@ from app.routers import auth, fleet, threats, ai, compliance, dfir, range as ran
 from app.routers import forge as forge_router, hub_assets as hub_assets_router, telemetry as telemetry_router
 from app.routers import hub_blueprints as hub_blueprints_router, hub_appliances as hub_appliances_router
 from app.routers import workspace_artifacts as workspace_artifacts_router
+from app.routers import member_artifacts as member_artifacts_router
 
 
 @asynccontextmanager
@@ -128,6 +129,7 @@ app.include_router(hub_router.scenarios_router, prefix="/api/v1")
 app.include_router(hub_assets_router.router, prefix="/api/v1")
 app.include_router(hub_assets_router.legacy_download_router, prefix="/api/v1")
 app.include_router(workspace_artifacts_router.router, prefix="/api/v1")
+app.include_router(member_artifacts_router.router, prefix="/api/v1")
 app.include_router(hub_blueprints_router.router, prefix="/api/v1")
 app.include_router(hub_appliances_router.router, prefix="/api/v1")
 app.include_router(telemetry_router.router, prefix="/api/v1")

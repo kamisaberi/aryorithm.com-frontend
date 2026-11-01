@@ -134,6 +134,13 @@ export default function Header() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
+            <Link
+              href="/upload"
+              title="Upload an artifact with your member session"
+              className="hidden h-9 items-center rounded-md border border-kernel/40 bg-kernel/5 px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] text-kernel transition-colors hover:bg-kernel/10 md:inline-flex"
+            >
+              ↑ Upload
+            </Link>
             <a
               href={dashboardUrl("/artifacts")}
               title="Open your private artifact workspace"
@@ -247,6 +254,13 @@ export default function Header() {
               >
                 Search all assets ⌘K
               </button>
+              <Link
+                href="/upload"
+                onClick={() => setMobileOpen(false)}
+                className="block rounded-md border border-kernel/40 bg-kernel/[0.06] px-4 py-2.5 text-center font-mono text-[11px] uppercase tracking-[0.1em] text-kernel"
+              >
+                ↑ Upload Artifact
+              </Link>
               <a
                 href={dashboardUrl("/artifacts")}
                 onClick={() => setMobileOpen(false)}

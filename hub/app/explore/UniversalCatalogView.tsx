@@ -16,7 +16,7 @@ import {
 
 type CatalogKind = HubAssetType | "all";
 type SortKey = "downloads" | "latest" | "name" | "sla";
-type ScopeKey = "all" | "public" | "private" | "shared";
+type ScopeKey = "all" | "public" | "private" | "shared" | "owned";
 
 type CatalogItem = HubAssetListItem;
 
@@ -53,6 +53,7 @@ interface UniversalCatalogViewProps {
 const SCOPES: { id: ScopeKey; label: string; hint: string }[] = [
   { id: "all", label: "All visible", hint: "Public plus your private and shared assets" },
   { id: "public", label: "Public", hint: "Global hub marketplace" },
+  { id: "owned", label: "My artifacts", hint: "Artifacts you uploaded" },
   { id: "private", label: "Private", hint: "Your tenant workspace" },
   { id: "shared", label: "Shared with me", hint: "Explicit grants" },
 ];
@@ -234,7 +235,7 @@ export default function UniversalCatalogView({
     }
     setQuery(params.get("q") ?? params.get("search") ?? "");
     setScope(
-      ["all", "public", "private", "shared"].includes(params.get("scope") ?? "")
+      ["all", "public", "private", "shared", "owned"].includes(params.get("scope") ?? "")
         ? (params.get("scope") as ScopeKey)
         : "all"
     );

@@ -41,7 +41,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     group: "AI & Sentinel-Hub",
     items: [
       { title: "Artifact Hub & Search", url: "/hub/explore", icon: "⌕", badge: "HUB", highlight: true },
-      { title: "Artifact Workspace", url: "/artifacts", icon: "⬒", badge: "7×", highlight: "green" },
+      { title: "My Artifacts", url: "/artifacts/mine", icon: "▤", highlight: "green" },
+      { title: "Shared with Me", url: "/artifacts/shared", icon: "⇄" },
+      { title: "Upload Artifact", url: "/artifacts/upload", icon: "⇧", badge: "NEW", highlight: "green" },
+      { title: "Artifact Workspace", url: "/artifacts", icon: "⬒", badge: "7×" },
       { title: "OTA Canary Rollout", url: "/ai/ota", icon: "⇪", badge: "OTA", highlight: "green" },
       { title: "Model Repository & Forge", url: "/model-hub", icon: "⬡" },
       { title: "Silicon Compiler & TRiSM", url: "/ai/silicon-compiler", icon: "⟨⟩" },

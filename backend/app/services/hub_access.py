@@ -14,7 +14,7 @@ from sqlalchemy import or_, select
 from app.models.hub_shares import HubAssetShare
 
 PERMISSIONS = ("VIEW", "FORK", "DEPLOY", "ADMIN")
-SCOPES = ("all", "public", "private", "shared")
+SCOPES = ("all", "public", "private", "shared", "owned")
 _PERMISSION_IMPLIES = {
     "VIEW": {"VIEW"},
     "FORK": {"VIEW", "FORK"},
@@ -182,6 +182,8 @@ def decorate_views(views, user, share_map) -> None:
 
 def visible_in_scope(view, user, scope: str, shares: list | None = None) -> bool:
     scope = (scope or "all").lower()
+    if scope == "owned":
+        return bool(user) and owner_user_id(view) == user.id
     if user is None:
         return visibility_of(view) == "public" and scope in ("all", "public")
     if is_super_admin(user):

@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (132 tests — 129 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (142 tests — 139 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -28,6 +28,7 @@ cd backend
 | Admin | Same JWT, but `role` ∈ `super_admin`, `tenant_admin`, `admin` → else `403` | Write/admin routes |
 | Nexus API key | `X-API-Key: <NEXUS_API_KEY>` (default `ary_dev_secret_key_8000`) | Edge polling: `fleet/sync`, `threats/global-feed`, `threats/vaccines/share`, `threats/vaccines/feed`, `ai/trism/evaluate`, `bot/evaluate`, `tenants/*/commands/pending` |
 | Hub CLI token | `Authorization: ApiKey <key>` (from `POST /registry/tokens`) | Hub publishing only |
+| Member artifact upload | `Authorization: Bearer <jwt>` **or** shared SSO cookie | `/member/artifacts` and `/workspace/artifacts`; no developer token, CLI key or author signature required |
 | Tenant header | `X-Tenant-ID` — **required** on `GET /models*` (value itself is ignored; scoping comes from the JWT), optional elsewhere | `models`, `fleet/sync`, `threats/global-feed`, `ai/trism`, `tenants` |
 
 Error shape (repo convention): `{"detail": "..."}` for 4xx/5xx, and
@@ -473,6 +474,22 @@ Read model over the existing five catalogs (`package`, `model`, `dataset`, `pcap
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/download` | none | — | `200 application/octet-stream` + `ETag`, `X-Checksum-SHA256`, `X-Ed25519-Signature`, `X-Ed25519-Public-Key`, `Content-Disposition`; increments the type-specific counter |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/signature` | none | — | `200` standalone 64-byte Ed25519 signature + public-key/signature headers; `404` when no signature is recorded |
 | `DELETE /api/v1/hub/assets/{asset_type}/{slug}` | Bearer JWT/API key (owner or admin) | — | `200 {status:"revoked", asset_type, slug}`; developer-published assets are deleted from catalog + disk; seeded/authority assets are yanked (hidden from unified routes, legacy history preserved) |
+
+#### Member session uploads & owned/shared views
+
+Dashboard and Hub upload pages use the normal signed-in member session. The
+developer-token publish chain above remains available and unchanged.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/member/artifacts` | JWT or SSO cookie | `?scope=owned\|shared\|all\|public\|private&type=all&q=&industry=&page=1&limit=20&sort=latest` | Same pagination envelope as the catalog; `owned` means assets uploaded by the calling user, `shared` means explicit grants to that user/tenant/email |
+| `POST /api/v1/member/artifacts` | JWT or SSO cookie | multipart `asset_type!`, `file!`, `manifest!`, optional `signature`, `visibility=private` | `201` workspace upload result (`status`, `asset_type`, `slug`, `asset_id`, `visibility`, `download_url`, `detail`); browser uploads are server-signed when `signature` is omitted; `403` only for non-super-admin appliance uploads |
+| `GET /api/v1/member/artifacts/{asset_type}/{slug}` | JWT or SSO cookie | — | Full artifact detail visible to the caller |
+
+The existing dashboard workspace routes remain at
+`GET/POST/PATCH/DELETE /api/v1/workspace/artifacts`; both surfaces share the
+same upload pipeline and authorization rules. Tests:
+`tests/test_member_artifacts.py`, `tests/test_workspace_artifacts.py`.
 
 Signatures for seeded stand-ins are generated lazily with a deployment key derived from `SECRET_KEY`; developer publications persist the uploaded author signature and public key in `hub_asset_meta`. Tests: `tests/test_hub_assets_api.py`.
 

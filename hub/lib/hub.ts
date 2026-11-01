@@ -577,7 +577,7 @@ export interface HubSearchQuery {
   page?: number;
   limit?: number;
   sort?: "downloads" | "latest" | "name" | "sla";
-  scope?: "all" | "public" | "private" | "shared";
+  scope?: "all" | "public" | "private" | "shared" | "owned";
 }
 
 export const hubAssets = {
@@ -593,7 +593,7 @@ export const hubAssets = {
     const qs = q.toString();
     return api.get<HubSearchResult>(`/hub/search${qs ? `?${qs}` : ""}`);
   },
-  categories: (params?: { scope?: "all" | "public" | "private" | "shared" }) => {
+  categories: (params?: { scope?: "all" | "public" | "private" | "shared" | "owned" }) => {
     const qs = params?.scope ? `?scope=${encodeURIComponent(params.scope)}` : "";
     return api.get<HubCategories>(`/hub/categories${qs}`);
   },
@@ -621,6 +621,59 @@ export const hubAssets = {
     api.post<HubAssetDetail>(
       `/hub/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}/fork`,
       newSlug ? { new_slug: newSlug } : {}
+    ),
+};
+
+/* ==========================================================================
+   Logged-in member artifact workspace (no developer token)
+   ========================================================================== */
+
+export interface MemberArtifactQuery {
+  q?: string;
+  type?: HubAssetType | "all";
+  industry?: string;
+  page?: number;
+  limit?: number;
+  sort?: "downloads" | "latest" | "name" | "sla";
+  scope?: "owned" | "shared" | "all" | "public" | "private";
+}
+
+export interface MemberUploadResult {
+  status: string;
+  asset_type: HubAssetType | string;
+  slug: string;
+  asset_id: string;
+  visibility: "public" | "private";
+  download_url: string;
+  detail: HubAssetDetail | null;
+}
+
+export const memberArtifacts = {
+  list: (params?: MemberArtifactQuery, token?: string | null) => {
+    const q = new URLSearchParams();
+    if (params?.q) q.set("q", params.q);
+    if (params?.type && params.type !== "all") q.set("type", params.type);
+    if (params?.industry) q.set("industry", params.industry);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.sort) q.set("sort", params.sort);
+    if (params?.scope) q.set("scope", params.scope);
+    const qs = q.toString();
+    return api.get<HubSearchResult>(
+      `/member/artifacts${qs ? `?${qs}` : ""}`,
+      token ? { token } : undefined
+    );
+  },
+  upload: (form: FormData, token?: string | null) =>
+    api.postForm<MemberUploadResult>(
+      "/member/artifacts",
+      form,
+      token ? { token } : undefined
+    ),
+  detail: (assetType: string, slug: string, token?: string | null) =>
+    api.get<HubAssetDetail>(
+      `/member/artifacts/${encodeURIComponent(assetType)}/${encodeURIComponent(slug)}`,
+      token ? { token } : undefined
     ),
 };
 
