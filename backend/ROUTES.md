@@ -36,6 +36,23 @@ Error shape (repo convention): `{"detail": "..."}` for 4xx/5xx, and
 Hub registry validation errors instead use the RFC-7807 shape from its spec
 (`error_code` / `message` / `details[]` / `timestamp_ns`).
 
+### 1a. System & generated routes (non-`/api/v1`)
+
+These are mounted directly on the ASGI app and intentionally sit outside the
+`/api/v1` prefix. The installer page is also documented in section 15.
+
+| Method & Path | Auth | Response / Notes |
+|---|---|---|
+| `GET /` | none | `{app, version:"1.0.0", docs:"/docs"}` service banner |
+| `GET /health` | none | `{status:"healthy", app, env}` liveness probe |
+| `GET /install` | none | first-run installer HTML page; `{detail:"installer page missing"}` if the static file is absent |
+| `GET /v1/models` | none | OpenAI-compatible probe stub: `{object:"list", data:[]}` |
+| `GET /v1/models/` | none | trailing-slash alias of the same probe stub |
+| `GET /docs` | none | Swagger UI |
+| `GET /docs/oauth2-redirect` | none | Swagger OAuth2 redirect helper |
+| `GET /redoc` | none | ReDoc UI |
+| `GET /openapi.json` | none | generated OpenAPI schema |
+
 Test users are created directly in the test DB (`tests/conftest.py::make_user`,
 default role `TENANT_ADMIN`, password `password123`); use
 `role=UserRole.SECOPS_ANALYST` for 403-cases.
@@ -115,12 +132,12 @@ and simulates the sub-50 ms sentinel-nexus gRPC broadcast.
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
 | `GET /api/v1/blueprints` | user | — | tenant blueprint metadata list (`node_count`, `edge_count`, `status`, `last_deployed_at`); no graph payload |
-| `GET /api/v1/blueprints/{id}` | user | — | full `nodes` + `edges` + compiled YAML; `404` unknown/other tenant |
+| `GET /api/v1/blueprints/{blueprint_id}` | user | — | full `nodes` + `edges` + compiled YAML; `404` unknown/other tenant |
 | `POST /api/v1/blueprints` | admin | sample graph: `{blueprint_id?, name!, description, target_sites[], nodes[], edges[]}` | `201` new / `200` update; id omitted → `bp_<random>`; saving resets status to `DRAFT` and clears compiled YAML; `400` blank name |
-| `DELETE /api/v1/blueprints/{id}` | admin | — | `{status:"DELETED", blueprint_id}`; `404` unknown/other tenant |
-| `GET /api/v1/blueprints/node-catalog` | user | — | 16 palette entries in 5 stages + 5 socket types, defaults and latency SLA hints; declared before `/{id}` |
-| `POST /api/v1/blueprints/{id}/compile` | admin | — | validates required inputs, ports, socket compatibility and cycles; `200 {status:"VALIDATED", valid:true, compiled_yaml, estimated_latency_ns}`; `400 detail={status:"INVALID_GRAPH", errors[], warnings[]}` |
-| `POST /api/v1/blueprints/{id}/deploy` | admin | — | auto-compiles, marks `DEPLOYED`; `200 {status:"DEPLOYED", target_sites, nodes_targeted, broadcast_latency_ms<50, grpc_status, fleet_health, config_sha256}`; `400` invalid graph |
+| `DELETE /api/v1/blueprints/{blueprint_id}` | admin | — | `{status:"DELETED", blueprint_id}`; `404` unknown/other tenant |
+| `GET /api/v1/blueprints/node-catalog` | user | — | 16 palette entries in 5 stages + 5 socket types, defaults and latency SLA hints; declared before `/{blueprint_id}` |
+| `POST /api/v1/blueprints/{blueprint_id}/compile` | admin | — | validates required inputs, ports, socket compatibility and cycles; `200 {status:"VALIDATED", valid:true, compiled_yaml, estimated_latency_ns}`; `400 detail={status:"INVALID_GRAPH", errors[], warnings[]}` |
+| `POST /api/v1/blueprints/{blueprint_id}/deploy` | admin | — | auto-compiles, marks `DEPLOYED`; `200 {status:"DEPLOYED", target_sites, nodes_targeted, broadcast_latency_ms<50, grpc_status, fleet_health, config_sha256}`; `400` invalid graph |
 
 Socket compatibility: `PACKET_STREAM→PACKET_STREAM`, `FEATURE_TENSOR→{FEATURE_TENSOR,PASS}`,
 `PASS→{PASS,FEATURE_TENSOR,PACKET_STREAM}`, `MITIGATION→MITIGATION`,
@@ -227,10 +244,10 @@ Tests: `tests/test_dfir.py` (real zip with macro stripped, credential finding, f
 | `GET /api/v1/range/blueprints` | user | — | 4 blueprints (substation/hospital/refinery/maritime) |
 | `GET /api/v1/range/instances` | user | — | live tenant instances (non-terminated); `INITIALIZING` rows flip to `RUNNING` on read |
 | `POST /api/v1/range/instances/provision` | admin | `{blueprint_id!, enclave_name="", duration_hours=2.0, traffic_profile=…}` | `202`; `400` unknown blueprint; IP `10.240.0.x` |
-| `POST /api/v1/range/instances/{id}/pause` | admin | — | `PAUSED`; `404` if missing/terminated |
-| `POST /api/v1/range/instances/{id}/resume` | admin | — | `RUNNING`; `404` unless currently `PAUSED` |
+| `POST /api/v1/range/instances/{instance_id}/pause` | admin | — | `PAUSED`; `404` if missing/terminated |
+| `POST /api/v1/range/instances/{instance_id}/resume` | admin | — | `RUNNING`; `404` unless currently `PAUSED` |
 | `GET /api/v1/range/resilience/history` | user | — | `[{score, evaluated_at}]` chronological (bench/score/certify append here) |
-| `DELETE /api/v1/range/instances/{id}` | admin | — | marks `TERMINATED` (row kept); `404` unknown |
+| `DELETE /api/v1/range/instances/{instance_id}` | admin | — | marks `TERMINATED` (row kept); `404` unknown |
 | `GET /api/v1/range/resilience/bench` | user | — | score/tier/metrics from live node latencies + appends history |
 | `POST /api/v1/range/resilience/certify` | admin | — | `resilience_certificate.pdf` download (appends history) |
 | `GET /api/v1/range/lab-bench` | user | — | `sentinel_lab` suite: exactly 14 metrics over EVT/PMU/CBF/HIL/PQC + `passed`/`overall_score` |
@@ -460,21 +477,41 @@ curl -s $BASE/api/v1/hub/publish -H "Authorization: Bearer $API_KEY" \
 >
 > This exact chain is locked by `tests/test_hub_publish.py::test_client_publish_token_chain`.
 
-### 14b-iii. Unified five-type asset API — `app/routers/hub_assets.py` (`/api/v1/hub`)
+### 14b-iii. Unified seven-type asset API — `app/routers/hub_assets.py` (`/api/v1/hub`)
 
-Read model over the existing five catalogs (`package`, `model`, `dataset`, `pcap`, `scenario`); no legacy table/route was changed.
+Read model over the existing seven catalogs (`package`, `model`, `dataset`, `pcap`, `scenario`, `blueprint`, `appliance`); no legacy table/route was changed.
 
 | Method & Path | Auth | Request | Response / Notes |
 |---|---|---|---|
-| `GET /api/v1/hub/catalog` | none | `?type=all&industry=&page=1&limit=20&sort=downloads` | `200 {total, page, limit, total_pages, results[]}`; `type` accepts singular/plural or `all`; `sort` is `downloads\|latest\|name\|sla`; `400` unknown type/sort |
-| `GET /api/v1/hub/search` | none | `?q=&type=all&industry=&page=1&limit=20&sort=downloads` | same pagination envelope; fuzzy keyword match over slug/name/description/manifest, plus optional type/industry filters |
-| `GET /api/v1/hub/categories` | none | — | `200 {total, asset_types[], categories[], industries[], compliance[], target_protocols[]}` with counts |
+| `GET /api/v1/hub/catalog` | none or JWT/cookie (`scope`) | `?type=all&industry=&scope=all&page=1&limit=20&sort=downloads` | `200 {total, page, limit, total_pages, results[]}`; `type` accepts singular/plural or `all`; `scope` is `all\|public\|private\|shared\|owned`; `sort` is `downloads\|latest\|name\|sla`; `400` unknown type/scope/sort |
+| `GET /api/v1/hub/search` | none or JWT/cookie (`scope`) | `?q=&type=all&industry=&scope=all&page=1&limit=20&sort=downloads` | same pagination envelope; fuzzy keyword match over slug/name/description/manifest, plus optional type/industry/scope filters |
+| `GET /api/v1/hub/categories` | none or JWT/cookie (`scope`) | `?scope=all` | `200 {total, asset_types[], categories[], industries[], compliance[], target_protocols[]}` with counts; `400` unknown scope |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}` | none | — | `200` full metadata + `merkle_sha256`, `signature_status`, `file_size`, `manifest`, `download_url`, `readme_url`, `sla_url`, `signature_url`; `400` bad type; `404` unknown/yanked |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/sla` | none | — | `200 {verified, latency_sla_ns, latency_display, compliance[], benchmark{}, published_at}` |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/readme` | none | `?raw=false` | `200` JSON `{content_markdown,…}`; `raw=true` returns `text/markdown` |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/download` | none | — | `200 application/octet-stream` + `ETag`, `X-Checksum-SHA256`, `X-Ed25519-Signature`, `X-Ed25519-Public-Key`, `Content-Disposition`; increments the type-specific counter |
 | `GET /api/v1/hub/assets/{asset_type}/{slug}/signature` | none | — | `200` standalone 64-byte Ed25519 signature + public-key/signature headers; `404` when no signature is recorded |
 | `DELETE /api/v1/hub/assets/{asset_type}/{slug}` | Bearer JWT/API key (owner or admin) | — | `200 {status:"revoked", asset_type, slug}`; developer-published assets are deleted from catalog + disk; seeded/authority assets are yanked (hidden from unified routes, legacy history preserved) |
+
+#### Forking, lineage, visibility & sharing
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `POST /api/v1/hub/assets/{asset_type}/{slug}/fork` | Bearer JWT/API key + artifact `FORK` permission | optional `?share_token=`; body `{new_slug?}` | `201` fork detail; copies/hard-links bytes into a private child; `409` slug already exists; `422` invalid slug; `404` no access |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/forks` | none or JWT/cookie | optional `?share_token=` | `200 {asset_type, slug, fork_count, results[]}`; only descendants visible to the caller |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/lineage` | none or JWT/cookie | optional `?share_token=` | `200 {ancestors[], children[], permissions[], …}`; hidden ancestors/forks are filtered out |
+| `PUT /api/v1/hub/assets/{asset_type}/{slug}/visibility` | JWT/cookie + artifact `ADMIN` permission | `{visibility:"public"\|"private"}` | `200 {status:"updated", asset_type, slug, visibility, permissions[]}`; `403` without ADMIN; `422` if a PCAP/blueprint fails public sanitization |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/shares` | JWT/cookie + artifact `ADMIN` permission | — | `200 {asset_type, slug, total, results[]}` of user/tenant/email grants |
+| `POST /api/v1/hub/assets/{asset_type}/{slug}/shares` | JWT/cookie + artifact `ADMIN` permission | `{grantee_type:"user"\|"tenant"\|"email", grantee_id?, grantee_email?, permission:"VIEW"\|"FORK"\|"DEPLOY"\|"ADMIN", expires_at?}` | `201` share grant; `422` missing/invalid grantee or permission; matching grants are updated in place |
+| `DELETE /api/v1/hub/assets/{asset_type}/{slug}/shares/{share_id}` | JWT/cookie + artifact `ADMIN` permission | — | `200 {status:"deleted", share_id}`; `404` unknown share for this artifact |
+| `GET /api/v1/hub/assets/{asset_type}/{slug}/share-links` | JWT/cookie + artifact `ADMIN` permission | — | `200 {asset_type, slug, total, results[]}`; metadata only, the token secret is never returned by list |
+| `POST /api/v1/hub/assets/{asset_type}/{slug}/share-links` | JWT/cookie + artifact `ADMIN` permission | `{permission:"VIEW"\|"FORK"\|"DEPLOY", expires_at?, expires_in_hours=24, max_uses?}` | `201` link including the one-time `token` and public `url`; `422` invalid permission/expiry/max uses |
+| `DELETE /api/v1/hub/assets/{asset_type}/{slug}/share-links/{link_id}` | JWT/cookie + artifact `ADMIN` permission | — | `200 {status:"revoked", link_id}`; `404` unknown link for this artifact |
+| `GET /api/v1/hub/shares/received` | JWT/cookie | — | `200 {total, results[]}` of artifacts explicitly granted to the caller’s user, tenant, or email |
+| `GET /api/v1/hub/shares/links/{token}` | none | — | `200 {valid:true, link, asset, download_url}` with a `?share_token=<token>` download URL; `404` invalid/expired/revoked/exhausted; `410` asset gone |
+
+`share_token` also unlocks detail/readme/download/signature/forks/lineage for a
+share-link recipient who is not otherwise authorized.
 
 #### Member session uploads & owned/shared views
 
@@ -487,10 +524,22 @@ developer-token publish chain above remains available and unchanged.
 | `POST /api/v1/member/artifacts` | JWT or SSO cookie | multipart `asset_type!`, `file!`, `manifest!`, optional `signature`, `visibility=private` | `201` workspace upload result (`status`, `asset_type`, `slug`, `asset_id`, `visibility`, `download_url`, `detail`); browser uploads are server-signed when `signature` is omitted; `403` only for non-super-admin appliance uploads |
 | `GET /api/v1/member/artifacts/{asset_type}/{slug}` | JWT or SSO cookie | — | Full artifact detail visible to the caller |
 
-The existing dashboard workspace routes remain at
-`GET/POST/PATCH/DELETE /api/v1/workspace/artifacts`; both surfaces share the
-same upload pipeline and authorization rules. Tests:
-`tests/test_member_artifacts.py`, `tests/test_workspace_artifacts.py`.
+#### Private workspace routes (`app/routers/workspace_artifacts.py`)
+
+Both the dashboard and member APIs share this upload pipeline and the same
+authorization rules.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/workspace/artifacts` | JWT or SSO cookie | `?scope=private\|shared\|public\|all\|owned&type=all&q=&industry=&page=1&limit=20&sort=latest` | Paginated catalog; default `private`; `owned` = exact uploader; `400` unknown scope |
+| `POST /api/v1/workspace/artifacts` | JWT or SSO cookie | multipart `asset_type!`, `file!`, `manifest!`, optional `signature`, `visibility=private` | `201` workspace upload result; server-signed when `signature` is omitted; appliances delegate to the authority-signed publish path |
+| `GET /api/v1/workspace/artifacts/{asset_type}/{slug}` | JWT or SSO cookie | — | Full artifact detail with signature status; `403` when not authorized, `404` unknown |
+| `PATCH /api/v1/workspace/artifacts/{asset_type}/{slug}` | JWT/cookie + `ADMIN` | `{name?, description?, readme_markdown?, manifest?, visibility?}` | `200` updated detail; `403` without ADMIN; `422` if public PCAP/blueprint sanitization fails |
+| `DELETE /api/v1/workspace/artifacts/{asset_type}/{slug}` | JWT/cookie + `ADMIN` | — | Revokes/deletes like the unified Hub delete route; appliances remain super-admin-only; `404` unknown |
+
+Tests: `tests/test_member_artifacts.py`, `tests/test_workspace_artifacts.py`,
+`tests/test_artifact_forking.py`, `tests/test_artifact_sharing.py`,
+`tests/test_artifact_visibility.py`.
 
 Signatures for seeded stand-ins are generated lazily with a deployment key derived from `SECRET_KEY`; developer publications persist the uploaded author signature and public key in `hub_asset_meta`. Tests: `tests/test_hub_assets_api.py`.
 
