@@ -171,7 +171,7 @@ async def _issue_row(
             days_valid=days_valid,
             max_nodes=max_nodes,
         )
-    except LicenseKeyError as exc:
+    except lic.LicenseKeyError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     claims = envelope["claims"]
     row = License(
