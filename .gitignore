@@ -27,6 +27,7 @@ dashboard/.DS_Store
 
 backend/.venv
 backend/.DS_Store
+backend/storage/matrix/
 
 !dashboard/.env
 !main/.env

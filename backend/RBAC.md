@@ -1,6 +1,6 @@
 # Aryorithm RBAC Report
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-06
 
 Source of truth:
 
@@ -57,6 +57,7 @@ They can access nearly all tenant-scoped read pages and several operational writ
 - Audit logs
 - Hub catalog and public artifacts
 - Upload artifacts through dashboard/Hub, except official appliances
+- Read the Scenario Graph Studio library and component palette
 - Create/revoke their own Hub CLI publishing tokens
 - Fork artifacts and manage sharing on artifacts they own
 
@@ -69,6 +70,7 @@ They **cannot** use admin-only write/configuration routes.
 - Fleet administration: restart/decommission nodes, create groups/enclaves, ZTP tokens, purge kernel rules
 - AI/OTA: model upload, OTA stage/advance/rollback, Forge training, silicon compiler
 - Visual Threat Blueprints: create, update, compile, deploy, delete
+- Scenario Graph Studio: create, update, compile, bundle/publish, launch, delete
 - Model Vault: upload artifact, safety verification, promotion
 - DFIR: firmware dissection
 - Cyber Range: create twins, provision/pause/resume/terminate instances, certify resilience
@@ -117,6 +119,8 @@ Important: `super_admin` is **not global on every module**. Many operational end
 | Threat read + broadcast | Yes | Yes | Yes |
 | Blueprint read | Yes | Yes | Yes |
 | Blueprint create / compile / deploy / delete | No | Yes | Yes |
+| Scenario Graph Studio read / palette | Yes | Yes | Yes |
+| Scenario Studio create / compile / bundle / launch / delete | No | Yes | Yes |
 | AI model reads / OTA status | Yes | Yes | Yes |
 | AI model upload / OTA writes / Forge / compiler | No | Yes | Yes |
 | TRiSM evaluate | Yes | Yes | Yes |
@@ -151,6 +155,7 @@ Important: `super_admin` is **not global on every module**. Many operational end
 - The dashboard sidebar is **not role-filtered**. Non-admin users can open most pages; the backend then returns `403` for protected actions.
 - Only `/settings` and `/settings/emergency-sla` are wrapped in the frontend `RequireAdmin` gate.
 - Visual Threat Blueprints are readable by everyone, but edit controls are hidden unless the role is admin.
+- Scenario Graph Studio library/palette reads are available to logged-in users; save, compile, bundle/publish, launch and delete controls are disabled unless the role is admin.
 - Artifact upload disables appliance selection unless the user is `super_admin`.
 - The Hub developer portal is available to any logged-in user; normal JWT sessions are treated as full developer identities for non-appliance publishing.
 - Role badges on dashboard/Hub/main are display-only.

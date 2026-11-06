@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     HUB_BLUEPRINTS_DIR: str = "storage/hub/blueprints"
     HUB_APPLIANCES_DIR: str = "storage/hub/appliances"
     HUB_APPLIANCE_MAX_UPLOAD_BYTES: int = 2147483648
+    # Compiled/bundled Scenario Graph Studio artifacts.  Publishing also
+    # copies the exact bundle into the Hub scenario vault.
+    MATRIX_SCENARIO_DIR: str = "storage/matrix/scenarios"
 
     # Cloud Model Vault (AI model registry) artifact vault. Layout mirrors
     # the S3 URI scheme: models/{slug}/{version}/{format_dir}/{file}.

@@ -57,6 +57,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { title: "DFIR & Evidence Vault", url: "/forensics/evidence", icon: "◎" },
       { title: "Digital Twins & Replay", url: "/range/digital-twins", icon: "⬣" },
+      { title: "Scenario Graph Studio", url: "/matrix/scenario-studio", icon: "⬢", badge: "GRAPH", highlight: "green" },
       { title: "Sentinel-Lab Research Bench", url: "/range/lab-bench", icon: "⬔", badge: "14D", highlight: "green" },
     ],
   },

@@ -3,7 +3,7 @@
 Base URL (local): `http://localhost:8000` · All routers mount under `/api/v1`
 (see `app/main.py`). Interactive docs: `http://localhost:8000/docs`.
 
-Companion test suite: `tests/test_*.py` (144 tests — 141 pass + 3 opt-in
+Companion test suite: `tests/test_*.py` (149 tests — 146 pass + 3 opt-in
 skips; every served route covered).
 Run it with:
 
@@ -149,6 +149,53 @@ Tests: `tests/test_blueprints.py` (CRUD/id generation/aliases, catalog shape,
 YAML compilation of the Substation Alpha graph, empty/unknown-type/missing-input/
 type-mismatch/bad-port/cycle rejection, edit invalidation, deploy idempotency,
 RBAC and cross-tenant isolation).
+
+---
+
+## 3b. Scenario Graph Studio — `app/routers/scenarios_studio.py`
+
+Powering the dashboard's `app.aryorithm.com/matrix/scenario-studio` page.
+Graphs are tenant-scoped visual topologies stored in normalized
+`scenario_studio_graphs`, `scenario_studio_subnets`, `scenario_studio_nodes`
+and `scenario_studio_links` tables. The palette exposes exactly four
+categories: `NETWORKS`, `PLCS_AND_CONTROLLERS`, `FIELD_SENSORS` and
+`SIMULATION_ACTORS`. Compile validates CIDR overlap, IP allocation, host-port
+uniqueness and air-gap invariants, then emits `scenario.yaml`. Bundle writes a
+`scenario_<name>.tar.gz` containing `scenario.yaml`,
+`manifest.json` and `README.md`; the optional `?publish_to_hub=true` flag also
+copies the archive into the Hub scenario vault and upserts `hub_scenarios` so
+`GET /api/v1/hub/scenarios/{slug}/download` keeps serving it.
+
+| Method & Path | Auth | Request | Response / Notes |
+|---|---|---|---|
+| `GET /api/v1/matrix-scenarios` | user | — | tenant graph metadata list with subnet/node/link counts, status and compile/bundle/launch timestamps; no topology payload |
+| `GET /api/v1/matrix-scenarios/palette` | user | — | four-category palette with `SUBNET_BRIDGE`, `SUBNET_AIRGAP`, PLC/IED/ODE, sensor and simulation-actor items; declared before `/{scenario_id}` |
+| `GET /api/v1/matrix-scenarios/{scenario_id}` | user | — | full `subnets[]`, `nodes[]`, `links[]`, compiled YAML, bundle and last-launch metadata; `404` unknown/other tenant |
+| `POST /api/v1/matrix-scenarios` | admin | `{scenario_id?, name!, target_sector!, description, subnets[], nodes[], links[]}` | `201` new / `200` update by tenant + `scenario_id`; id omitted → `scen_<random>`; saving resets compile/bundle state; `400` blank name or duplicate child ids |
+| `DELETE /api/v1/matrix-scenarios/{scenario_id}` | admin | — | `{status:"DELETED", scenario_id}`; removes normalized children; `404` unknown/other tenant |
+| `POST /api/v1/matrix-scenarios/{scenario_id}/compile` | admin | — | validates CIDR validity/overlap, gateways, IP allocation, host-port uniqueness and air-gap WAN/route invariants; `200 {status:"VALIDATED"|"BUNDLED"|"LAUNCHED", valid:true, compiled_yaml, errors[], warnings[], issues[]}`; `400 detail={status:"INVALID_TOPOLOGY", scenario_id, errors[], warnings[], issues[]}` |
+| `POST /api/v1/matrix-scenarios/{scenario_id}/bundle` | admin | `?publish_to_hub=false` | compiles and streams `application/gzip` as `scenario_<name>.tar.gz` with `Content-Disposition`, `X-Checksum-Sha256`, `X-Scenario-Id`; `400` invalid topology; optional Hub publish returns `X-Hub-Slug`; cross-tenant slug collisions are tenant-prefixed |
+| `POST /api/v1/matrix-scenarios/{scenario_id}/launch` | admin | `{agent_id?}` | compiles and dispatches to an online tenant `nodes` agent; `200 {status:"DISPATCHED", launch_id, agent_id, agent_status, compiled_sha256, …}` or `202 {status:"QUEUED", agent_id:null, agent_status:"AWAITING_AGENT", …}` |
+
+Compile rules: subnet ids/CIDRs are unique and non-overlapping; each gateway
+is inside its subnet and not network/broadcast; every node references a known
+subnet and its IP is inside that subnet, not the gateway or `.1` reserved host,
+and cannot collide within the subnet; host-port mappings (`host:container`)
+must be unique across containers; `wan_egress:true` on an `internal:true`
+subnet is rejected, and `ROUTE`/`WAN`/`UPLINK` links crossing to an air-gapped
+subnet require a node marked `firewall:true`. Warnings cover empty subnets,
+missing adversary/attack links, non-`.1` gateways and malformed attack payload
+hex. `scenario.yaml` carries `version`, `scenario`, `networks`, `nodes`
+(plus a `devices` compatibility alias), `links` and
+`execution.attack_waves`.
+
+Tests: `tests/test_scenario_studio.py` (exact palette shape, CRUD/upsert,
+generated ids, normalized detail reconstruction, all five compile rules,
+bundle tar contents/checksum, Hub publish and cross-tenant slug collision,
+launch queue/dispatch, RBAC and tenant isolation).
+MySQL DDL: `migrations/2026_11_06_scenario_studio.sql`; bundles live under
+`storage/matrix/scenarios` and the copied Hub artifact under
+`storage/packages/scenarios/<slug>/`.
 
 ---
 

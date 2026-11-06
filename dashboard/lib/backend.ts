@@ -1172,6 +1172,159 @@ export interface BlueprintDeployResult {
   config_sha256: string;
 }
 
+/* ---------- Scenario Graph Studio ---------- */
+export type PurdueLevel = 0 | 1 | 2 | 3 | 4;
+
+export type ScenarioStudioStatus =
+  | "DRAFT"
+  | "VALIDATED"
+  | "BUNDLED"
+  | "LAUNCHED";
+
+export interface ScenarioPaletteItem {
+  type: string;
+  label: string;
+  default_subnet?: string;
+  internal?: boolean;
+  description?: string;
+  protocols?: string[];
+  default_ports?: number[];
+  default_port?: number;
+  image?: string;
+  tools?: string[];
+  [key: string]: unknown;
+}
+
+export interface ScenarioPaletteCategory {
+  category: string;
+  items: ScenarioPaletteItem[];
+}
+
+export interface ScenarioPalette {
+  categories: ScenarioPaletteCategory[];
+}
+
+export interface ScenarioSubnet {
+  id: string;
+  name: string;
+  cidr: string;
+  gateway: string;
+  internal: boolean;
+  purdue_level: PurdueLevel;
+}
+
+export interface ScenarioNode {
+  id: string;
+  name: string;
+  type: string;
+  subnet_id: string | null;
+  ip: string;
+  image: string;
+  protocols: string[];
+  ports: string[];
+  config: Record<string, unknown>;
+  x: number;
+  y: number;
+}
+
+export interface ScenarioLink {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  kind: string;
+  label: string;
+  protocol: string;
+  config: Record<string, unknown>;
+}
+
+export interface ScenarioGraphPayload {
+  scenario_id?: string;
+  name: string;
+  target_sector: string;
+  description: string;
+  subnets: ScenarioSubnet[];
+  nodes: ScenarioNode[];
+  links: ScenarioLink[];
+}
+
+export interface ScenarioGraphSummary {
+  scenario_id: string;
+  name: string;
+  target_sector: string;
+  description: string;
+  status: string;
+  subnet_count: number;
+  node_count: number;
+  link_count: number;
+  compiled_at: string | null;
+  bundled_at: string | null;
+  last_launched_at: string | null;
+  hub_slug: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScenarioGraphDetail extends ScenarioGraphSummary {
+  subnets: ScenarioSubnet[];
+  nodes: ScenarioNode[];
+  links: ScenarioLink[];
+  compiled_yaml: string | null;
+  bundle_name: string | null;
+  bundle_size_bytes: number | null;
+  bundle_sha256: string | null;
+  hub_url: string | null;
+  last_launch_id: string | null;
+  last_launch_agent_id: string | null;
+  last_launch_status: string | null;
+  last_launch_message: string | null;
+}
+
+export interface ScenarioGraphSaveResult {
+  scenario_id: string;
+  status: string;
+  subnet_count: number;
+  node_count: number;
+  link_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScenarioCompileIssue {
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+  subnet_id?: string | null;
+  node_id?: string | null;
+  link_id?: string | null;
+}
+
+export interface ScenarioCompileResult {
+  status: ScenarioStudioStatus | "INVALID_TOPOLOGY";
+  valid: boolean;
+  scenario_id: string;
+  compiled_yaml: string | null;
+  errors: string[];
+  warnings: string[];
+  issues: ScenarioCompileIssue[];
+  compiled_at: string | null;
+}
+
+export interface ScenarioLaunchResult {
+  status: "DISPATCHED" | "QUEUED";
+  scenario_id: string;
+  launch_id: string;
+  agent_id: string | null;
+  agent_status: string;
+  message: string;
+  dispatched_at: string;
+  compiled_sha256: string;
+}
+
+export interface ScenarioDeleteResult {
+  status: string;
+  scenario_id: string;
+}
+
 const get = <T>(endpoint: string, token: string | null) =>
   api.get<T>(endpoint, token);
 
@@ -1547,6 +1700,52 @@ export const backend = {
     api.post<BlueprintDeployResult>(
       `/blueprints/${encodeURIComponent(blueprintId)}/deploy`,
       {},
+      t
+    ),
+
+  // Scenario Graph Studio
+  matrixScenarios: (t: string | null) =>
+    get<ScenarioGraphSummary[]>("/matrix-scenarios", t),
+  matrixScenario: (scenarioId: string, t: string | null) =>
+    get<ScenarioGraphDetail>(
+      `/matrix-scenarios/${encodeURIComponent(scenarioId)}`,
+      t
+    ),
+  matrixScenarioPalette: (t: string | null) =>
+    get<ScenarioPalette>("/matrix-scenarios/palette", t),
+  saveMatrixScenario: (body: ScenarioGraphPayload, t: string | null) =>
+    api.post<ScenarioGraphSaveResult>("/matrix-scenarios", body, t),
+  deleteMatrixScenario: (scenarioId: string, t: string | null) =>
+    api.delete<ScenarioDeleteResult>(
+      `/matrix-scenarios/${encodeURIComponent(scenarioId)}`,
+      t
+    ),
+  compileMatrixScenario: (scenarioId: string, t: string | null) =>
+    api.post<ScenarioCompileResult>(
+      `/matrix-scenarios/${encodeURIComponent(scenarioId)}/compile`,
+      {},
+      t
+    ),
+  bundleMatrixScenario: (
+    scenarioId: string,
+    t: string | null,
+    publishToHub = false
+  ) =>
+    api.postBlob(
+      `/matrix-scenarios/${encodeURIComponent(scenarioId)}/bundle${
+        publishToHub ? "?publish_to_hub=true" : ""
+      }`,
+      {},
+      t
+    ),
+  launchMatrixScenario: (
+    scenarioId: string,
+    t: string | null,
+    agentId?: string | null
+  ) =>
+    api.post<ScenarioLaunchResult>(
+      `/matrix-scenarios/${encodeURIComponent(scenarioId)}/launch`,
+      agentId ? { agent_id: agentId } : {},
       t
     ),
 

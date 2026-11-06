@@ -40,6 +40,13 @@ from app.models.forge import ForgeJob
 from app.models.modelvault import AIModel, AIModelVersion, AIModelArtifact
 from app.models.overview import OverviewMetric, XAIAttribution, LatencyDistribution
 from app.models.blueprint import ThreatBlueprint, BlueprintStatus
+from app.models.scenario_studio import (
+    ScenarioGraph,
+    ScenarioNode,
+    ScenarioLink,
+    ScenarioStudioStatus,
+    ScenarioSubnet,
+)
 
 __all__ = [
     "User", "Tenant", "RefreshToken",
@@ -63,4 +70,6 @@ __all__ = [
     "AIModel", "AIModelVersion", "AIModelArtifact",
     "OverviewMetric", "XAIAttribution", "LatencyDistribution",
     "ThreatBlueprint", "BlueprintStatus",
+    "ScenarioGraph", "ScenarioSubnet", "ScenarioNode", "ScenarioLink",
+    "ScenarioStudioStatus",
 ]

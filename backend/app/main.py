@@ -25,6 +25,7 @@ from app.routers import forge as forge_router, hub_assets as hub_assets_router, 
 from app.routers import hub_blueprints as hub_blueprints_router, hub_appliances as hub_appliances_router
 from app.routers import workspace_artifacts as workspace_artifacts_router
 from app.routers import member_artifacts as member_artifacts_router
+from app.routers import scenarios_studio as scenarios_studio_router
 
 
 @asynccontextmanager
@@ -136,6 +137,7 @@ app.include_router(hub_appliances_router.router, prefix="/api/v1")
 app.include_router(telemetry_router.router, prefix="/api/v1")
 app.include_router(forge_router.router, prefix="/api/v1")
 app.include_router(blueprints_router.router, prefix="/api/v1")
+app.include_router(scenarios_studio_router.router, prefix="/api/v1")
 
 
 @app.get("/v1/models", include_in_schema=False)
